@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 
 type Game = {
   name: string;
+  developer: string | null;
   country: string;
   platforms: string[];
   genres: string[];
@@ -40,20 +41,30 @@ export default async function Home({
     country?: string;
     platform?: string;
     status?: string;
+    q?: string;
   }>;
 }) {
   const params = await searchParams;
+  const q = params.q?.trim() ?? "";
 
   let query = supabase
     .from("games")
     .select(
-      "name, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description"
+      "name, developer, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description"
     )
     .order("created_at", { ascending: false });
 
   if (params.country) query = query.eq("country", params.country);
   if (params.platform) query = query.contains("platforms", [params.platform]);
   if (params.status) query = query.eq("status", params.status);
+
+  if (q) {
+    // name + developer: case-insensitive partial match
+    // genres: exact element match (controlled vocabulary)
+    query = query.or(
+      `name.ilike.%${q}%,developer.ilike.%${q}%,genres.cs.{${q}}`
+    );
+  }
 
   const { data: games, error } = await query;
 
@@ -67,17 +78,25 @@ export default async function Home({
 
   const typedGames: Game[] = games ?? [];
 
+  // Filter links preserve the active search query
+  const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
   const filters = [
-    { label: "All", href: "/", active: !params.platform && !params.status },
-    { label: "PC", href: "/?platform=PC", active: params.platform === "PC" },
-    { label: "Mobile", href: "/?platform=Mobile", active: params.platform === "Mobile" },
-    { label: "Released", href: "/?status=released", active: params.status === "released" },
-    { label: "In Dev", href: "/?status=in_dev", active: params.status === "in_dev" },
+    { label: "All", href: q ? `/?q=${encodeURIComponent(q)}` : "/", active: !params.platform && !params.status },
+    { label: "PC", href: `/?platform=PC${qParam}`, active: params.platform === "PC" },
+    { label: "Mobile", href: `/?platform=Mobile${qParam}`, active: params.platform === "Mobile" },
+    { label: "Released", href: `/?status=released${qParam}`, active: params.status === "released" },
+    { label: "In Dev", href: `/?status=in_dev${qParam}`, active: params.status === "in_dev" },
   ];
+
+  // Clear-search href preserves active filter
+  const clearSearchHref =
+    params.platform ? `/?platform=${params.platform}`
+    : params.status ? `/?status=${params.status}`
+    : "/";
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
-      <header className="mb-10">
+      <header className="mb-8">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-c-text">
@@ -96,6 +115,40 @@ export default async function Home({
         </div>
       </header>
 
+      {/* Search */}
+      <form method="get" action="/" className="relative mb-4">
+        {params.platform && (
+          <input type="hidden" name="platform" value={params.platform} />
+        )}
+        {params.status && (
+          <input type="hidden" name="status" value={params.status} />
+        )}
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search by name, developer, or genre…"
+          className="w-full bg-c-surface border border-c-border rounded-xl px-4 py-2.5 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors pr-20"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {q && (
+            <Link
+              href={clearSearchHref}
+              className="text-xs text-c-faint hover:text-c-muted px-2 py-1 transition-colors"
+            >
+              Clear
+            </Link>
+          )}
+          <button
+            type="submit"
+            className="text-xs bg-c-tag text-c-soft px-3 py-1 rounded-lg hover:bg-c-border transition-colors"
+          >
+            Search
+          </button>
+        </div>
+      </form>
+
+      {/* Filters + count */}
       <div className="flex items-center gap-2 flex-wrap mb-6">
         {filters.map((f) => (
           <Link
@@ -115,6 +168,7 @@ export default async function Home({
         </span>
       </div>
 
+      {/* Game list */}
       <div className="grid gap-3">
         {typedGames.length === 0 ? (
           <div className="text-center py-16 text-c-muted">
@@ -133,14 +187,19 @@ export default async function Home({
               className="bg-c-surface border border-c-border rounded-xl p-5 hover:border-c-border-hover transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-semibold text-c-text leading-snug">
-                  <Link
-                    href={`/games/${g.slug}`}
-                    className="hover:text-indigo-500 transition-colors"
-                  >
-                    {g.name}
-                  </Link>
-                </h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-c-text leading-snug">
+                    <Link
+                      href={`/games/${g.slug}`}
+                      className="hover:text-indigo-500 transition-colors"
+                    >
+                      {g.name}
+                    </Link>
+                  </h2>
+                  {g.developer && (
+                    <p className="text-xs text-c-faint mt-0.5">{g.developer}</p>
+                  )}
+                </div>
                 <span
                   className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
                     STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"

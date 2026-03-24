@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   const { error: insertError } = await supabase.from("games").insert({
     slug: submission.payload.slug,
     name: submission.payload.name,
+    developer: submission.payload.developer ?? null,
     country: submission.payload.country,
     platforms: submission.payload.platforms,
     genres: submission.payload.genres,

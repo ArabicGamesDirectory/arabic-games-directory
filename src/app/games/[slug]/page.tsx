@@ -5,6 +5,7 @@ type Game = {
   id: string;
   slug: string;
   name: string;
+  developer: string | null;
   country: string;
   platforms: string[];
   genres: string[];
@@ -77,6 +78,9 @@ export default async function GameDetails({
           <h1 className="text-3xl font-bold tracking-tight text-c-text">
             {game.name}
           </h1>
+          {game.developer && (
+            <p className="text-sm text-c-muted mt-1 w-full">{game.developer}</p>
+          )}
           <span
             className={`mt-1 text-xs font-medium px-2.5 py-1 rounded-full ${
               STATUS_CLASSES[game.status] ?? "bg-c-tag text-c-muted"

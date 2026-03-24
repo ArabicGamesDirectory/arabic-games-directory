@@ -17,6 +17,7 @@ type Submission = {
   payload: {
     name: string;
     slug: string;
+    developer: string | null;
     country: string;
     platforms: string[];
     genres: string[];
@@ -241,7 +242,12 @@ export default function AdminPage() {
               className="bg-c-surface border border-c-border rounded-xl p-5"
             >
               <div className="flex items-start justify-between gap-3 mb-2">
-                <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                  {s.payload.developer && (
+                    <p className="text-xs text-c-faint mt-0.5">{s.payload.developer}</p>
+                  )}
+                </div>
                 <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
                   {STATUS_LABELS[s.payload.status] ?? s.payload.status}
                 </span>

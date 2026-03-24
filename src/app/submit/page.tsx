@@ -5,7 +5,8 @@
 // ALTER TABLE games
 //   ADD COLUMN IF NOT EXISTS gameplay_modes text[] DEFAULT '{}',
 //   ADD COLUMN IF NOT EXISTS game_engine     text,
-//   ADD COLUMN IF NOT EXISTS monetization    text[] DEFAULT '{}';
+//   ADD COLUMN IF NOT EXISTS monetization    text[] DEFAULT '{}',
+//   ADD COLUMN IF NOT EXISTS developer       text;
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -41,6 +42,7 @@ export default function SubmitPage() {
     const payload = {
       name,
       slug: slugify(name),
+      developer: String(form.get("developer") || "").trim() || null,
       country: String(form.get("country") || "").trim(),
       platforms: form.getAll("platforms") as string[],
       genres: String(form.get("genres") || "")
@@ -112,6 +114,10 @@ export default function SubmitPage() {
 
           <Field label="Game name" required>
             <input id="name" name="name" required className={inputClass} placeholder="e.g. Desert Quest" />
+          </Field>
+
+          <Field label="Developer / Studio">
+            <input id="developer" name="developer" className={inputClass} placeholder="e.g. Semaphore Studios" />
           </Field>
 
           <Field label="Country" required>

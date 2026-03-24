@@ -74,6 +74,7 @@ Vercel has the same variables set in project settings.
 | short_description | text | not null |
 | release_date | date | nullable |
 | status | game_status enum | announced / in_dev / early_access / released / cancelled |
+| developer | text | nullable, e.g. 'Semaphore Studios' |
 | gameplay_modes | text[] | e.g. ['Single Player', 'Co-op'] |
 | game_engine | text | nullable, e.g. 'Unity' |
 | monetization | text[] | e.g. ['Free', 'IAP'] |
@@ -108,7 +109,7 @@ Vercel has the same variables set in project settings.
 3. ~~Controlled dropdowns for platform on submit form~~ ✓ Done (platforms, gameplay modes, monetization are now checkboxes; game engine uses datalist). Genres and country are still free text.
 4. URL validation on website and store link fields
 5. Slug collision handling on approve (check uniqueness, auto-append suffix if clash)
-6. Search by game name or developer
+6. ~~Search by game name or developer~~ ✓ Done (server-side via `?q=` param; searches name + developer with `ilike`, genres with exact `cs` match; filters and search compose together)
 7. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
 8. Email notification to submitter on approve/reject
 9. Charts on stats page instead of plain lists
@@ -122,6 +123,7 @@ Vercel has the same variables set in project settings.
 - **Admin flow:** Admin signs in with Supabase email/password auth → page loads pending submissions → clicking Approve/Reject calls a server-side API route (`/api/approve` or `/api/reject`) which verifies the session cookie and admin email before writing to the DB.
 - **Admin auth:** `admin/page.tsx` uses `createBrowserClient` from `@supabase/auth-helpers-nextjs` (stores session in cookies, not localStorage) so the session is readable by the server-side API routes. The shared `supabase` client in `lib/supabase.ts` is only used by non-admin pages.
 - **Server routes auth:** `/api/approve` and `/api/reject` use `createServerClient` from `@supabase/auth-helpers-nextjs` to read the session from cookies and verify `user.email === NEXT_PUBLIC_ADMIN_EMAIL` before any DB write.
+- **Search:** Homepage accepts a `?q=` URL param (server-side, no JS required). Supabase `.or()` matches `name.ilike.%q%`, `developer.ilike.%q%`, and `genres.cs.{q}` (exact element match for genres). Search and filter pills compose — each preserves the other in the URL.
 - Pages that read from `games` are: homepage (`page.tsx`), game detail (`games/[slug]/page.tsx`), stats (`stats/page.tsx`). All use the anon Supabase client.
 - The admin page is `"use client"` and uses Supabase Auth client-side. All other data-fetching pages are server components.
 - **Theming:** Three themes — light (default), gray, dark — defined as CSS custom properties in `globals.css` (`:root`, `.theme-gray`, `.theme-dark`). Registered as Tailwind utilities via `@theme inline` (e.g. `bg-c-surface`, `text-c-text`, `border-c-border`). Never use hardcoded `zinc-*` color classes in page components — always use the semantic `c-*` tokens so themes work. Accent colors (indigo, emerald, red, status badges) are intentionally fixed and do not theme-switch. The `ThemeToggle` component persists the choice to `localStorage`; `layout.tsx` has an inline script in `<head>` to apply the saved theme before hydration to prevent flash.
