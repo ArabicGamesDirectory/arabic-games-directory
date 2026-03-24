@@ -74,8 +74,11 @@ Vercel has the same variables set in project settings.
 | short_description | text | not null |
 | release_date | date | nullable |
 | status | game_status enum | announced / in_dev / early_access / released / cancelled |
+| gameplay_modes | text[] | e.g. ['Single Player', 'Co-op'] |
+| game_engine | text | nullable, e.g. 'Unity' |
+| monetization | text[] | e.g. ['Free', 'IAP'] |
 | website_url | text | nullable |
-| store_links | jsonb | keys: Steam, Google Play, App Store, Itch |
+| store_links | jsonb | keys: Steam, Google Play, App Store, PlayStation, Xbox, Nintendo, Itch, Others |
 | created_at | timestamptz | default now() |
 | updated_at | timestamptz | auto-updated via trigger |
 
@@ -102,7 +105,7 @@ Vercel has the same variables set in project settings.
 ### Planned improvements (in rough priority order)
 1. ~~Server-side admin API routes (security)~~ ✓ Done
 2. ~~Tailwind for UI (replacing inline styles)~~ ✓ Done
-3. Controlled dropdowns for country, platform, genre on submit form (instead of free text)
+3. ~~Controlled dropdowns for platform on submit form~~ ✓ Done (platforms, gameplay modes, monetization are now checkboxes; game engine uses datalist). Genres and country are still free text.
 4. URL validation on website and store link fields
 5. Slug collision handling on approve (check uniqueness, auto-append suffix if clash)
 6. Search by game name or developer
@@ -115,7 +118,7 @@ Vercel has the same variables set in project settings.
 ## Key conventions
 
 - **Slugs** are generated from the game name via `slugify()` in `src/lib/slug.ts` at submission time. They live in `payload.slug` and are copied to `games.slug` on approve.
-- **Store links** are stored as `{ Steam: url|null, "Google Play": url|null, "App Store": url|null, Itch: url|null }` in both submissions payload and the games table.
+- **Store links** are stored as `{ Steam, "Google Play", "App Store", PlayStation, Xbox, Nintendo, Itch, Others }` (all `url|null`) in both submissions payload and the games table. Rendered dynamically via `Object.entries` so adding new keys only requires updating the submit form.
 - **Admin flow:** Admin signs in with Supabase email/password auth → page loads pending submissions → clicking Approve/Reject calls a server-side API route (`/api/approve` or `/api/reject`) which verifies the session cookie and admin email before writing to the DB.
 - **Admin auth:** `admin/page.tsx` uses `createBrowserClient` from `@supabase/auth-helpers-nextjs` (stores session in cookies, not localStorage) so the session is readable by the server-side API routes. The shared `supabase` client in `lib/supabase.ts` is only used by non-admin pages.
 - **Server routes auth:** `/api/approve` and `/api/reject` use `createServerClient` from `@supabase/auth-helpers-nextjs` to read the session from cookies and verify `user.email === NEXT_PUBLIC_ADMIN_EMAIL` before any DB write.

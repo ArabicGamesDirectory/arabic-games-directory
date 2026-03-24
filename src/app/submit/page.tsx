@@ -1,9 +1,29 @@
 "use client";
 
+// TODO: Run this migration in the Supabase SQL editor before deploying:
+//
+// ALTER TABLE games
+//   ADD COLUMN IF NOT EXISTS gameplay_modes text[] DEFAULT '{}',
+//   ADD COLUMN IF NOT EXISTS game_engine     text,
+//   ADD COLUMN IF NOT EXISTS monetization    text[] DEFAULT '{}';
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
 import Link from "next/link";
+
+const PLATFORM_OPTIONS = [
+  "iOS", "Android", "Windows", "macOS", "Linux",
+  "Web", "PlayStation", "Xbox", "Nintendo Switch",
+];
+
+const GAMEPLAY_MODE_OPTIONS = [
+  "Single Player", "Multiplayer", "Co-op", "PvP", "MMO",
+];
+
+const MONETIZATION_OPTIONS = [
+  "Free", "Premium", "Ads", "In-App Purchases", "Subscription",
+];
 
 export default function SubmitPage() {
   const [loading, setLoading] = useState(false);
@@ -22,14 +42,14 @@ export default function SubmitPage() {
       name,
       slug: slugify(name),
       country: String(form.get("country") || "").trim(),
-      platforms: String(form.get("platforms") || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      platforms: form.getAll("platforms") as string[],
       genres: String(form.get("genres") || "")
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
+      gameplay_modes: form.getAll("gameplay_modes") as string[],
+      game_engine: String(form.get("game_engine") || "").trim() || null,
+      monetization: form.getAll("monetization") as string[],
       short_description: String(form.get("short_description") || "").trim(),
       status: String(form.get("status") || "announced"),
       release_date: String(form.get("release_date") || "").trim() || null,
@@ -39,6 +59,10 @@ export default function SubmitPage() {
         "Google Play": String(form.get("google_play") || "").trim() || null,
         "App Store": String(form.get("app_store") || "").trim() || null,
         Itch: String(form.get("itch") || "").trim() || null,
+        Others: String(form.get("others") || "").trim() || null,
+        PlayStation: String(form.get("playstation") || "").trim() || null,
+        Xbox: String(form.get("xbox") || "").trim() || null,
+        Nintendo: String(form.get("nintendo") || "").trim() || null,
       },
     };
 
@@ -94,14 +118,6 @@ export default function SubmitPage() {
             <input id="country" name="country" required className={inputClass} placeholder="e.g. Iraq, Saudi Arabia, Egypt" />
           </Field>
 
-          <Field label="Platforms" required hint="Comma separated">
-            <input id="platforms" name="platforms" required className={inputClass} placeholder="PC, Mobile, Console" />
-          </Field>
-
-          <Field label="Genres" required hint="Comma separated">
-            <input id="genres" name="genres" required className={inputClass} placeholder="Action, Puzzle, RPG" />
-          </Field>
-
           <Field label="Short description" required>
             <textarea
               id="short_description"
@@ -113,14 +129,13 @@ export default function SubmitPage() {
             />
           </Field>
 
+          <Field label="Genres" required hint="Comma separated">
+            <input id="genres" name="genres" required className={inputClass} placeholder="Action, Puzzle, RPG" />
+          </Field>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Status">
-              <select
-                id="status"
-                name="status"
-                defaultValue="announced"
-                className={inputClass}
-              >
+              <select id="status" name="status" defaultValue="announced" className={inputClass}>
                 <option value="announced">Announced</option>
                 <option value="in_dev">In development</option>
                 <option value="early_access">Early access</option>
@@ -139,6 +154,39 @@ export default function SubmitPage() {
           </Field>
         </div>
 
+        {/* Platforms, modes, engine, monetization */}
+        <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-5">
+          <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
+            Platform &amp; gameplay details
+          </h2>
+
+          <Field label="Platforms" required>
+            <CheckboxGroup name="platforms" options={PLATFORM_OPTIONS} />
+          </Field>
+
+          <Field label="Gameplay modes">
+            <CheckboxGroup name="gameplay_modes" options={GAMEPLAY_MODE_OPTIONS} />
+          </Field>
+
+          <Field label="Game engine">
+            <input
+              name="game_engine"
+              list="engine-options"
+              className={inputClass}
+              placeholder="e.g. Unity, Unreal Engine, Godot"
+            />
+            <datalist id="engine-options">
+              {["Unity", "Unreal Engine", "Godot", "GameMaker", "Cocos2d", "LibGDX", "Custom Engine"].map(
+                (e) => <option key={e} value={e} />
+              )}
+            </datalist>
+          </Field>
+
+          <Field label="Monetization">
+            <CheckboxGroup name="monetization" options={MONETIZATION_OPTIONS} />
+          </Field>
+        </div>
+
         {/* Store links */}
         <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
           <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
@@ -147,10 +195,14 @@ export default function SubmitPage() {
           </h2>
 
           {[
-            { id: "steam", label: "Steam", placeholder: "https://store.steampowered.com/app/..." },
-            { id: "google_play", label: "Google Play", placeholder: "https://play.google.com/store/apps/..." },
-            { id: "app_store", label: "App Store", placeholder: "https://apps.apple.com/..." },
-            { id: "itch", label: "itch.io", placeholder: "https://itch.io/..." },
+            { id: "steam",       label: "Steam",         placeholder: "https://store.steampowered.com/app/..." },
+            { id: "google_play", label: "Google Play",   placeholder: "https://play.google.com/store/apps/..." },
+            { id: "app_store",   label: "App Store",     placeholder: "https://apps.apple.com/..." },
+            { id: "playstation", label: "PlayStation",   placeholder: "https://store.playstation.com/..." },
+            { id: "xbox",        label: "Xbox",          placeholder: "https://www.xbox.com/games/store/..." },
+            { id: "nintendo",    label: "Nintendo",      placeholder: "https://www.nintendo.com/store/..." },
+            { id: "itch",        label: "itch.io",       placeholder: "https://itch.io/..." },
+            { id: "others",      label: "Others",        placeholder: "Any other store or platform URL" },
           ].map(({ id, label, placeholder }) => (
             <Field key={id} label={label}>
               <input id={id} name={id} type="url" className={inputClass} placeholder={placeholder} />
@@ -210,13 +262,29 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <label className="text-sm font-medium text-c-soft">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
         {hint && <span className="text-c-faint font-normal ml-1">— {hint}</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+function CheckboxGroup({ name, options }: { name: string; options: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((opt) => (
+        <label
+          key={opt}
+          className="flex items-center gap-1.5 bg-c-bg border border-c-border rounded-lg px-3 py-1.5 text-sm text-c-soft cursor-pointer hover:border-c-border-hover has-[:checked]:bg-indigo-600 has-[:checked]:border-indigo-600 has-[:checked]:text-white transition-colors select-none"
+        >
+          <input type="checkbox" name={name} value={opt} className="sr-only" />
+          {opt}
+        </label>
+      ))}
     </div>
   );
 }

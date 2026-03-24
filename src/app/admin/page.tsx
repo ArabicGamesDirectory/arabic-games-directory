@@ -21,6 +21,9 @@ type Submission = {
     platforms: string[];
     genres: string[];
     short_description: string;
+    gameplay_modes: string[] | null;
+    game_engine: string | null;
+    monetization: string[] | null;
     status: string;
     release_date: string | null;
     website_url: string | null;
@@ -259,6 +262,21 @@ export default function AdminPage() {
                     {g}
                   </span>
                 ))}
+                {s.payload.gameplay_modes?.map((m) => (
+                  <span key={m} className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full">
+                    {m}
+                  </span>
+                ))}
+                {s.payload.monetization?.map((m) => (
+                  <span key={m} className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                    {m}
+                  </span>
+                ))}
+                {s.payload.game_engine && (
+                  <span className="text-xs bg-c-tag text-c-faint px-2 py-0.5 rounded-full">
+                    {s.payload.game_engine}
+                  </span>
+                )}
               </div>
 
               {s.payload.website_url && (

@@ -8,6 +8,9 @@ type Game = {
   country: string;
   platforms: string[];
   genres: string[];
+  gameplay_modes: string[] | null;
+  game_engine: string | null;
+  monetization: string[] | null;
   short_description: string;
   status: string;
   release_date: string | null;
@@ -101,17 +104,34 @@ export default async function GameDetails({
 
         <p className="mt-6 text-c-soft leading-relaxed">{game.short_description}</p>
 
-        <div className="mt-6">
-          <p className="text-xs font-medium text-c-faint uppercase tracking-wider mb-2">
-            Genres
-          </p>
-          <div className="flex gap-1.5 flex-wrap">
-            {game.genres.map((genre) => (
-              <span key={genre} className="text-sm bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
-                {genre}
-              </span>
+        <div className="mt-8 grid gap-5">
+          <DetailSection label="Genres">
+            {game.genres.map((g) => (
+              <Tag key={g}>{g}</Tag>
             ))}
-          </div>
+          </DetailSection>
+
+          {(game.gameplay_modes?.length ?? 0) > 0 && (
+            <DetailSection label="Gameplay modes">
+              {game.gameplay_modes!.map((m) => (
+                <Tag key={m} color="blue">{m}</Tag>
+              ))}
+            </DetailSection>
+          )}
+
+          {(game.monetization?.length ?? 0) > 0 && (
+            <DetailSection label="Monetization">
+              {game.monetization!.map((m) => (
+                <Tag key={m} color="amber">{m}</Tag>
+              ))}
+            </DetailSection>
+          )}
+
+          {game.game_engine && (
+            <DetailSection label="Game engine">
+              <Tag>{game.game_engine}</Tag>
+            </DetailSection>
+          )}
         </div>
 
         {(game.website_url || storeLinks.length > 0) && (
@@ -146,5 +166,26 @@ export default async function GameDetails({
         )}
       </div>
     </main>
+  );
+}
+
+function DetailSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-c-faint uppercase tracking-wider mb-2">{label}</p>
+      <div className="flex gap-1.5 flex-wrap">{children}</div>
+    </div>
+  );
+}
+
+function Tag({ children, color }: { children: React.ReactNode; color?: "blue" | "amber" }) {
+  const cls =
+    color === "blue"
+      ? "bg-blue-500/10 text-blue-600"
+      : color === "amber"
+      ? "bg-amber-500/10 text-amber-600"
+      : "bg-c-tag text-c-tag-text";
+  return (
+    <span className={`text-sm px-2.5 py-1 rounded-full ${cls}`}>{children}</span>
   );
 }

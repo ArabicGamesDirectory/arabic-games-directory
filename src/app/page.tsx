@@ -6,6 +6,9 @@ type Game = {
   country: string;
   platforms: string[];
   genres: string[];
+  gameplay_modes: string[] | null;
+  game_engine: string | null;
+  monetization: string[] | null;
   status: string;
   release_date: string | null;
   website_url: string | null;
@@ -44,7 +47,7 @@ export default async function Home({
   let query = supabase
     .from("games")
     .select(
-      "name, country, platforms, genres, status, release_date, website_url, store_links, slug, short_description"
+      "name, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description"
     )
     .order("created_at", { ascending: false });
 
@@ -158,13 +161,25 @@ export default async function Home({
 
               <div className="flex gap-1.5 flex-wrap mt-3">
                 {g.genres.map((genre) => (
-                  <span
-                    key={genre}
-                    className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full"
-                  >
+                  <span key={genre} className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
                     {genre}
                   </span>
                 ))}
+                {g.gameplay_modes?.map((m) => (
+                  <span key={m} className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full">
+                    {m}
+                  </span>
+                ))}
+                {g.monetization?.map((m) => (
+                  <span key={m} className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                    {m}
+                  </span>
+                ))}
+                {g.game_engine && (
+                  <span className="text-xs bg-c-tag text-c-faint px-2 py-0.5 rounded-full">
+                    {g.game_engine}
+                  </span>
+                )}
               </div>
 
               {(g.website_url ||
