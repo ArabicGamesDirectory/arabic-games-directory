@@ -33,9 +33,12 @@ arabic-games-directory/
 │   │   │       └── page.tsx    # Game detail page
 │   │   └── stats/
 │   │       └── page.tsx        # Statistics (by country, platform, genre, status)
+│   ├── components/
+│   │   └── ThemeToggle.tsx     # Floating light/gray/dark theme switcher (persists to localStorage)
 │   └── lib/
 │       ├── supabase.ts         # Supabase client (anon key, public) — used by non-admin pages
 │       └── slug.ts             # slugify() helper
+├── src/app/globals.css         # Tailwind v4 import + semantic CSS variables for all 3 themes
 ├── .env.local                  # Local env vars (never commit)
 ├── .gitignore
 ├── package.json
@@ -98,14 +101,14 @@ Vercel has the same variables set in project settings.
 
 ### Planned improvements (in rough priority order)
 1. ~~Server-side admin API routes (security)~~ ✓ Done
-2. Controlled dropdowns for country, platform, genre on submit form (instead of free text)
-3. URL validation on website and store link fields
-4. Slug collision handling on approve (check uniqueness, auto-append suffix if clash)
-5. Search by game name or developer
-6. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
-7. Email notification to submitter on approve/reject
-8. Charts on stats page instead of plain lists
-9. Tailwind for UI (replacing inline styles)
+2. ~~Tailwind for UI (replacing inline styles)~~ ✓ Done
+3. Controlled dropdowns for country, platform, genre on submit form (instead of free text)
+4. URL validation on website and store link fields
+5. Slug collision handling on approve (check uniqueness, auto-append suffix if clash)
+6. Search by game name or developer
+7. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
+8. Email notification to submitter on approve/reject
+9. Charts on stats page instead of plain lists
 
 ---
 
@@ -118,6 +121,7 @@ Vercel has the same variables set in project settings.
 - **Server routes auth:** `/api/approve` and `/api/reject` use `createServerClient` from `@supabase/auth-helpers-nextjs` to read the session from cookies and verify `user.email === NEXT_PUBLIC_ADMIN_EMAIL` before any DB write.
 - Pages that read from `games` are: homepage (`page.tsx`), game detail (`games/[slug]/page.tsx`), stats (`stats/page.tsx`). All use the anon Supabase client.
 - The admin page is `"use client"` and uses Supabase Auth client-side. All other data-fetching pages are server components.
+- **Theming:** Three themes — light (default), gray, dark — defined as CSS custom properties in `globals.css` (`:root`, `.theme-gray`, `.theme-dark`). Registered as Tailwind utilities via `@theme inline` (e.g. `bg-c-surface`, `text-c-text`, `border-c-border`). Never use hardcoded `zinc-*` color classes in page components — always use the semantic `c-*` tokens so themes work. Accent colors (indigo, emerald, red, status badges) are intentionally fixed and do not theme-switch. The `ThemeToggle` component persists the choice to `localStorage`; `layout.tsx` has an inline script in `<head>` to apply the saved theme before hydration to prevent flash.
 
 ---
 

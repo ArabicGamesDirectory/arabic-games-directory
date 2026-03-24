@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* ── Semantic color tokens ───────────────────────────────────────── */
+:root {
+  --c-bg:           #fafafa; /* zinc-50  */
+  --c-surface:      #ffffff; /* white    */
+  --c-surface-hover:#f4f4f5; /* zinc-100 */
+  --c-border:       #e4e4e7; /* zinc-200 */
+  --c-border-hover: #d4d4d8; /* zinc-300 */
+  --c-text:         #18181b; /* zinc-900 */
+  --c-soft:         #52525b; /* zinc-600 */
+  --c-muted:        #71717a; /* zinc-500 */
+  --c-faint:        #a1a1aa; /* zinc-400 */
+  --c-tag:          #f4f4f5; /* zinc-100 */
+  --c-tag-text:     #52525b; /* zinc-600 */
+}
+
+.theme-gray {
+  --c-bg:           #e4e4e7; /* zinc-200 */
+  --c-surface:      #f4f4f5; /* zinc-100 */
+  --c-surface-hover:#e4e4e7; /* zinc-200 */
+  --c-border:       #d4d4d8; /* zinc-300 */
+  --c-border-hover: #a1a1aa; /* zinc-400 */
+  --c-text:         #27272a; /* zinc-800 */
+  --c-soft:         #52525b; /* zinc-600 */
+  --c-muted:        #71717a; /* zinc-500 */
+  --c-faint:        #a1a1aa; /* zinc-400 */
+  --c-tag:          #d4d4d8; /* zinc-300 */
+  --c-tag-text:     #52525b; /* zinc-600 */
+}
+
+.theme-dark {
+  --c-bg:           #09090b; /* zinc-950 */
+  --c-surface:      #18181b; /* zinc-900 */
+  --c-surface-hover:#27272a; /* zinc-800 */
+  --c-border:       #27272a; /* zinc-800 */
+  --c-border-hover: #3f3f46; /* zinc-700 */
+  --c-text:         #f4f4f5; /* zinc-100 */
+  --c-soft:         #a1a1aa; /* zinc-400 */
+  --c-muted:        #71717a; /* zinc-500 */
+  --c-faint:        #52525b; /* zinc-600 */
+  --c-tag:          #27272a; /* zinc-800 */
+  --c-tag-text:     #a1a1aa; /* zinc-400 */
+}
+
+/* ── Register as Tailwind utilities ──────────────────────────────── */
+@theme inline {
+  --color-c-bg:           var(--c-bg);
+  --color-c-surface:      var(--c-surface);
+  --color-c-surface-hover:var(--c-surface-hover);
+  --color-c-border:       var(--c-border);
+  --color-c-border-hover: var(--c-border-hover);
+  --color-c-text:         var(--c-text);
+  --color-c-soft:         var(--c-soft);
+  --color-c-muted:        var(--c-muted);
+  --color-c-faint:        var(--c-faint);
+  --color-c-tag:          var(--c-tag);
+  --color-c-tag-text:     var(--c-tag-text);
+}
