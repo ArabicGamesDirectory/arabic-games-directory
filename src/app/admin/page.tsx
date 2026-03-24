@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Submission = {
   id: string;
@@ -91,74 +96,42 @@ export default function AdminPage() {
   async function approveSubmission(submission: Submission) {
     setMessage(null);
 
-    if (userEmail !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-      setMessage("Not authorized.");
-      return;
-    }
-
-    const payload = submission.payload;
-
-    const { error: insertError } = await supabase.from("games").insert({
-      slug: payload.slug,
-      name: payload.name,
-      country: payload.country,
-      platforms: payload.platforms,
-      genres: payload.genres,
-      short_description: payload.short_description,
-      status: payload.status,
-      release_date: payload.release_date,
-      website_url: payload.website_url,
-      store_links: payload.store_links,
+    const res = await fetch("/api/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ submission }),
     });
 
-    if (insertError) {
-      setMessage("Approve failed: " + insertError.message);
-      return;
-    }
+    const data = await res.json();
 
-    const { error: updateError } = await supabase
-      .from("submissions")
-      .update({
-        moderation_status: "approved",
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", submission.id);
-
-    if (updateError) {
-      setMessage("Approved game, but failed to update submission: " + updateError.message);
+    if (!res.ok) {
+      setMessage("Approve failed: " + data.error);
       return;
     }
 
     setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
-    setMessage(`Approved: ${payload.name}`);
+    setMessage(`Approved: ${submission.payload.name}`);
   }
 
   async function rejectSubmission(id: string) {
     setMessage(null);
 
-    if (userEmail !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-      setMessage("Not authorized.");
-      return;
-    }
+    const res = await fetch("/api/reject", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
 
-    const { error } = await supabase
-      .from("submissions")
-      .update({
-        moderation_status: "rejected",
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+    const data = await res.json();
 
-    if (error) {
-      setMessage("Reject failed: " + error.message);
+    if (!res.ok) {
+      setMessage("Reject failed: " + data.error);
       return;
     }
 
     setSubmissions((prev) => prev.filter((s) => s.id !== id));
     setMessage("Submission rejected.");
   }
-
-  const isAdmin = userEmail === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
   if (!userEmail) {
     return (
@@ -182,17 +155,6 @@ export default function AdminPage() {
           </button>
           {message && <p>{message}</p>}
         </div>
-      </main>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <main style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-        <h1>Admin</h1>
-        <p>Signed in as: {userEmail}</p>
-        <p>This account is not allowed to access admin.</p>
-        <button onClick={signOut}>Sign out</button>
       </main>
     );
   }
