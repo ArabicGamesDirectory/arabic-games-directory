@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 
 type Game = {
@@ -19,14 +20,6 @@ type Game = {
   store_links: Record<string, string | null>;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  announced: "Announced",
-  in_dev: "In Dev",
-  early_access: "Early Access",
-  released: "Released",
-  cancelled: "Cancelled",
-};
-
 const STATUS_CLASSES: Record<string, string> = {
   announced: "bg-blue-100 text-blue-700",
   in_dev: "bg-amber-100 text-amber-700",
@@ -38,9 +31,14 @@ const STATUS_CLASSES: Record<string, string> = {
 export default async function GameDetails({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations("gameDetail");
+  const tCommon = await getTranslations("common");
+  const tStatus = await getTranslations("status");
 
   const { data, error } = await supabase
     .from("games")
@@ -51,10 +49,13 @@ export default async function GameDetails({
   if (error || !data) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10">
-        <Link href="/" className="text-sm text-c-muted hover:text-c-text transition-colors">
-          ← Back to directory
+        <Link
+          href="/"
+          className="text-sm text-c-muted hover:text-c-text transition-colors"
+        >
+          {tCommon("backToDirectory")}
         </Link>
-        <p className="mt-8 text-c-muted">Game not found.</p>
+        <p className="mt-8 text-c-muted">{t("notFound")}</p>
       </main>
     );
   }
@@ -69,8 +70,11 @@ export default async function GameDetails({
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
-      <Link href="/" className="text-sm text-c-muted hover:text-c-text transition-colors">
-        ← Back to directory
+      <Link
+        href="/"
+        className="text-sm text-c-muted hover:text-c-text transition-colors"
+      >
+        {tCommon("backToDirectory")}
       </Link>
 
       <div className="mt-8">
@@ -86,7 +90,7 @@ export default async function GameDetails({
               STATUS_CLASSES[game.status] ?? "bg-c-tag text-c-muted"
             }`}
           >
-            {STATUS_LABELS[game.status] ?? game.status}
+            {tStatus(game.status as "announced" | "in_dev" | "early_access" | "released" | "cancelled") ?? game.status}
           </span>
         </div>
 
@@ -95,7 +99,10 @@ export default async function GameDetails({
             {game.country}
           </span>
           {game.platforms.map((p) => (
-            <span key={p} className="text-sm bg-c-tag text-c-tag-text px-3 py-1 rounded-full">
+            <span
+              key={p}
+              className="text-sm bg-c-tag text-c-tag-text px-3 py-1 rounded-full"
+            >
               {p}
             </span>
           ))}
@@ -106,33 +113,39 @@ export default async function GameDetails({
           )}
         </div>
 
-        <p className="mt-6 text-c-soft leading-relaxed">{game.short_description}</p>
+        <p className="mt-6 text-c-soft leading-relaxed">
+          {game.short_description}
+        </p>
 
         <div className="mt-8 grid gap-5">
-          <DetailSection label="Genres">
+          <DetailSection label={t("genres")}>
             {game.genres.map((g) => (
               <Tag key={g}>{g}</Tag>
             ))}
           </DetailSection>
 
           {(game.gameplay_modes?.length ?? 0) > 0 && (
-            <DetailSection label="Gameplay modes">
+            <DetailSection label={t("gameplayModes")}>
               {game.gameplay_modes!.map((m) => (
-                <Tag key={m} color="blue">{m}</Tag>
+                <Tag key={m} color="blue">
+                  {m}
+                </Tag>
               ))}
             </DetailSection>
           )}
 
           {(game.monetization?.length ?? 0) > 0 && (
-            <DetailSection label="Monetization">
+            <DetailSection label={t("monetization")}>
               {game.monetization!.map((m) => (
-                <Tag key={m} color="amber">{m}</Tag>
+                <Tag key={m} color="amber">
+                  {m}
+                </Tag>
               ))}
             </DetailSection>
           )}
 
           {game.game_engine && (
-            <DetailSection label="Game engine">
+            <DetailSection label={t("gameEngine")}>
               <Tag>{game.game_engine}</Tag>
             </DetailSection>
           )}
@@ -141,7 +154,7 @@ export default async function GameDetails({
         {(game.website_url || storeLinks.length > 0) && (
           <div className="mt-8 pt-8 border-t border-c-border">
             <p className="text-xs font-medium text-c-faint uppercase tracking-wider mb-3">
-              Links
+              {t("links")}
             </p>
             <div className="flex gap-3 flex-wrap">
               {game.website_url && (
@@ -151,7 +164,7 @@ export default async function GameDetails({
                   rel="noreferrer"
                   className="inline-flex items-center bg-c-surface border border-c-border hover:border-c-border-hover text-sm text-c-text px-4 py-2 rounded-lg transition-colors"
                 >
-                  Official Website ↗
+                  {tCommon("officialWebsite")}
                 </a>
               )}
               {storeLinks.map(([key, val]) => (
@@ -173,16 +186,30 @@ export default async function GameDetails({
   );
 }
 
-function DetailSection({ label, children }: { label: string; children: React.ReactNode }) {
+function DetailSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <p className="text-xs font-medium text-c-faint uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-xs font-medium text-c-faint uppercase tracking-wider mb-2">
+        {label}
+      </p>
       <div className="flex gap-1.5 flex-wrap">{children}</div>
     </div>
   );
 }
 
-function Tag({ children, color }: { children: React.ReactNode; color?: "blue" | "amber" }) {
+function Tag({
+  children,
+  color,
+}: {
+  children: React.ReactNode;
+  color?: "blue" | "amber";
+}) {
   const cls =
     color === "blue"
       ? "bg-blue-500/10 text-blue-600"
@@ -190,6 +217,8 @@ function Tag({ children, color }: { children: React.ReactNode; color?: "blue" | 
       ? "bg-amber-500/10 text-amber-600"
       : "bg-c-tag text-c-tag-text";
   return (
-    <span className={`text-sm px-2.5 py-1 rounded-full ${cls}`}>{children}</span>
+    <span className={`text-sm px-2.5 py-1 rounded-full ${cls}`}>
+      {children}
+    </span>
   );
 }

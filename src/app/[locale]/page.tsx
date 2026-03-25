@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 
 type Game = {
@@ -18,14 +19,6 @@ type Game = {
   short_description: string;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  announced: "Announced",
-  in_dev: "In Dev",
-  early_access: "Early Access",
-  released: "Released",
-  cancelled: "Cancelled",
-};
-
 const STATUS_CLASSES: Record<string, string> = {
   announced: "bg-blue-100 text-blue-700",
   in_dev: "bg-amber-100 text-amber-700",
@@ -35,8 +28,10 @@ const STATUS_CLASSES: Record<string, string> = {
 };
 
 export default async function Home({
+  params,
   searchParams,
 }: {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<{
     country?: string;
     platform?: string;
@@ -44,8 +39,15 @@ export default async function Home({
     q?: string;
   }>;
 }) {
-  const params = await searchParams;
-  const q = params.q?.trim() ?? "";
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations("home");
+  const tCommon = await getTranslations("common");
+  const tStatus = await getTranslations("status");
+
+  const sp = await searchParams;
+  const q = sp.q?.trim() ?? "";
 
   let query = supabase
     .from("games")
@@ -54,13 +56,11 @@ export default async function Home({
     )
     .order("created_at", { ascending: false });
 
-  if (params.country) query = query.eq("country", params.country);
-  if (params.platform) query = query.contains("platforms", [params.platform]);
-  if (params.status) query = query.eq("status", params.status);
+  if (sp.country) query = query.eq("country", sp.country);
+  if (sp.platform) query = query.contains("platforms", [sp.platform]);
+  if (sp.status) query = query.eq("status", sp.status);
 
   if (q) {
-    // name + developer: case-insensitive partial match
-    // genres: exact element match (controlled vocabulary)
     query = query.or(
       `name.ilike.%${q}%,developer.ilike.%${q}%,genres.cs.{${q}}`
     );
@@ -77,22 +77,47 @@ export default async function Home({
   }
 
   const typedGames: Game[] = games ?? [];
+  const count = typedGames.length;
 
-  // Filter links preserve the active search query
   const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
   const filters = [
-    { label: "All", href: q ? `/?q=${encodeURIComponent(q)}` : "/", active: !params.platform && !params.status },
-    { label: "PC", href: `/?platform=PC${qParam}`, active: params.platform === "PC" },
-    { label: "Mobile", href: `/?platform=Mobile${qParam}`, active: params.platform === "Mobile" },
-    { label: "Released", href: `/?status=released${qParam}`, active: params.status === "released" },
-    { label: "In Dev", href: `/?status=in_dev${qParam}`, active: params.status === "in_dev" },
+    {
+      label: t("filterAll"),
+      href: q ? `/?q=${encodeURIComponent(q)}` : "/",
+      active: !sp.platform && !sp.status,
+    },
+    {
+      label: t("filterPC"),
+      href: `/?platform=PC${qParam}`,
+      active: sp.platform === "PC",
+    },
+    {
+      label: t("filterMobile"),
+      href: `/?platform=Mobile${qParam}`,
+      active: sp.platform === "Mobile",
+    },
+    {
+      label: t("filterReleased"),
+      href: `/?status=released${qParam}`,
+      active: sp.status === "released",
+    },
+    {
+      label: t("filterInDev"),
+      href: `/?status=in_dev${qParam}`,
+      active: sp.status === "in_dev",
+    },
   ];
 
-  // Clear-search href preserves active filter
-  const clearSearchHref =
-    params.platform ? `/?platform=${params.platform}`
-    : params.status ? `/?status=${params.status}`
+  const clearSearchHref = sp.platform
+    ? `/?platform=${sp.platform}`
+    : sp.status
+    ? `/?status=${sp.status}`
     : "/";
+
+  const gameCountText =
+    count === 1
+      ? t("gameCountSingular", { count })
+      : t("gameCountPlural", { count });
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
@@ -100,50 +125,46 @@ export default async function Home({
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-c-text">
-              Arabic Games Directory
+              {t("title")}
             </h1>
-            <p className="text-c-muted mt-1 text-sm">
-              Games developed in the MENA region.
-            </p>
+            <p className="text-c-muted mt-1 text-sm">{t("description")}</p>
           </div>
           <Link
             href="/submit"
             className="shrink-0 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
           >
-            Submit a game
+            {tCommon("submitGame")}
           </Link>
         </div>
       </header>
 
       {/* Search */}
-      <form method="get" action="/" className="relative mb-4">
-        {params.platform && (
-          <input type="hidden" name="platform" value={params.platform} />
+      <form method="get" action="" className="relative mb-4">
+        {sp.platform && (
+          <input type="hidden" name="platform" value={sp.platform} />
         )}
-        {params.status && (
-          <input type="hidden" name="status" value={params.status} />
-        )}
+        {sp.status && <input type="hidden" name="status" value={sp.status} />}
         <input
           type="search"
           name="q"
           defaultValue={q}
-          placeholder="Search by name, developer, or genre…"
-          className="w-full bg-c-surface border border-c-border rounded-xl px-4 py-2.5 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors pr-20"
+          placeholder={t("searchPlaceholder")}
+          className="w-full bg-c-surface border border-c-border rounded-xl px-4 py-2.5 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors pe-20"
         />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        <div className="absolute end-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {q && (
             <Link
               href={clearSearchHref}
               className="text-xs text-c-faint hover:text-c-muted px-2 py-1 transition-colors"
             >
-              Clear
+              {t("clearSearch")}
             </Link>
           )}
           <button
             type="submit"
             className="text-xs bg-c-tag text-c-soft px-3 py-1 rounded-lg hover:bg-c-border transition-colors"
           >
-            Search
+            {t("searchButton")}
           </button>
         </div>
       </form>
@@ -163,21 +184,19 @@ export default async function Home({
             {f.label}
           </Link>
         ))}
-        <span className="ml-auto text-sm text-c-faint">
-          {typedGames.length} game{typedGames.length !== 1 ? "s" : ""}
-        </span>
+        <span className="ms-auto text-sm text-c-faint">{gameCountText}</span>
       </div>
 
       {/* Game list */}
       <div className="grid gap-3">
         {typedGames.length === 0 ? (
           <div className="text-center py-16 text-c-muted">
-            <p>No games found.</p>
+            <p>{t("noGames")}</p>
             <Link
               href="/"
               className="text-indigo-500 text-sm mt-2 inline-block hover:underline"
             >
-              Clear filters
+              {t("clearFilters")}
             </Link>
           </div>
         ) : (
@@ -205,7 +224,7 @@ export default async function Home({
                     STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
                   }`}
                 >
-                  {STATUS_LABELS[g.status] ?? g.status}
+                  {tStatus(g.status as "announced" | "in_dev" | "early_access" | "released" | "cancelled") ?? g.status}
                 </span>
               </div>
 
@@ -220,17 +239,26 @@ export default async function Home({
 
               <div className="flex gap-1.5 flex-wrap mt-3">
                 {g.genres.map((genre) => (
-                  <span key={genre} className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                  <span
+                    key={genre}
+                    className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full"
+                  >
                     {genre}
                   </span>
                 ))}
                 {g.gameplay_modes?.map((m) => (
-                  <span key={m} className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full">
+                  <span
+                    key={m}
+                    className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full"
+                  >
                     {m}
                   </span>
                 ))}
                 {g.monetization?.map((m) => (
-                  <span key={m} className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                  <span
+                    key={m}
+                    className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full"
+                  >
                     {m}
                   </span>
                 ))}
@@ -251,7 +279,7 @@ export default async function Home({
                       rel="noreferrer"
                       className="text-sm text-indigo-500 hover:underline"
                     >
-                      Website ↗
+                      {tCommon("website")}
                     </a>
                   )}
                   {g.store_links &&
@@ -277,10 +305,10 @@ export default async function Home({
 
       <footer className="mt-12 pt-8 border-t border-c-border flex gap-6 text-sm text-c-faint">
         <Link href="/stats" className="hover:text-c-muted transition-colors">
-          Stats
+          {tCommon("stats")}
         </Link>
         <Link href="/admin" className="hover:text-c-muted transition-colors">
-          Admin
+          {tCommon("admin")}
         </Link>
       </footer>
     </main>

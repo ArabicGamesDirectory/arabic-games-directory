@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,11 +42,17 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function AdminPage() {
+  const t = useTranslations("admin");
+  const tCommon = useTranslations("common");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    ok: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
 
@@ -58,7 +65,7 @@ export default function AdminPage() {
     if (!user?.email) return;
 
     if (user.email !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-      setMessage({ text: "This account is not allowed to access admin.", ok: false });
+      setMessage({ text: t("notAllowed"), ok: false });
       return;
     }
 
@@ -83,7 +90,10 @@ export default function AdminPage() {
   async function signIn() {
     setLoading(true);
     setMessage(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     setLoading(false);
     if (error) {
       setMessage({ text: error.message, ok: false });
@@ -110,11 +120,14 @@ export default function AdminPage() {
     const data = await res.json();
     setActionId(null);
     if (!res.ok) {
-      setMessage({ text: "Approve failed: " + data.error, ok: false });
+      setMessage({
+        text: t("approveFailed", { error: data.error }),
+        ok: false,
+      });
       return;
     }
     setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
-    setMessage({ text: `Approved: ${submission.payload.name}`, ok: true });
+    setMessage({ text: t("approved", { name: submission.payload.name }), ok: true });
   }
 
   async function rejectSubmission(id: string) {
@@ -128,11 +141,11 @@ export default function AdminPage() {
     const data = await res.json();
     setActionId(null);
     if (!res.ok) {
-      setMessage({ text: "Reject failed: " + data.error, ok: false });
+      setMessage({ text: t("rejectFailed", { error: data.error }), ok: false });
       return;
     }
     setSubmissions((prev) => prev.filter((s) => s.id !== id));
-    setMessage({ text: "Submission rejected.", ok: true });
+    setMessage({ text: t("rejected"), ok: true });
   }
 
   const inputClass =
@@ -143,13 +156,16 @@ export default function AdminPage() {
       <div className="min-h-screen bg-c-bg flex items-center justify-center p-4">
         <div className="w-full max-w-sm">
           <h1 className="text-2xl font-bold tracking-tight text-c-text mb-6">
-            Admin login
+            {t("loginTitle")}
           </h1>
 
           <div className="bg-c-surface border border-c-border rounded-xl p-6 space-y-4">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-c-soft" htmlFor="email">
-                Email
+              <label
+                className="text-sm font-medium text-c-soft"
+                htmlFor="email"
+              >
+                {t("fieldEmail")}
               </label>
               <input
                 id="email"
@@ -158,13 +174,16 @@ export default function AdminPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && signIn()}
                 className={inputClass}
-                placeholder="admin@example.com"
+                placeholder={t("placeholderEmail")}
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-c-soft" htmlFor="password">
-                Password
+              <label
+                className="text-sm font-medium text-c-soft"
+                htmlFor="password"
+              >
+                {t("fieldPassword")}
               </label>
               <input
                 id="password"
@@ -173,7 +192,7 @@ export default function AdminPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && signIn()}
                 className={inputClass}
-                placeholder="••••••••"
+                placeholder={t("placeholderPassword")}
               />
             </div>
 
@@ -186,7 +205,7 @@ export default function AdminPage() {
               disabled={loading}
               className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? t("signingIn") : t("signIn")}
             </button>
           </div>
 
@@ -194,7 +213,7 @@ export default function AdminPage() {
             href="/"
             className="block text-center mt-4 text-sm text-c-faint hover:text-c-muted transition-colors"
           >
-            ← Back to directory
+            {tCommon("backToDirectory")}
           </Link>
         </div>
       </div>
@@ -206,15 +225,17 @@ export default function AdminPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-c-text">
-            Admin review
+            {t("reviewTitle")}
           </h1>
-          <p className="text-sm text-c-muted mt-1">Signed in as {userEmail}</p>
+          <p className="text-sm text-c-muted mt-1">
+            {t("signedInAs", { email: userEmail })}
+          </p>
         </div>
         <button
           onClick={signOut}
           className="text-sm text-c-muted hover:text-c-text transition-colors"
         >
-          Sign out
+          {t("signOut")}
         </button>
       </div>
 
@@ -232,7 +253,7 @@ export default function AdminPage() {
 
       {submissions.length === 0 ? (
         <div className="text-center py-16 text-c-muted">
-          <p>No pending submissions.</p>
+          <p>{t("noPending")}</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -243,9 +264,13 @@ export default function AdminPage() {
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div>
-                  <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                  <h2 className="text-lg font-semibold text-c-text">
+                    {s.payload.name}
+                  </h2>
                   {s.payload.developer && (
-                    <p className="text-xs text-c-faint mt-0.5">{s.payload.developer}</p>
+                    <p className="text-xs text-c-faint mt-0.5">
+                      {s.payload.developer}
+                    </p>
                   )}
                 </div>
                 <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
@@ -264,17 +289,26 @@ export default function AdminPage() {
 
               <div className="flex gap-1.5 flex-wrap mt-3">
                 {s.payload.genres.map((g) => (
-                  <span key={g} className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                  <span
+                    key={g}
+                    className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full"
+                  >
                     {g}
                   </span>
                 ))}
                 {s.payload.gameplay_modes?.map((m) => (
-                  <span key={m} className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full">
+                  <span
+                    key={m}
+                    className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full"
+                  >
                     {m}
                   </span>
                 ))}
                 {s.payload.monetization?.map((m) => (
-                  <span key={m} className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                  <span
+                    key={m}
+                    className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full"
+                  >
                     {m}
                   </span>
                 ))}
@@ -297,7 +331,7 @@ export default function AdminPage() {
               )}
 
               <p className="text-xs text-c-faint mt-3">
-                Submitted by: {s.submitter_name || "—"}
+                {t("submittedBy", { name: s.submitter_name || "—" })}
                 {s.submitter_email ? ` (${s.submitter_email})` : ""}
               </p>
 
@@ -307,14 +341,14 @@ export default function AdminPage() {
                   disabled={actionId === s.id}
                   className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                 >
-                  {actionId === s.id ? "Working..." : "Approve"}
+                  {actionId === s.id ? t("working") : t("approve")}
                 </button>
                 <button
                   onClick={() => rejectSubmission(s.id)}
                   disabled={actionId === s.id}
                   className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
                 >
-                  {actionId === s.id ? "Working..." : "Reject"}
+                  {actionId === s.id ? t("working") : t("reject")}
                 </button>
               </div>
             </article>

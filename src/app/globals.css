@@ -43,6 +43,11 @@
   --c-tag-text:     #a1a1aa; /* zinc-400 */
 }
 
+/* ── Arabic (RTL) font ───────────────────────────────────────────── */
+[dir="rtl"] {
+  font-family: var(--font-cairo, "Cairo", "Segoe UI", Tahoma, Arial, sans-serif);
+}
+
 /* ── Register as Tailwind utilities ──────────────────────────────── */
 @theme inline {
   --color-c-bg:           var(--c-bg);

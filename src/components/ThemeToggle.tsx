@@ -44,7 +44,7 @@ export function ThemeToggle() {
     <button
       onClick={cycle}
       title={`Theme: ${theme} — click to cycle`}
-      className="fixed bottom-4 right-4 z-50 w-9 h-9 rounded-full bg-c-surface border border-c-border shadow-sm flex items-center justify-center text-base text-c-muted hover:text-c-text hover:border-c-border-hover transition-colors"
+      className="fixed bottom-4 end-4 z-50 w-9 h-9 rounded-full bg-c-surface border border-c-border shadow-sm flex items-center justify-center text-base text-c-muted hover:text-c-text hover:border-c-border-hover transition-colors"
     >
       {ICONS[theme]}
     </button>

@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 
 type Game = {
@@ -8,15 +9,18 @@ type Game = {
   status: string;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  announced: "Announced",
-  in_dev: "In Dev",
-  early_access: "Early Access",
-  released: "Released",
-  cancelled: "Cancelled",
-};
+export default async function StatsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
 
-export default async function StatsPage() {
+  const t = await getTranslations("stats");
+  const tCommon = await getTranslations("common");
+  const tStatus = await getTranslations("status");
+
   const { data, error } = await supabase
     .from("games")
     .select("country, platforms, genres, status");
@@ -30,6 +34,7 @@ export default async function StatsPage() {
   }
 
   const games: Game[] = data ?? [];
+  const count = games.length;
 
   const byCountry: Record<string, number> = {};
   const byPlatform: Record<string, number> = {};
@@ -43,14 +48,19 @@ export default async function StatsPage() {
     for (const g of game.genres) byGenre[g] = (byGenre[g] || 0) + 1;
   }
 
+  const subtitleText =
+    count === 1
+      ? t("subtitleSingular", { count })
+      : t("subtitlePlural", { count });
+
   function StatCard({
     title,
     data,
-    labelMap,
+    translateKey,
   }: {
     title: string;
     data: Record<string, number>;
-    labelMap?: Record<string, string>;
+    translateKey?: (key: string) => string;
   }) {
     const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
     const max = sorted[0]?.[1] ?? 1;
@@ -64,7 +74,9 @@ export default async function StatsPage() {
           {sorted.map(([key, count]) => (
             <div key={key}>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-c-soft">{labelMap?.[key] ?? key}</span>
+                <span className="text-c-soft">
+                  {translateKey ? translateKey(key) : key}
+                </span>
                 <span className="text-c-faint tabular-nums">{count}</span>
               </div>
               <div className="h-1.5 bg-c-tag rounded-full overflow-hidden">
@@ -76,7 +88,7 @@ export default async function StatsPage() {
             </div>
           ))}
           {sorted.length === 0 && (
-            <p className="text-c-faint text-sm">No data yet.</p>
+            <p className="text-c-faint text-sm">{t("noData")}</p>
           )}
         </div>
       </div>
@@ -85,22 +97,38 @@ export default async function StatsPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
-      <Link href="/" className="text-sm text-c-muted hover:text-c-text transition-colors">
-        ← Back to directory
+      <Link
+        href="/"
+        className="text-sm text-c-muted hover:text-c-text transition-colors"
+      >
+        {tCommon("backToDirectory")}
       </Link>
 
       <div className="mt-8 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-c-text">Statistics</h1>
-        <p className="text-c-muted text-sm mt-1">
-          {games.length} game{games.length !== 1 ? "s" : ""} in the directory
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-c-text">
+          {t("title")}
+        </h1>
+        <p className="text-c-muted text-sm mt-1">{subtitleText}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard title="By country" data={byCountry} />
-        <StatCard title="By status" data={byStatus} labelMap={STATUS_LABELS} />
-        <StatCard title="By platform" data={byPlatform} />
-        <StatCard title="By genre" data={byGenre} />
+        <StatCard title={t("byCountry")} data={byCountry} />
+        <StatCard
+          title={t("byStatus")}
+          data={byStatus}
+          translateKey={(key) =>
+            tStatus(
+              key as
+                | "announced"
+                | "in_dev"
+                | "early_access"
+                | "released"
+                | "cancelled"
+            ) ?? key
+          }
+        />
+        <StatCard title={t("byPlatform")} data={byPlatform} />
+        <StatCard title={t("byGenre")} data={byGenre} />
       </div>
     </main>
   );
