@@ -1,11 +1,12 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
+import { COUNTRY_KEY_MAP } from "@/lib/countries";
 
 type Game = {
   name: string;
   developer: string | null;
-  country: string;
+  country: string[];
   platforms: string[];
   genres: string[];
   gameplay_modes: string[] | null;
@@ -45,6 +46,7 @@ export default async function Home({
   const t = await getTranslations("home");
   const tCommon = await getTranslations("common");
   const tStatus = await getTranslations("status");
+  const tCountries = await getTranslations("countries");
 
   const sp = await searchParams;
   const q = sp.q?.trim() ?? "";
@@ -56,7 +58,7 @@ export default async function Home({
     )
     .order("created_at", { ascending: false });
 
-  if (sp.country) query = query.eq("country", sp.country);
+  if (sp.country) query = query.contains("country", [sp.country]);
   if (sp.platform) query = query.contains("platforms", [sp.platform]);
   if (sp.status) query = query.eq("status", sp.status);
 
@@ -229,7 +231,8 @@ export default async function Home({
               </div>
 
               <p className="text-sm text-c-muted mt-1">
-                {g.country} · {g.platforms.join(", ")}
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {g.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")} · {g.platforms.join(", ")}
                 {g.release_date ? ` · ${g.release_date}` : ""}
               </p>
 

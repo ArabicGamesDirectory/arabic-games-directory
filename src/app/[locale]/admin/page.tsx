@@ -19,7 +19,7 @@ type Submission = {
     name: string;
     slug: string;
     developer: string | null;
-    country: string;
+    country: string[];
     platforms: string[];
     genres: string[];
     short_description: string;
@@ -279,7 +279,7 @@ export default function AdminPage() {
               </div>
 
               <p className="text-sm text-c-muted">
-                {s.payload.country} · {s.payload.platforms.join(", ")}
+                {s.payload.country.join(", ")} · {s.payload.platforms.join(", ")}
                 {s.payload.release_date ? ` · ${s.payload.release_date}` : ""}
               </p>
 

@@ -1,9 +1,10 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
+import { COUNTRY_KEY_MAP } from "@/lib/countries";
 
 type Game = {
-  country: string;
+  country: string[];
   platforms: string[];
   genres: string[];
   status: string;
@@ -20,6 +21,7 @@ export default async function StatsPage({
   const t = await getTranslations("stats");
   const tCommon = await getTranslations("common");
   const tStatus = await getTranslations("status");
+  const tCountries = await getTranslations("countries");
 
   const { data, error } = await supabase
     .from("games")
@@ -42,7 +44,7 @@ export default async function StatsPage({
   const byStatus: Record<string, number> = {};
 
   for (const game of games) {
-    byCountry[game.country] = (byCountry[game.country] || 0) + 1;
+    for (const c of game.country) byCountry[c] = (byCountry[c] || 0) + 1;
     byStatus[game.status] = (byStatus[game.status] || 0) + 1;
     for (const p of game.platforms) byPlatform[p] = (byPlatform[p] || 0) + 1;
     for (const g of game.genres) byGenre[g] = (byGenre[g] || 0) + 1;
@@ -112,7 +114,12 @@ export default async function StatsPage({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard title={t("byCountry")} data={byCountry} />
+        <StatCard
+          title={t("byCountry")}
+          data={byCountry}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          translateKey={(key) => tCountries(COUNTRY_KEY_MAP[key] as any) ?? key}
+        />
         <StatCard
           title={t("byStatus")}
           data={byStatus}

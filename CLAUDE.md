@@ -80,7 +80,7 @@ Vercel has the same variables set in project settings.
 | id | uuid | PK, gen_random_uuid() |
 | slug | text | unique, not null |
 | name | text | not null |
-| country | text | not null |
+| country | text[] | not null — array of country names (e.g. ['Egypt', 'Iraq']) |
 | platforms | text[] | e.g. ['PC', 'Mobile'] |
 | genres | text[] | e.g. ['Action', 'Puzzle'] |
 | short_description | text | not null |
@@ -123,9 +123,10 @@ Vercel has the same variables set in project settings.
 5. Slug collision handling on approve (check uniqueness, auto-append suffix if clash)
 6. ~~Search by game name or developer~~ ✓ Done (server-side via `?q=` param; searches name + developer with `ilike`, genres with exact `cs` match; filters and search compose together)
 7. ~~Localization (EN + AR / RTL)~~ ✓ Done (next-intl, `/en/` and `/ar/` routes, Cairo font for RTL)
-8. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
-9. Email notification to submitter on approve/reject
-10. Charts on stats page instead of plain lists
+8. ~~Controlled country selection~~ ✓ Done (18 MENA countries, multi-select checkboxes, translated, stored as `text[]`)
+9. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
+10. Email notification to submitter on approve/reject
+11. Charts on stats page instead of plain lists
 
 ---
 
@@ -134,6 +135,7 @@ Vercel has the same variables set in project settings.
 - **Localization:** Uses `next-intl`. All pages are under `src/app/[locale]/`. Use `getTranslations('namespace')` in server components and `useTranslations('namespace')` in client components. Import `Link` from `@/i18n/navigation` (not `next/link`) so hrefs are automatically locale-prefixed. Always call `setRequestLocale(locale)` at the top of each page/layout for static rendering support.
 - **RTL:** Arabic sets `dir="rtl"` on `<html>` server-side in the root layout. Cairo font (Google Fonts) is applied via `[dir="rtl"]` CSS rule. Use Tailwind logical properties (`end-*`, `start-*`, `ms-*`, `me-*`, `ps-*`, `pe-*`) for anything directional — never use physical `left-*`/`right-*`/`ml-*`/`mr-*` for elements that should flip in RTL.
 - **Proxy (middleware):** Next.js 16 uses `proxy.ts` instead of `middleware.ts`. The file is at `src/proxy.ts`. Do not rename it back to `middleware.ts`.
+- **Countries** are a controlled list of 18 MENA countries defined in `src/lib/countries.ts` (`COUNTRY_OPTIONS`). Stored as `text[]` in both the `games` table and `submissions.payload.country`. The submit form uses checkboxes (multiple selection allowed). Displayed with translated labels via `COUNTRY_KEY_MAP` → `t('countries.*')`. The country filter query uses `.contains("country", [value])` instead of `.eq`.
 - **Slugs** are generated from the game name via `slugify()` in `src/lib/slug.ts` at submission time. Falls back to `game-{timestamp}` for Arabic-only names (which would otherwise produce an empty slug). They live in `payload.slug` and are copied to `games.slug` on approve.
 - **Store links** are stored as `{ Steam, "Google Play", "App Store", PlayStation, Xbox, Nintendo, Itch, Others }` (all `url|null`) in both submissions payload and the games table. Rendered dynamically via `Object.entries` so adding new keys only requires updating the submit form.
 - **Admin flow:** Admin signs in with Supabase email/password auth → page loads pending submissions → clicking Approve/Reject calls a server-side API route (`/api/approve` or `/api/reject`) which verifies the session cookie and admin email before writing to the DB.

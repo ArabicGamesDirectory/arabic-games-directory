@@ -1,13 +1,14 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
+import { COUNTRY_KEY_MAP } from "@/lib/countries";
 
 type Game = {
   id: string;
   slug: string;
   name: string;
   developer: string | null;
-  country: string;
+  country: string[];
   platforms: string[];
   genres: string[];
   gameplay_modes: string[] | null;
@@ -39,6 +40,7 @@ export default async function GameDetails({
   const t = await getTranslations("gameDetail");
   const tCommon = await getTranslations("common");
   const tStatus = await getTranslations("status");
+  const tCountries = await getTranslations("countries");
 
   const { data, error } = await supabase
     .from("games")
@@ -95,9 +97,12 @@ export default async function GameDetails({
         </div>
 
         <div className="flex gap-2 flex-wrap mt-4">
-          <span className="text-sm bg-c-tag text-c-tag-text px-3 py-1 rounded-full">
-            {game.country}
-          </span>
+          {game.country.map((c) => (
+            <span key={c} className="text-sm bg-c-tag text-c-tag-text px-3 py-1 rounded-full">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {tCountries(COUNTRY_KEY_MAP[c] as any) ?? c}
+            </span>
+          ))}
           {game.platforms.map((p) => (
             <span
               key={p}

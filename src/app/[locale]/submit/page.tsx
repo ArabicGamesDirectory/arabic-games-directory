@@ -1,10 +1,17 @@
 "use client";
 
+// TODO: Run this migration in the Supabase SQL editor before deploying:
+//
+// ALTER TABLE games ALTER COLUMN country TYPE text[] USING ARRAY[country];
+//
+// This converts existing single-country strings to single-element arrays.
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
+import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 
 const PLATFORM_OPTIONS = [
   "iOS",
@@ -31,6 +38,7 @@ const ENGINE_OPTIONS = [
 export default function SubmitPage() {
   const t = useTranslations("submit");
   const tCommon = useTranslations("common");
+  const tCountries = useTranslations("countries");
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(
@@ -53,6 +61,12 @@ export default function SubmitPage() {
     { value: "Subscription", label: t("monetizationSubscription") },
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const countryOptions = COUNTRY_OPTIONS.map((c) => ({
+    value: c,
+    label: tCountries(COUNTRY_KEY_MAP[c] as any),
+  }));
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -61,12 +75,19 @@ export default function SubmitPage() {
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
     const name = String(form.get("name") || "").trim();
+    const countries = form.getAll("country") as string[];
+
+    if (countries.length === 0) {
+      setDone({ ok: false, message: t("countryRequired") });
+      setLoading(false);
+      return;
+    }
 
     const payload = {
       name,
       slug: slugify(name),
       developer: String(form.get("developer") || "").trim() || null,
-      country: String(form.get("country") || "").trim(),
+      country: countries,
       platforms: form.getAll("platforms") as string[],
       genres: String(form.get("genres") || "")
         .split(",")
@@ -160,13 +181,7 @@ export default function SubmitPage() {
           </Field>
 
           <Field label={t("fieldCountry")} required>
-            <input
-              id="country"
-              name="country"
-              required
-              className={inputClass}
-              placeholder={t("placeholderCountry")}
-            />
+            <CheckboxGroup name="country" options={countryOptions} />
           </Field>
 
           <Field label={t("fieldDescription")} required>
