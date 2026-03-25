@@ -32,8 +32,7 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { submission } = body;
 
-  const { error: insertError } = await supabase.from("games").insert({
-    slug: submission.payload.slug,
+  const gameFields = {
     name: submission.payload.name,
     developer: submission.payload.developer ?? null,
     country: submission.payload.country,
@@ -47,10 +46,27 @@ export async function POST(request: Request) {
     release_date: submission.payload.release_date,
     website_url: submission.payload.website_url,
     store_links: submission.payload.store_links,
-  });
+  };
 
-  if (insertError) {
-    return Response.json({ error: insertError.message }, { status: 500 });
+  let gameError: { message: string } | null = null;
+
+  if (submission.game_id) {
+    // Update submission — patch the existing game row (slug is preserved).
+    const { error } = await supabase
+      .from("games")
+      .update(gameFields)
+      .eq("id", submission.game_id);
+    gameError = error;
+  } else {
+    // New game submission — insert a fresh row.
+    const { error } = await supabase
+      .from("games")
+      .insert({ slug: submission.payload.slug, ...gameFields });
+    gameError = error;
+  }
+
+  if (gameError) {
+    return Response.json({ error: gameError.message }, { status: 500 });
   }
 
   const { error: updateError } = await supabase

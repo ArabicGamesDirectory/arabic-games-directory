@@ -72,12 +72,20 @@ export default async function GameDetails({
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
-      <Link
-        href="/"
-        className="text-sm text-c-muted hover:text-c-text transition-colors"
-      >
-        {tCommon("backToDirectory")}
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link
+          href="/"
+          className="text-sm text-c-muted hover:text-c-text transition-colors"
+        >
+          {tCommon("backToDirectory")}
+        </Link>
+        <Link
+          href={`/update/${game.slug}`}
+          className="text-sm text-c-muted hover:text-c-text border border-c-border hover:border-c-border-hover px-3 py-1.5 rounded-lg transition-colors"
+        >
+          {t("suggestUpdate")}
+        </Link>
+      </div>
 
       <div className="mt-8">
         <div className="flex items-start gap-3 flex-wrap">

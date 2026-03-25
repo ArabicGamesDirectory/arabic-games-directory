@@ -40,7 +40,8 @@
     "monetization": "نموذج الربح",
     "gameEngine": "محرك اللعبة",
     "links": "الروابط",
-    "notFound": "اللعبة غير موجودة."
+    "notFound": "اللعبة غير موجودة.",
+    "suggestUpdate": "اقتراح تحديث"
   },
   "submit": {
     "title": "أضف لعبة",
@@ -51,6 +52,10 @@
     "sectionYourInfo": "معلوماتك",
     "optional": "(اختياري)",
     "countryRequired": "يرجى اختيار دولة واحدة على الأقل.",
+    "updateTitle": "تحديث معلومات اللعبة",
+    "updateSubtitle": "اقترح تغييرات على هذا التوثيق. سنراجع ونطبّقها.",
+    "updateButton": "إرسال التحديث",
+    "updateSuccessMessage": "تم إرسال التحديث! سنراجعه ونطبّقه قريباً.",
     "submittingButton": "جارٍ الإرسال...",
     "submitButton": "إرسال اللعبة",
     "successMessage": "تم الإرسال! سنراجعها وننشرها قريباً.",
@@ -114,7 +119,8 @@
     "rejected": "تم رفض الطلب.",
     "approveFailed": "فشل القبول: {error}",
     "rejectFailed": "فشل الرفض: {error}",
-    "notAllowed": "هذا الحساب لا يملك صلاحية الوصول للإدارة."
+    "notAllowed": "هذا الحساب لا يملك صلاحية الوصول للإدارة.",
+    "updateBadge": "تحديث"
   },
   "countries": {
     "algeria": "الجزائر",

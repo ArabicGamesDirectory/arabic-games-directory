@@ -40,7 +40,8 @@
     "monetization": "Monetization",
     "gameEngine": "Game engine",
     "links": "Links",
-    "notFound": "Game not found."
+    "notFound": "Game not found.",
+    "suggestUpdate": "Suggest an update"
   },
   "submit": {
     "title": "Submit a game",
@@ -51,6 +52,10 @@
     "sectionYourInfo": "Your info",
     "optional": "(optional)",
     "countryRequired": "Please select at least one country.",
+    "updateTitle": "Update game info",
+    "updateSubtitle": "Suggest changes to this listing. We'll review and apply them.",
+    "updateButton": "Submit update",
+    "updateSuccessMessage": "Update submitted! We'll review and apply it soon.",
     "submittingButton": "Submitting...",
     "submitButton": "Submit game",
     "successMessage": "Submitted! We'll review and publish it soon.",
@@ -114,7 +119,8 @@
     "rejected": "Submission rejected.",
     "approveFailed": "Approve failed: {error}",
     "rejectFailed": "Reject failed: {error}",
-    "notAllowed": "This account is not allowed to access admin."
+    "notAllowed": "This account is not allowed to access admin.",
+    "updateBadge": "Update"
   },
   "countries": {
     "algeria": "Algeria",

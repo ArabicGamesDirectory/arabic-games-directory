@@ -12,6 +12,7 @@ const supabase = createBrowserClient(
 
 type Submission = {
   id: string;
+  game_id: string | null;
   submitter_name: string | null;
   submitter_email: string | null;
   moderation_status: string;
@@ -19,7 +20,7 @@ type Submission = {
     name: string;
     slug: string;
     developer: string | null;
-    country: string[];
+    country: string[] | string;
     platforms: string[];
     genres: string[];
     short_description: string;
@@ -264,9 +265,16 @@ export default function AdminPage() {
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div>
-                  <h2 className="text-lg font-semibold text-c-text">
-                    {s.payload.name}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-c-text">
+                      {s.payload.name}
+                    </h2>
+                    {s.game_id && (
+                      <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
+                        {t("updateBadge")}
+                      </span>
+                    )}
+                  </div>
                   {s.payload.developer && (
                     <p className="text-xs text-c-faint mt-0.5">
                       {s.payload.developer}
@@ -279,7 +287,7 @@ export default function AdminPage() {
               </div>
 
               <p className="text-sm text-c-muted">
-                {s.payload.country.join(", ")} · {s.payload.platforms.join(", ")}
+                {[s.payload.country].flat().join(", ")} · {s.payload.platforms.join(", ")}
                 {s.payload.release_date ? ` · ${s.payload.release_date}` : ""}
               </p>
 
