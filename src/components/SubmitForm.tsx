@@ -80,12 +80,21 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const t = useTranslations("submit");
   const tCommon = useTranslations("common");
   const tCountries = useTranslations("countries");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tGenres = useTranslations("genres");
 
   const isUpdate = !!initialData;
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
   const [studioNames, setStudioNames] = useState<string[]>([]);
+  const [developerValue, setDeveloperValue] = useState(initialData?.developer ?? "");
+  const [showDeveloperSuggestions, setShowDeveloperSuggestions] = useState(false);
+  // Open store links by default when updating a game that already has some
+  const [storeLinksOpen, setStoreLinksOpen] = useState(
+    () => isUpdate && Object.values(initialData?.store_links ?? {}).some(Boolean)
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     supabase
@@ -113,6 +122,29 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     { value: "Subscription", label: t("monetizationSubscription") },
   ];
 
+  const GENRE_OPTIONS = (
+    [
+      { value: "Action", key: "action" },
+      { value: "Adventure", key: "adventure" },
+      { value: "Puzzle", key: "puzzle" },
+      { value: "RPG", key: "rpg" },
+      { value: "Strategy", key: "strategy" },
+      { value: "Simulation", key: "simulation" },
+      { value: "Sports", key: "sports" },
+      { value: "Racing", key: "racing" },
+      { value: "Horror", key: "horror" },
+      { value: "Platformer", key: "platformer" },
+      { value: "Shooter", key: "shooter" },
+      { value: "Fighting", key: "fighting" },
+      { value: "Survival", key: "survival" },
+      { value: "Visual Novel", key: "visualNovel" },
+      { value: "Educational", key: "educational" },
+      { value: "Idle", key: "idle" },
+      { value: "Other", key: "other" },
+    ] as const
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ).map(({ value, key }) => ({ value, label: tGenres(key as any) }));
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const countryOptions = COUNTRY_OPTIONS.map((c) => ({
     value: c,
@@ -121,19 +153,31 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setDone(null);
 
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
     const name = String(form.get("name") || "").trim();
+    const description = String(form.get("short_description") || "").trim();
     const countries = form.getAll("country") as string[];
+    const genres = form.getAll("genres") as string[];
+    const platforms = form.getAll("platforms") as string[];
 
-    if (countries.length === 0) {
-      setDone({ ok: false, message: t("countryRequired") });
-      setLoading(false);
+    // Validate required fields
+    const newErrors: Record<string, string> = {};
+    if (!name) newErrors.name = t("errorRequired");
+    if (!description) newErrors.short_description = t("errorRequired");
+    if (countries.length === 0) newErrors.country = t("countryRequired");
+    if (genres.length === 0) newErrors.genres = t("genreRequired");
+    if (platforms.length === 0) newErrors.platforms = t("platformRequired");
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+
+    setErrors({});
+    setLoading(true);
 
     const payload = {
       name,
@@ -141,11 +185,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       slug: isUpdate ? initialData!.slug : slugify(name),
       developer: String(form.get("developer") || "").trim() || null,
       country: countries,
-      platforms: form.getAll("platforms") as string[],
-      genres: String(form.get("genres") || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      platforms,
+      genres,
       gameplay_modes: form.getAll("gameplay_modes") as string[],
       game_engine: String(form.get("game_engine") || "").trim() || null,
       monetization: form.getAll("monetization") as string[],
@@ -211,13 +252,17 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     });
   }
 
-  const inputClass =
-    "w-full bg-c-surface border border-c-border rounded-lg px-3 py-2 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors";
+  const inputCls = (field?: string) =>
+    `w-full bg-c-surface border ${
+      field && errors[field]
+        ? "border-red-500/50 focus:ring-red-500"
+        : "border-c-border focus:ring-indigo-500"
+    } rounded-lg px-3 py-2 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:border-transparent transition-colors`;
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
       <Link href={backHref} className="text-sm text-c-muted hover:text-c-text transition-colors">
-        {tCommon("backToDirectory")}
+        {isUpdate ? tCommon("backToItem", { name: initialData!.name }) : tCommon("backToDirectory")}
       </Link>
 
       <div className="mt-8 mb-8">
@@ -236,36 +281,54 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             {t("sectionGameInfo")}
           </h2>
 
-          <Field label={t("fieldGameName")} required>
+          <Field label={t("fieldGameName")} required error={errors.name}>
             <input
               id="name"
               name="name"
-              required
               defaultValue={initialData?.name}
-              className={inputClass}
+              className={inputCls("name")}
               placeholder={t("placeholderGameName")}
             />
           </Field>
 
           <Field label={t("fieldDeveloper")}>
-            <input
-              id="developer"
-              name="developer"
-              list="studio-suggestions"
-              defaultValue={initialData?.developer ?? ""}
-              className={inputClass}
-              placeholder={t("placeholderDeveloper")}
-            />
-            {studioNames.length > 0 && (
-              <datalist id="studio-suggestions">
-                {studioNames.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            )}
+            <div className="relative">
+              <input
+                id="developer"
+                name="developer"
+                value={developerValue}
+                onChange={(e) => setDeveloperValue(e.target.value)}
+                onFocus={() => setShowDeveloperSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowDeveloperSuggestions(false), 150)}
+                autoComplete="off"
+                className={inputCls()}
+                placeholder={t("placeholderDeveloper")}
+              />
+              {showDeveloperSuggestions && studioNames.filter((n) =>
+                n.toLowerCase().includes(developerValue.toLowerCase())
+              ).length > 0 && (
+                <ul className="absolute z-10 w-full mt-1 bg-c-surface border border-c-border rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                  {studioNames
+                    .filter((n) => n.toLowerCase().includes(developerValue.toLowerCase()))
+                    .slice(0, 8)
+                    .map((name) => (
+                      <li
+                        key={name}
+                        onMouseDown={() => {
+                          setDeveloperValue(name);
+                          setShowDeveloperSuggestions(false);
+                        }}
+                        className="px-3 py-2 text-sm text-c-text hover:bg-c-bg cursor-pointer"
+                      >
+                        {name}
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
           </Field>
 
-          <Field label={t("fieldCountry")} required>
+          <Field label={t("fieldCountry")} required error={errors.country}>
             <CheckboxGroup
               name="country"
               options={countryOptions}
@@ -273,26 +336,22 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             />
           </Field>
 
-          <Field label={t("fieldDescription")} required>
+          <Field label={t("fieldDescription")} required error={errors.short_description}>
             <textarea
               id="short_description"
               name="short_description"
-              required
               rows={4}
               defaultValue={initialData?.short_description}
-              className={inputClass + " resize-none"}
+              className={inputCls("short_description") + " resize-none"}
               placeholder={t("placeholderDescription")}
             />
           </Field>
 
-          <Field label={t("fieldGenres")} required hint={t("fieldGenresHint")}>
-            <input
-              id="genres"
+          <Field label={t("fieldGenres")} required error={errors.genres}>
+            <CheckboxGroup
               name="genres"
-              required
-              defaultValue={initialData?.genres.join(", ")}
-              className={inputClass}
-              placeholder={t("placeholderGenres")}
+              options={GENRE_OPTIONS}
+              initialValues={initialData?.genres}
             />
           </Field>
 
@@ -302,7 +361,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
                 id="status"
                 name="status"
                 defaultValue={initialData?.status ?? "announced"}
-                className={inputClass}
+                className={inputCls()}
               >
                 <option value="announced">{t("statusAnnounced")}</option>
                 <option value="in_dev">{t("statusInDev")}</option>
@@ -318,7 +377,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
                 name="release_date"
                 type="date"
                 defaultValue={initialData?.release_date ?? ""}
-                className={inputClass}
+                className={inputCls()}
               />
             </Field>
           </div>
@@ -329,7 +388,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               name="website_url"
               type="url"
               defaultValue={initialData?.website_url ?? ""}
-              className={inputClass}
+              className={inputCls()}
               placeholder={t("placeholderWebsiteUrl")}
             />
           </Field>
@@ -341,7 +400,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             {t("sectionPlatformDetails")}
           </h2>
 
-          <Field label={t("fieldPlatforms")} required>
+          <Field label={t("fieldPlatforms")} required error={errors.platforms}>
             <CheckboxGroup
               name="platforms"
               options={PLATFORM_OPTIONS.map((v) => ({ value: v, label: v }))}
@@ -362,7 +421,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               name="game_engine"
               list="engine-options"
               defaultValue={initialData?.game_engine ?? ""}
-              className={inputClass}
+              className={inputCls()}
               placeholder={t("placeholderGameEngine")}
             />
             <datalist id="engine-options">
@@ -381,25 +440,36 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
           </Field>
         </div>
 
-        {/* Store links */}
-        <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
-            {t("sectionStoreLinks")}{" "}
-            <span className="font-normal normal-case text-c-faint">{t("optional")}</span>
-          </h2>
+        {/* Store links — collapsible */}
+        <div className="bg-c-surface border border-c-border rounded-xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setStoreLinksOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-5 py-4 text-start"
+          >
+            <span className="text-xs font-semibold text-c-faint uppercase tracking-wider">
+              {t("sectionStoreLinks")}{" "}
+              <span className="font-normal normal-case">{t("optional")}</span>
+            </span>
+            <span className="text-c-faint text-sm">{storeLinksOpen ? "↑" : "↓"}</span>
+          </button>
 
-          {STORE_FIELDS.map(({ id, label, placeholder }) => (
-            <Field key={id} label={label}>
-              <input
-                id={id}
-                name={id}
-                type="url"
-                defaultValue={initialData?.store_links?.[STORE_KEY_MAP[id]] ?? ""}
-                className={inputClass}
-                placeholder={placeholder}
-              />
-            </Field>
-          ))}
+          {storeLinksOpen && (
+            <div className="px-5 pb-5 space-y-4 border-t border-c-border pt-4">
+              {STORE_FIELDS.map(({ id, label, placeholder }) => (
+                <Field key={id} label={label}>
+                  <input
+                    id={id}
+                    name={id}
+                    type="url"
+                    defaultValue={initialData?.store_links?.[STORE_KEY_MAP[id]] ?? ""}
+                    className={inputCls()}
+                    placeholder={placeholder}
+                  />
+                </Field>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Submitter info */}
@@ -413,7 +483,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <input
               id="submitter_name"
               name="submitter_name"
-              className={inputClass}
+              className={inputCls()}
               placeholder={t("placeholderName")}
             />
           </Field>
@@ -423,7 +493,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               id="submitter_email"
               name="submitter_email"
               type="email"
-              className={inputClass}
+              className={inputCls()}
               placeholder={t("placeholderEmail")}
             />
           </Field>
@@ -461,11 +531,13 @@ function Field({
   label,
   required,
   hint,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
   hint?: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -476,6 +548,7 @@ function Field({
         {hint && <span className="text-c-faint font-normal ms-1">— {hint}</span>}
       </label>
       {children}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }

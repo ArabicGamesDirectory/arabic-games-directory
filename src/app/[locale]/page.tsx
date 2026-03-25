@@ -21,10 +21,10 @@ type Game = {
 };
 
 const STATUS_CLASSES: Record<string, string> = {
-  announced: "bg-blue-100 text-blue-700",
-  in_dev: "bg-amber-100 text-amber-700",
-  early_access: "bg-purple-100 text-purple-700",
-  released: "bg-emerald-100 text-emerald-700",
+  announced: "bg-blue-500/15 text-blue-500",
+  in_dev: "bg-amber-500/15 text-amber-500",
+  early_access: "bg-purple-500/15 text-purple-500",
+  released: "bg-emerald-500/15 text-emerald-500",
   cancelled: "bg-c-tag text-c-muted",
 };
 
@@ -64,12 +64,35 @@ export default async function Home({
   const tab = sp.tab === "studios" ? "studios" : "games";
   const q = sp.q?.trim() ?? "";
 
+  // Build tab URLs that preserve current filter/search state (#10)
+  const gameParams = new URLSearchParams();
+  if (sp.platform) gameParams.set("platform", sp.platform);
+  if (sp.status) gameParams.set("status", sp.status);
+  if (q) gameParams.set("q", q);
+  const gamesTabHref = gameParams.size > 0 ? `/?${gameParams}` : "/";
+
+  const studioParams = new URLSearchParams({ tab: "studios" });
+  if (sp.platform) studioParams.set("platform", sp.platform);
+  if (sp.status) studioParams.set("status", sp.status);
+  if (q) studioParams.set("q", q);
+  const studiosTabHref = `/?${studioParams}`;
+
   // Always fetch studios: used for the Studios tab AND to make developer names clickable on game cards.
   const { data: studioData } = await supabase
     .from("studios")
     .select("id, slug, name, type, description, country, website_url")
     .order("name");
   const studios: Studio[] = (studioData as Studio[]) ?? [];
+
+  // Filter studios by search query when on studios tab (client-side on already-fetched data)
+  const filteredStudios =
+    q && tab === "studios"
+      ? studios.filter(
+          (s) =>
+            s.name.toLowerCase().includes(q.toLowerCase()) ||
+            (s.description ?? "").toLowerCase().includes(q.toLowerCase())
+        )
+      : studios;
 
   // name (lowercase) → slug lookup for linking developer names on game cards
   const studioSlugMap = new Map<string, string>(
@@ -104,7 +127,7 @@ export default async function Home({
   }
 
   const typedGames: Game[] = games ?? [];
-  const count = tab === "studios" ? studios.length : typedGames.length;
+  const count = tab === "studios" ? filteredStudios.length : typedGames.length;
 
   const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
   const filters = [
@@ -135,11 +158,14 @@ export default async function Home({
     },
   ];
 
-  const clearSearchHref = sp.platform
-    ? `/?platform=${sp.platform}`
-    : sp.status
-    ? `/?status=${sp.status}`
-    : "/";
+  const clearSearchHref =
+    tab === "studios"
+      ? "/?tab=studios"
+      : sp.platform
+      ? `/?platform=${sp.platform}`
+      : sp.status
+      ? `/?status=${sp.status}`
+      : "/";
 
   const gameCountText =
     count === 1
@@ -176,37 +202,87 @@ export default async function Home({
         </div>
       </header>
 
-      {/* Games / Studios tab switcher */}
-      <div className="flex gap-1 mb-6 bg-c-surface border border-c-border rounded-lg p-1 w-fit">
+      {/* Tab switcher + Stats link (#9, #10) */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex gap-1 bg-c-surface border border-c-border rounded-lg p-1">
+          <Link
+            href={gamesTabHref}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === "games" ? "bg-c-bg text-c-text shadow-sm" : "text-c-muted hover:text-c-text"
+            }`}
+          >
+            {t("tabGames")}
+          </Link>
+          <Link
+            href={studiosTabHref}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === "studios" ? "bg-c-bg text-c-text shadow-sm" : "text-c-muted hover:text-c-text"
+            }`}
+          >
+            {t("tabStudios")}
+          </Link>
+        </div>
         <Link
-          href="/"
-          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            tab === "games" ? "bg-c-bg text-c-text shadow-sm" : "text-c-muted hover:text-c-text"
-          }`}
+          href="/stats"
+          className="text-sm text-c-muted hover:text-c-text transition-colors"
         >
-          {t("tabGames")}
-        </Link>
-        <Link
-          href="/?tab=studios"
-          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            tab === "studios" ? "bg-c-bg text-c-text shadow-sm" : "text-c-muted hover:text-c-text"
-          }`}
-        >
-          {t("tabStudios")}
+          {tCommon("stats")} →
         </Link>
       </div>
 
       {/* Studios tab */}
       {tab === "studios" && (
         <>
+          {/* Studios search */}
+          <form method="get" action="" className="relative mb-4">
+            <input type="hidden" name="tab" value="studios" />
+            <input
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder={t("searchStudiosPlaceholder")}
+              className="w-full bg-c-surface border border-c-border rounded-xl px-4 py-2.5 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors pe-20"
+            />
+            <div className="absolute end-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {q && (
+                <Link
+                  href={clearSearchHref}
+                  className="text-xs text-c-faint hover:text-c-muted px-2 py-1 transition-colors"
+                >
+                  {t("clearSearch")}
+                </Link>
+              )}
+              <button
+                type="submit"
+                className="text-xs bg-c-tag text-c-soft px-3 py-1 rounded-lg hover:bg-c-border transition-colors"
+              >
+                {t("searchButton")}
+              </button>
+            </div>
+          </form>
+
           <p className="text-sm text-c-faint mb-6">{studioCountText}</p>
           <div className="grid gap-3">
             {studios.length === 0 ? (
-              <div className="text-center py-16 text-c-muted">
-                <p>{t("noStudios")}</p>
+              <div className="text-center py-16">
+                <p className="text-4xl mb-3">🏢</p>
+                <p className="text-c-muted font-medium">{t("noStudios")}</p>
+                <p className="text-c-faint text-sm mt-1">{t("noStudiosHint")}</p>
+              </div>
+            ) : filteredStudios.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-4xl mb-3">🔍</p>
+                <p className="text-c-muted font-medium">{t("noStudiosFound")}</p>
+                <p className="text-c-faint text-sm mt-1">{t("noGamesHint")}</p>
+                <Link
+                  href="/?tab=studios"
+                  className="text-indigo-500 text-sm mt-3 inline-block hover:underline"
+                >
+                  {t("clearFilters")}
+                </Link>
               </div>
             ) : (
-              studios.map((s) => (
+              filteredStudios.map((s) => (
                 <Link
                   key={s.slug}
                   href={`/studios/${s.slug}`}
@@ -234,6 +310,10 @@ export default async function Home({
               ))
             )}
           </div>
+          {/* CTA hint (#14) */}
+          <p className="text-xs text-c-faint text-center mt-6 px-4">
+            {t("studiosCta")}
+          </p>
         </>
       )}
 
@@ -291,11 +371,13 @@ export default async function Home({
       {/* Game list */}
       <div className="grid gap-3">
         {typedGames.length === 0 ? (
-          <div className="text-center py-16 text-c-muted">
-            <p>{t("noGames")}</p>
+          <div className="text-center py-16">
+            <p className="text-4xl mb-3">🔍</p>
+            <p className="text-c-muted font-medium">{t("noGames")}</p>
+            <p className="text-c-faint text-sm mt-1">{t("noGamesHint")}</p>
             <Link
               href="/"
-              className="text-indigo-500 text-sm mt-2 inline-block hover:underline"
+              className="text-indigo-500 text-sm mt-3 inline-block hover:underline"
             >
               {t("clearFilters")}
             </Link>
@@ -346,45 +428,36 @@ export default async function Home({
                 {g.release_date ? ` · ${g.release_date}` : ""}
               </p>
 
-              <p className="text-sm text-c-soft mt-3 leading-relaxed">
+              <p className="text-sm text-c-soft mt-3 leading-relaxed line-clamp-3">
                 {g.short_description}
               </p>
 
-              <div className="flex gap-1.5 flex-wrap mt-3">
-                {g.genres.map((genre) => (
-                  <span
-                    key={genre}
-                    className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full"
-                  >
-                    {genre}
-                  </span>
-                ))}
-                {g.gameplay_modes?.map((m) => (
-                  <span
-                    key={m}
-                    className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full"
-                  >
-                    {m}
-                  </span>
-                ))}
-                {g.monetization?.map((m) => (
-                  <span
-                    key={m}
-                    className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full"
-                  >
-                    {m}
-                  </span>
-                ))}
-                {g.game_engine && (
-                  <span className="text-xs bg-c-tag text-c-faint px-2 py-0.5 rounded-full">
-                    {g.game_engine}
-                  </span>
-                )}
-              </div>
+              {(() => {
+                const allTags = [
+                  ...g.genres.map((v) => ({ v, cls: "bg-c-tag text-c-tag-text" })),
+                  ...(g.gameplay_modes ?? []).map((v) => ({ v, cls: "bg-blue-500/10 text-blue-500" })),
+                  ...(g.monetization ?? []).map((v) => ({ v, cls: "bg-amber-500/10 text-amber-500" })),
+                  ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint" }] : []),
+                ];
+                const visible = allTags.slice(0, 5);
+                const extra = allTags.length - visible.length;
+                return (
+                  <div className="flex gap-1.5 flex-wrap mt-3">
+                    {visible.map(({ v, cls }) => (
+                      <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
+                    ))}
+                    {extra > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-faint">
+                        +{extra}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
               {(g.website_url ||
                 Object.values(g.store_links ?? {}).some(Boolean)) && (
-                <div className="flex gap-4 flex-wrap mt-4 pt-4 border-t border-c-border">
+                <div className="flex items-center gap-3 flex-wrap mt-4 pt-4 border-t border-c-border">
                   {g.website_url && (
                     <a
                       href={g.website_url}
@@ -395,20 +468,22 @@ export default async function Home({
                       {tCommon("website")}
                     </a>
                   )}
-                  {g.store_links &&
-                    Object.entries(g.store_links).map(([key, val]) =>
-                      typeof val === "string" && val ? (
-                        <a
-                          key={key}
-                          href={val}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-indigo-500 hover:underline"
-                        >
-                          {key} ↗
-                        </a>
-                      ) : null
-                    )}
+                  {(() => {
+                    const storeNames = Object.entries(g.store_links ?? {})
+                      .filter(([, val]) => typeof val === "string" && val)
+                      .map(([key]) => key);
+                    if (storeNames.length === 0) return null;
+                    const shown = storeNames.slice(0, 2);
+                    const extra = storeNames.length - shown.length;
+                    return (
+                      <Link
+                        href={`/games/${g.slug}`}
+                        className="text-sm text-c-faint hover:text-c-muted transition-colors"
+                      >
+                        {shown.join(" · ")}{extra > 0 ? ` +${extra}` : ""}
+                      </Link>
+                    );
+                  })()}
                 </div>
               )}
             </article>
@@ -418,9 +493,6 @@ export default async function Home({
       </>)}
 
       <footer className="mt-12 pt-8 border-t border-c-border flex gap-6 text-sm text-c-faint">
-        <Link href="/stats" className="hover:text-c-muted transition-colors">
-          {tCommon("stats")}
-        </Link>
         <Link href="/admin" className="hover:text-c-muted transition-colors">
           {tCommon("admin")}
         </Link>

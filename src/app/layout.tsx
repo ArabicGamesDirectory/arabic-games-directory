@@ -34,7 +34,7 @@ export default async function RootLayout({
         {/* Prevents flash of wrong theme on load */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{const t=localStorage.getItem('theme');if(t==='gray')document.documentElement.classList.add('theme-gray');if(t==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}`,
+            __html: `try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}`,
           }}
         />
       </head>

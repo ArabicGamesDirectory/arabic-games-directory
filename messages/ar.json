@@ -5,6 +5,7 @@
   },
   "common": {
     "backToDirectory": "العودة إلى الدليل →",
+    "backToItem": "العودة إلى {name} →",
     "submitGame": "أضف لعبة",
     "submitStudio": "أضف استوديو",
     "stats": "إحصائيات",
@@ -23,6 +24,7 @@
     "title": "دليل الألعاب العربية",
     "description": "ألعاب طوّرها مطوّرون من منطقة الشرق الأوسط وشمال أفريقيا.",
     "searchPlaceholder": "ابحث بالاسم أو المطوّر أو النوع…",
+    "searchStudiosPlaceholder": "ابحث بالاسم أو الوصف…",
     "searchButton": "بحث",
     "clearSearch": "مسح",
     "filterAll": "الكل",
@@ -33,12 +35,16 @@
     "gameCountSingular": "لعبة واحدة",
     "gameCountPlural": "{count} لعبة",
     "noGames": "لا توجد ألعاب.",
+    "noGamesHint": "جرّب تعديل البحث أو الفلاتر.",
     "clearFilters": "مسح الفلاتر",
     "tabGames": "الألعاب",
     "tabStudios": "الاستوديوهات",
     "studioCountSingular": "استوديو واحد",
     "studioCountPlural": "{count} استوديو",
-    "noStudios": "لا توجد استوديوهات بعد."
+    "noStudios": "لا توجد استوديوهات بعد.",
+    "noStudiosHint": "تُضاف الاستوديوهات تلقائياً عند إرسال لعبة.",
+    "noStudiosFound": "لا توجد نتائج للاستوديوهات.",
+    "studiosCta": "هل استوديوك غير موجود؟ أرسل لعبة وسنضيف الاستوديو تلقائياً."
   },
   "gameDetail": {
     "genres": "الأنواع",
@@ -65,6 +71,9 @@
     "submittingButton": "جارٍ الإرسال...",
     "submitButton": "إرسال اللعبة",
     "successMessage": "تم الإرسال! سنراجعها وننشرها قريباً.",
+    "errorRequired": "هذا الحقل مطلوب.",
+    "genreRequired": "يرجى اختيار نوع واحد على الأقل.",
+    "platformRequired": "يرجى اختيار منصة واحدة على الأقل.",
     "fieldGameName": "اسم اللعبة",
     "fieldDeveloper": "المطوّر / الاستوديو",
     "fieldCountry": "الدولة",
@@ -104,6 +113,25 @@
     "monetizationAds": "إعلانات",
     "monetizationIAP": "مشتريات داخلية",
     "monetizationSubscription": "اشتراك"
+  },
+  "genres": {
+    "action": "أكشن",
+    "adventure": "مغامرة",
+    "puzzle": "ألغاز",
+    "rpg": "RPG",
+    "strategy": "إستراتيجية",
+    "simulation": "محاكاة",
+    "sports": "رياضة",
+    "racing": "سباقات",
+    "horror": "رعب",
+    "platformer": "منصات",
+    "shooter": "تصويب",
+    "fighting": "قتال",
+    "survival": "بقاء",
+    "visualNovel": "رواية مرئية",
+    "educational": "تعليمي",
+    "idle": "إيدل",
+    "other": "أخرى"
   },
   "admin": {
     "loginTitle": "تسجيل الدخول للإدارة",
@@ -190,7 +218,9 @@
     "notFound": "الاستوديو غير موجود.",
     "suggestUpdate": "اقتراح تحديث",
     "typeLabel": "النوع",
-    "websiteLabel": "الموقع ↗"
+    "websiteLabel": "الموقع ↗",
+    "gamesSection": "الألعاب",
+    "noGamesYet": "لا توجد ألعاب في الدليل بعد."
   },
   "stats": {
     "title": "إحصائيات",

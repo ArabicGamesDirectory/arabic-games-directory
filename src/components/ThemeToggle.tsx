@@ -2,19 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-const THEMES = ["light", "gray", "dark"] as const;
+const THEMES = ["light", "dark"] as const;
 type Theme = (typeof THEMES)[number];
 
 const ICONS: Record<Theme, string> = {
   light: "☀︎",
-  gray: "◑",
   dark: "☾",
 };
 
 function apply(t: Theme) {
   const el = document.documentElement;
-  el.classList.remove("theme-gray", "theme-dark");
-  if (t === "gray") el.classList.add("theme-gray");
+  el.classList.remove("theme-dark");
   if (t === "dark") el.classList.add("theme-dark");
   try {
     localStorage.setItem("theme", t);

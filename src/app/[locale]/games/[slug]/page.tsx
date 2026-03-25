@@ -22,10 +22,10 @@ type Game = {
 };
 
 const STATUS_CLASSES: Record<string, string> = {
-  announced: "bg-blue-100 text-blue-700",
-  in_dev: "bg-amber-100 text-amber-700",
-  early_access: "bg-purple-100 text-purple-700",
-  released: "bg-emerald-100 text-emerald-700",
+  announced: "bg-blue-500/15 text-blue-500",
+  in_dev: "bg-amber-500/15 text-amber-500",
+  early_access: "bg-purple-500/15 text-purple-500",
+  released: "bg-emerald-500/15 text-emerald-500",
   cancelled: "bg-c-tag text-c-muted",
 };
 
