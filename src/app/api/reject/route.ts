@@ -1,10 +1,12 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
 
-  const supabase = createServerClient(
+  // Session client — anon key, reads auth cookie to verify identity.
+  const sessionClient = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -23,11 +25,17 @@ export async function POST(request: Request) {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await sessionClient.auth.getUser();
 
   if (!user || user.email !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Service-role client — bypasses RLS for privileged writes.
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   const body = await request.json();
   const { id } = body;

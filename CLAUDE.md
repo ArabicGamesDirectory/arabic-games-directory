@@ -69,7 +69,8 @@ arabic-games-directory/
 ```
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-NEXT_PUBLIC_ADMIN_EMAIL=...       # Checked server-side in /api/approve and /api/reject routes
+NEXT_PUBLIC_ADMIN_EMAIL=...             # Checked server-side in /api/approve and /api/reject routes
+SUPABASE_SERVICE_ROLE_KEY=...           # Server-only — used in API routes for privileged DB writes (bypasses RLS)
 ```
 
 Vercel has the same variables set in project settings.
@@ -148,7 +149,7 @@ Vercel has the same variables set in project settings.
 - **Update submissions:** Game detail page has a "Suggest an update" link → `/update/[slug]` → server fetches game → renders `<SubmitForm initialData={game} />`. On submit, the slug is preserved (not regenerated) and `game_id` is stored in the submissions row. On admin approve, if `game_id` is set the existing `games` row is `UPDATE`d (not `INSERT`ed), preserving the slug and all URL references.
 - **Admin flow:** Admin signs in with Supabase email/password auth → page loads pending submissions → clicking Approve/Reject calls a server-side API route (`/api/approve` or `/api/reject`) which verifies the session cookie and admin email before writing to the DB. Update submissions are shown with a blue "Update" badge. Each card has a "View details ↓" toggle that expands to show all fields (including store links). For update submissions, the original game is batch-fetched after the queue loads (`.in("id", gameIds)`) and stored in `originalGames: Record<string, Game>` state; changed fields are highlighted amber with a "changed" badge and a strikethrough "was: [old value]" annotation.
 - **Admin auth:** `[locale]/admin/page.tsx` uses `createBrowserClient` from `@supabase/auth-helpers-nextjs` (stores session in cookies, not localStorage) so the session is readable by the server-side API routes. The shared `supabase` client in `lib/supabase.ts` is only used by non-admin pages.
-- **Server routes auth:** `/api/approve` and `/api/reject` use `createServerClient` from `@supabase/auth-helpers-nextjs` to read the session from cookies and verify `user.email === NEXT_PUBLIC_ADMIN_EMAIL` before any DB write. API routes have no locale prefix and are excluded from the proxy matcher.
+- **Server routes auth:** `/api/approve` and `/api/reject` use a two-client pattern: (1) `createServerClient` with the anon key reads the session cookie and verifies `user.email === NEXT_PUBLIC_ADMIN_EMAIL`; (2) `createClient` with `SUPABASE_SERVICE_ROLE_KEY` performs the actual DB writes, bypassing RLS. This is necessary because the `games` RLS policy only grants `authenticated` users SELECT and INSERT — there is no UPDATE policy, so writes via the anon client silently affect 0 rows. The service role key is server-only (no `NEXT_PUBLIC_` prefix) and must never be exposed to the client. API routes have no locale prefix and are excluded from the proxy matcher.
 - **Search:** Homepage accepts a `?q=` URL param (server-side, no JS required). Supabase `.or()` matches `name.ilike.%q%`, `developer.ilike.%q%`, and `genres.cs.{q}` (exact element match for genres). Search and filter pills compose — each preserves the other in the URL.
 - Pages that read from `games` are: homepage, game detail, stats. All use the anon Supabase client.
 - The admin page is `"use client"` and uses Supabase Auth client-side. All other data-fetching pages are server components.
