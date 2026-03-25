@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
@@ -85,6 +85,17 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
+  const [studioNames, setStudioNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("studios")
+      .select("name")
+      .order("name")
+      .then(({ data }) => {
+        if (data) setStudioNames(data.map((s: { name: string }) => s.name));
+      });
+  }, []);
 
   const GAMEPLAY_MODE_OPTIONS = [
     { value: "Single Player", label: t("modeSinglePlayer") },
@@ -220,10 +231,18 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <input
               id="developer"
               name="developer"
+              list="studio-suggestions"
               defaultValue={initialData?.developer ?? ""}
               className={inputClass}
               placeholder={t("placeholderDeveloper")}
             />
+            {studioNames.length > 0 && (
+              <datalist id="studio-suggestions">
+                {studioNames.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            )}
           </Field>
 
           <Field label={t("fieldCountry")} required>

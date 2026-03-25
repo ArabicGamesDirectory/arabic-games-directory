@@ -52,6 +52,21 @@ type Game = {
   store_links: Record<string, string | null>;
 };
 
+type StudioSubmission = {
+  id: string;
+  submitter_name: string | null;
+  submitter_email: string | null;
+  moderation_status: string;
+  payload: {
+    name: string;
+    slug: string;
+    type: string;
+    description: string | null;
+    country: string[] | string;
+    website_url: string | null;
+  };
+};
+
 const STATUS_LABELS: Record<string, string> = {
   announced: "Announced",
   in_dev: "In Dev",
@@ -97,6 +112,8 @@ export default function AdminPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [originalGames, setOriginalGames] = useState<Record<string, Game>>({});
+  const [studioSubmissions, setStudioSubmissions] = useState<StudioSubmission[]>([]);
+  const [activeTab, setActiveTab] = useState<"games" | "studios">("games");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -105,7 +122,15 @@ export default function AdminPage() {
   async function loadUserAndSubmissions() {
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
+
+    // Invalid/expired refresh token — clear it and show the login form.
+    if (authError) {
+      await supabase.auth.signOut();
+      setUserEmail(null);
+      return;
+    }
 
     setUserEmail(user?.email ?? null);
     if (!user?.email) return;
@@ -148,6 +173,15 @@ export default function AdminPage() {
         setOriginalGames(map);
       }
     }
+
+    // Fetch pending studio submissions
+    const { data: studioData } = await supabase
+      .from("studio_submissions")
+      .select("*")
+      .eq("moderation_status", "pending")
+      .order("created_at", { ascending: true });
+
+    setStudioSubmissions((studioData as StudioSubmission[]) ?? []);
   }
 
   useEffect(() => {
@@ -172,6 +206,7 @@ export default function AdminPage() {
     setUserEmail(null);
     setSubmissions([]);
     setOriginalGames({});
+    setStudioSubmissions([]);
     setMessage(null);
   }
 
@@ -191,6 +226,42 @@ export default function AdminPage() {
     }
     setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
     setMessage({ text: t("approved", { name: submission.payload.name }), ok: true });
+  }
+
+  async function approveStudio(submission: StudioSubmission) {
+    setMessage(null);
+    setActionId(submission.id);
+    const res = await fetch("/api/approve-studio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ submission }),
+    });
+    const data = await res.json();
+    setActionId(null);
+    if (!res.ok) {
+      setMessage({ text: t("approveFailed", { error: data.error }), ok: false });
+      return;
+    }
+    setStudioSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
+    setMessage({ text: t("approvedStudio", { name: submission.payload.name }), ok: true });
+  }
+
+  async function rejectStudio(id: string) {
+    setMessage(null);
+    setActionId(id);
+    const res = await fetch("/api/reject-studio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    setActionId(null);
+    if (!res.ok) {
+      setMessage({ text: t("rejectFailed", { error: data.error }), ok: false });
+      return;
+    }
+    setStudioSubmissions((prev) => prev.filter((s) => s.id !== id));
+    setMessage({ text: t("rejected"), ok: true });
   }
 
   async function rejectSubmission(id: string) {
@@ -306,7 +377,32 @@ export default function AdminPage() {
         </div>
       )}
 
-      {submissions.length === 0 ? (
+      {/* Tab switcher */}
+      <div className="flex gap-1 mb-6 bg-c-surface border border-c-border rounded-lg p-1 w-fit">
+        <button
+          onClick={() => setActiveTab("games")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "games"
+              ? "bg-c-bg text-c-text shadow-sm"
+              : "text-c-muted hover:text-c-text"
+          }`}
+        >
+          {t("tabGames")}{submissions.length > 0 ? ` (${submissions.length})` : ""}
+        </button>
+        <button
+          onClick={() => setActiveTab("studios")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "studios"
+              ? "bg-c-bg text-c-text shadow-sm"
+              : "text-c-muted hover:text-c-text"
+          }`}
+        >
+          {t("tabStudios")}{studioSubmissions.length > 0 ? ` (${studioSubmissions.length})` : ""}
+        </button>
+      </div>
+
+      {/* Games tab */}
+      {activeTab === "games" && (submissions.length === 0 ? (
         <div className="text-center py-16 text-c-muted">
           <p>{t("noPending")}</p>
         </div>
@@ -533,7 +629,77 @@ export default function AdminPage() {
             );
           })}
         </div>
-      )}
+      ))}
+
+      {/* Studios tab */}
+      {activeTab === "studios" && (studioSubmissions.length === 0 ? (
+        <div className="text-center py-16 text-c-muted">
+          <p>{t("noPendingStudios")}</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {studioSubmissions.map((s) => (
+            <article
+              key={s.id}
+              className="bg-c-surface border border-c-border rounded-xl overflow-hidden"
+            >
+              <div className="p-5">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                    <p className="text-xs text-c-faint mt-0.5">
+                      {t("studioType")}: {s.payload.type}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-c-muted">
+                  {[s.payload.country].flat().join(", ")}
+                </p>
+
+                {s.payload.description && (
+                  <p className="text-sm text-c-soft mt-3 leading-relaxed">
+                    {s.payload.description}
+                  </p>
+                )}
+
+                {s.payload.website_url && (
+                  <a
+                    href={s.payload.website_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block mt-3 text-sm text-indigo-500 hover:underline"
+                  >
+                    {s.payload.website_url} ↗
+                  </a>
+                )}
+
+                <p className="text-xs text-c-faint mt-3">
+                  {t("submittedBy", { name: s.submitter_name || "—" })}
+                  {s.submitter_email ? ` (${s.submitter_email})` : ""}
+                </p>
+              </div>
+
+              <div className="flex gap-3 px-5 py-4 border-t border-c-border">
+                <button
+                  onClick={() => approveStudio(s)}
+                  disabled={actionId === s.id}
+                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                >
+                  {actionId === s.id ? t("working") : t("approve")}
+                </button>
+                <button
+                  onClick={() => rejectStudio(s.id)}
+                  disabled={actionId === s.id}
+                  className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                >
+                  {actionId === s.id ? t("working") : t("reject")}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ))}
     </main>
   );
 }

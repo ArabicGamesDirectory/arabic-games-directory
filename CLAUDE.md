@@ -28,11 +28,13 @@ arabic-games-directory/
 │   │   │   ├── page.tsx        # Homepage — lists approved games with filters + search
 │   │   │   ├── submit/
 │   │   │   │   └── page.tsx    # Thin wrapper that renders <SubmitForm />
+│   │   │   ├── submit-studio/
+│   │   │   │   └── page.tsx    # Thin wrapper that renders <StudioSubmitForm />
 │   │   │   ├── update/
 │   │   │   │   └── [slug]/
 │   │   │   │       └── page.tsx  # Fetches existing game, renders <SubmitForm initialData={game} />
 │   │   │   ├── admin/
-│   │   │   │   └── page.tsx    # Admin review page (approve / reject) — uses createBrowserClient ("use client")
+│   │   │   │   └── page.tsx    # Admin review page — tabs for Games and Studios
 │   │   │   ├── games/
 │   │   │   │   └── [slug]/
 │   │   │   │       └── page.tsx  # Game detail page — includes "Suggest an update" link
@@ -40,13 +42,18 @@ arabic-games-directory/
 │   │   │       └── page.tsx    # Statistics (by country, platform, genre, status)
 │   │   └── api/
 │   │       ├── approve/
-│   │       │   └── route.ts    # POST — server-side approve (verifies session + admin email)
-│   │       └── reject/
-│   │           └── route.ts    # POST — server-side reject (verifies session + admin email)
+│   │       │   └── route.ts    # POST — approve game submission
+│   │       ├── reject/
+│   │       │   └── route.ts    # POST — reject game submission
+│   │       ├── approve-studio/
+│   │       │   └── route.ts    # POST — approve studio submission
+│   │       └── reject-studio/
+│   │           └── route.ts    # POST — reject studio submission
 │   ├── components/
 │   │   ├── ThemeToggle.tsx     # Floating light/gray/dark theme switcher (persists to localStorage)
 │   │   ├── LanguageSwitcher.tsx  # Floating EN↔AR switcher (fixed bottom start-4)
-│   │   └── SubmitForm.tsx      # Shared form for new submissions and update suggestions (accepts initialData)
+│   │   ├── SubmitForm.tsx      # Shared form for new game submissions and update suggestions (accepts initialData); developer field has datalist autocomplete from approved studios
+│   │   └── StudioSubmitForm.tsx  # Form for submitting a new studio/team/individual
 │   ├── i18n/
 │   │   ├── routing.ts          # Defines locales: ['en', 'ar'], defaultLocale: 'en'
 │   │   ├── request.ts          # next-intl server config — loads messages per locale
@@ -54,6 +61,7 @@ arabic-games-directory/
 │   ├── proxy.ts                # next-intl locale routing middleware (Next.js 16 uses proxy.ts)
 │   └── lib/
 │       ├── supabase.ts         # Supabase client (anon key, public) — used by non-admin pages
+│       ├── countries.ts        # COUNTRY_OPTIONS list + COUNTRY_KEY_MAP for i18n
 │       └── slug.ts             # slugify() helper — falls back to game-{timestamp} for Arabic-only names
 ├── .env.local                  # Local env vars (never commit)
 ├── .gitignore
@@ -100,6 +108,30 @@ Vercel has the same variables set in project settings.
 | created_at | timestamptz | default now() |
 | updated_at | timestamptz | auto-updated via trigger |
 
+### `studios` table — approved, public
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK, gen_random_uuid() |
+| slug | text | unique, not null |
+| name | text | not null |
+| type | text | individual / team / studio |
+| description | text | nullable |
+| country | text[] | not null — array of country names |
+| website_url | text | nullable |
+| created_at | timestamptz | default now() |
+| updated_at | timestamptz | auto-updated via trigger |
+
+### `studio_submissions` table — pending moderation queue, private
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| submitter_name | text | nullable |
+| submitter_email | text | nullable |
+| payload | jsonb | full studio data (mirrors studios columns) |
+| moderation_status | text | pending / approved / rejected |
+| created_at | timestamptz | |
+| reviewed_at | timestamptz | set on approve or reject |
+
 ### `submissions` table — pending moderation queue, private
 | Column | Type | Notes |
 |---|---|---|
@@ -116,6 +148,8 @@ Vercel has the same variables set in project settings.
 ### RLS summary
 - `games`: anon + authenticated can SELECT. Authenticated can INSERT.
 - `submissions`: anon + authenticated can INSERT. Authenticated can SELECT and UPDATE.
+- `studios`: anon + authenticated can SELECT. Authenticated can INSERT.
+- `studio_submissions`: anon + authenticated can INSERT. Authenticated can SELECT and UPDATE.
 
 ---
 
@@ -132,9 +166,12 @@ Vercel has the same variables set in project settings.
 8. ~~Controlled country selection~~ ✓ Done (18 MENA countries, multi-select checkboxes, translated, stored as `text[]`)
 9. ~~Game update submissions~~ ✓ Done ("Suggest an update" on game detail → pre-filled form → update submission with `game_id`; admin approve patches existing game row)
 10. ~~Admin full-detail view with diff highlighting~~ ✓ Done (expandable cards show all fields incl. store links; update submissions highlight changed fields in amber with "was: [old value]" annotation)
-11. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
-12. Email notification to submitter on approve/reject
-13. Charts on stats page instead of plain lists
+11. ~~Studios / developers directory~~ ✓ Done (submit studio at `/submit-studio`; "Submit a studio" secondary button in homepage header; admin Games/Studios tab switcher; approved studios autocomplete the developer field in the game submit form)
+12. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
+13. Email notification to submitter on approve/reject
+14. Charts on stats page instead of plain lists
+15. Studio detail pages (`/studios/[slug]`) and studios list
+16. Link games to studios via `studio_id` FK (currently stores studio name as plain text in `developer`)
 
 ---
 
@@ -147,7 +184,8 @@ Vercel has the same variables set in project settings.
 - **Slugs** are generated from the game name via `slugify()` in `src/lib/slug.ts` at submission time. Falls back to `game-{timestamp}` for Arabic-only names (which would otherwise produce an empty slug). They live in `payload.slug` and are copied to `games.slug` on approve.
 - **Store links** are stored as `{ Steam, "Google Play", "App Store", PlayStation, Xbox, Nintendo, Itch, Others }` (all `url|null`) in both submissions payload and the games table. Rendered dynamically via `Object.entries` so adding new keys only requires updating the submit form.
 - **Update submissions:** Game detail page has a "Suggest an update" link → `/update/[slug]` → server fetches game → renders `<SubmitForm initialData={game} />`. On submit, the slug is preserved (not regenerated) and `game_id` is stored in the submissions row. On admin approve, if `game_id` is set the existing `games` row is `UPDATE`d (not `INSERT`ed), preserving the slug and all URL references.
-- **Admin flow:** Admin signs in with Supabase email/password auth → page loads pending submissions → clicking Approve/Reject calls a server-side API route (`/api/approve` or `/api/reject`) which verifies the session cookie and admin email before writing to the DB. Update submissions are shown with a blue "Update" badge. Each card has a "View details ↓" toggle that expands to show all fields (including store links). For update submissions, the original game is batch-fetched after the queue loads (`.in("id", gameIds)`) and stored in `originalGames: Record<string, Game>` state; changed fields are highlighted amber with a "changed" badge and a strikethrough "was: [old value]" annotation.
+- **Studios:** Stored in the `studios` table (approved, public). Submitted via `studio_submissions` (same pattern as games). Fields: name, slug, type (individual/team/studio), description, country[], website_url. Accessible at `/submit-studio`; a secondary "Submit a studio" button sits next to "Submit a game" in the homepage header. The `developer` field in the game submit form fetches approved studio names on mount and populates a `<datalist>` for autocomplete while still allowing free text. Studio names are stored as plain text in `games.developer` (no FK for now).
+- **Admin flow:** Admin signs in with Supabase email/password auth → page loads both pending game and studio submissions → a "Games / Studios" tab switcher at the top of the queue shows counts. Game cards have "View details ↓" expandable sections with diff highlighting for updates. Studio cards show all fields inline. Approve/Reject call server-side API routes that verify the session cookie + admin email, then use the service-role client for DB writes. If `getUser()` returns an auth error (e.g. stale refresh token), the page calls `signOut()` to clear bad cookies and shows the login form cleanly.
 - **Admin auth:** `[locale]/admin/page.tsx` uses `createBrowserClient` from `@supabase/auth-helpers-nextjs` (stores session in cookies, not localStorage) so the session is readable by the server-side API routes. The shared `supabase` client in `lib/supabase.ts` is only used by non-admin pages.
 - **Server routes auth:** `/api/approve` and `/api/reject` use a two-client pattern: (1) `createServerClient` with the anon key reads the session cookie and verifies `user.email === NEXT_PUBLIC_ADMIN_EMAIL`; (2) `createClient` with `SUPABASE_SERVICE_ROLE_KEY` performs the actual DB writes, bypassing RLS. This is necessary because the `games` RLS policy only grants `authenticated` users SELECT and INSERT — there is no UPDATE policy, so writes via the anon client silently affect 0 rows. The service role key is server-only (no `NEXT_PUBLIC_` prefix) and must never be exposed to the client. API routes have no locale prefix and are excluded from the proxy matcher.
 - **Search:** Homepage accepts a `?q=` URL param (server-side, no JS required). Supabase `.or()` matches `name.ilike.%q%`, `developer.ilike.%q%`, and `genres.cs.{q}` (exact element match for genres). Search and filter pills compose — each preserves the other in the URL.
