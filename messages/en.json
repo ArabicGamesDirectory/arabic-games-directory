@@ -120,7 +120,12 @@
     "approveFailed": "Approve failed: {error}",
     "rejectFailed": "Reject failed: {error}",
     "notAllowed": "This account is not allowed to access admin.",
-    "updateBadge": "Update"
+    "updateBadge": "Update",
+    "viewDetails": "View details",
+    "hideDetails": "Hide details",
+    "viewCurrentGame": "View current game ↗",
+    "changed": "changed",
+    "was": "was"
   },
   "countries": {
     "algeria": "Algeria",

@@ -34,6 +34,24 @@ type Submission = {
   };
 };
 
+type Game = {
+  id: string;
+  slug: string;
+  name: string;
+  developer: string | null;
+  country: string[];
+  platforms: string[];
+  genres: string[];
+  gameplay_modes: string[] | null;
+  game_engine: string | null;
+  monetization: string[] | null;
+  short_description: string;
+  status: string;
+  release_date: string | null;
+  website_url: string | null;
+  store_links: Record<string, string | null>;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   announced: "Announced",
   in_dev: "In Dev",
@@ -41,6 +59,34 @@ const STATUS_LABELS: Record<string, string> = {
   released: "Released",
   cancelled: "Cancelled",
 };
+
+function normalizeVal(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (Array.isArray(v)) return [...v].sort().join(",");
+  return String(v);
+}
+
+function fieldChanged(newVal: unknown, oldVal: unknown): boolean {
+  return normalizeVal(newVal) !== normalizeVal(oldVal);
+}
+
+function arrayToDisplay(v: string[] | string | null | undefined): string {
+  if (!v) return "—";
+  return [v].flat().join(", ") || "—";
+}
+
+function storeLinksToDisplay(links: Record<string, string | null> | null | undefined): string {
+  if (!links) return "—";
+  const entries = Object.entries(links).filter(([, val]) => val);
+  return entries.length ? entries.map(([k, v]) => `${k}: ${v}`).join("\n") : "—";
+}
+
+function storeLinksChanged(
+  newLinks: Record<string, string | null> | null | undefined,
+  oldLinks: Record<string, string | null> | null | undefined
+): boolean {
+  return normalizeVal(storeLinksToDisplay(newLinks)) !== normalizeVal(storeLinksToDisplay(oldLinks));
+}
 
 export default function AdminPage() {
   const t = useTranslations("admin");
@@ -50,10 +96,9 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [message, setMessage] = useState<{
-    text: string;
-    ok: boolean;
-  } | null>(null);
+  const [originalGames, setOriginalGames] = useState<Record<string, Game>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
 
@@ -81,20 +126,39 @@ export default function AdminPage() {
       return;
     }
 
-    setSubmissions((data as Submission[]) ?? []);
+    const subs = (data as Submission[]) ?? [];
+    setSubmissions(subs);
+
+    // Batch-fetch original games for update submissions
+    const gameIds = subs
+      .map((s) => s.game_id)
+      .filter((id): id is string => !!id);
+
+    if (gameIds.length > 0) {
+      const { data: games } = await supabase
+        .from("games")
+        .select("*")
+        .in("id", gameIds);
+
+      if (games) {
+        const map: Record<string, Game> = {};
+        for (const g of games as Game[]) {
+          map[g.id] = g;
+        }
+        setOriginalGames(map);
+      }
+    }
   }
 
   useEffect(() => {
     loadUserAndSubmissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function signIn() {
     setLoading(true);
     setMessage(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       setMessage({ text: error.message, ok: false });
@@ -107,6 +171,7 @@ export default function AdminPage() {
     await supabase.auth.signOut();
     setUserEmail(null);
     setSubmissions([]);
+    setOriginalGames({});
     setMessage(null);
   }
 
@@ -121,10 +186,7 @@ export default function AdminPage() {
     const data = await res.json();
     setActionId(null);
     if (!res.ok) {
-      setMessage({
-        text: t("approveFailed", { error: data.error }),
-        ok: false,
-      });
+      setMessage({ text: t("approveFailed", { error: data.error }), ok: false });
       return;
     }
     setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
@@ -162,10 +224,7 @@ export default function AdminPage() {
 
           <div className="bg-c-surface border border-c-border rounded-xl p-6 space-y-4">
             <div className="space-y-1">
-              <label
-                className="text-sm font-medium text-c-soft"
-                htmlFor="email"
-              >
+              <label className="text-sm font-medium text-c-soft" htmlFor="email">
                 {t("fieldEmail")}
               </label>
               <input
@@ -180,10 +239,7 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-1">
-              <label
-                className="text-sm font-medium text-c-soft"
-                htmlFor="password"
-              >
+              <label className="text-sm font-medium text-c-soft" htmlFor="password">
                 {t("fieldPassword")}
               </label>
               <input
@@ -197,9 +253,7 @@ export default function AdminPage() {
               />
             </div>
 
-            {message && (
-              <p className="text-sm text-red-500">{message.text}</p>
-            )}
+            {message && <p className="text-sm text-red-500">{message.text}</p>}
 
             <button
               onClick={signIn}
@@ -258,111 +312,275 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {submissions.map((s) => (
-            <article
-              key={s.id}
-              className="bg-c-surface border border-c-border rounded-xl p-5"
-            >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-semibold text-c-text">
-                      {s.payload.name}
-                    </h2>
-                    {s.game_id && (
-                      <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
-                        {t("updateBadge")}
-                      </span>
-                    )}
+          {submissions.map((s) => {
+            const original = s.game_id ? originalGames[s.game_id] : null;
+            const isExpanded = expandedId === s.id;
+            const countries = [s.payload.country].flat();
+
+            return (
+              <article
+                key={s.id}
+                className="bg-c-surface border border-c-border rounded-xl overflow-hidden"
+              >
+                {/* Compact header — always visible */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-semibold text-c-text">
+                          {s.payload.name}
+                        </h2>
+                        {s.game_id && (
+                          <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
+                            {t("updateBadge")}
+                          </span>
+                        )}
+                      </div>
+                      {s.payload.developer && (
+                        <p className="text-xs text-c-faint mt-0.5">
+                          {s.payload.developer}
+                        </p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                      {STATUS_LABELS[s.payload.status] ?? s.payload.status}
+                    </span>
                   </div>
-                  {s.payload.developer && (
-                    <p className="text-xs text-c-faint mt-0.5">
-                      {s.payload.developer}
-                    </p>
-                  )}
+
+                  <p className="text-sm text-c-muted">
+                    {countries.join(", ")} · {s.payload.platforms.join(", ")}
+                    {s.payload.release_date ? ` · ${s.payload.release_date}` : ""}
+                  </p>
+
+                  <p className="text-sm text-c-soft mt-3 leading-relaxed">
+                    {s.payload.short_description}
+                  </p>
+
+                  <p className="text-xs text-c-faint mt-3">
+                    {t("submittedBy", { name: s.submitter_name || "—" })}
+                    {s.submitter_email ? ` (${s.submitter_email})` : ""}
+                  </p>
+
+                  {/* Toggle details */}
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                    className="mt-3 text-xs text-indigo-500 hover:text-indigo-600 transition-colors"
+                  >
+                    {isExpanded ? t("hideDetails") : t("viewDetails")} {isExpanded ? "↑" : "↓"}
+                  </button>
                 </div>
-                <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
-                  {STATUS_LABELS[s.payload.status] ?? s.payload.status}
-                </span>
-              </div>
 
-              <p className="text-sm text-c-muted">
-                {[s.payload.country].flat().join(", ")} · {s.payload.platforms.join(", ")}
-                {s.payload.release_date ? ` · ${s.payload.release_date}` : ""}
-              </p>
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="border-t border-c-border px-5 py-4 space-y-4">
+                    {s.game_id && original && (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/games/${original.slug}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-indigo-500 hover:underline"
+                        >
+                          {t("viewCurrentGame")}
+                        </a>
+                      </div>
+                    )}
 
-              <p className="text-sm text-c-soft mt-3 leading-relaxed">
-                {s.payload.short_description}
-              </p>
+                    <DetailRow
+                      label="Name"
+                      value={s.payload.name}
+                      oldValue={original?.name}
+                      changed={!!original && fieldChanged(s.payload.name, original.name)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
 
-              <div className="flex gap-1.5 flex-wrap mt-3">
-                {s.payload.genres.map((g) => (
-                  <span
-                    key={g}
-                    className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full"
-                  >
-                    {g}
-                  </span>
-                ))}
-                {s.payload.gameplay_modes?.map((m) => (
-                  <span
-                    key={m}
-                    className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full"
-                  >
-                    {m}
-                  </span>
-                ))}
-                {s.payload.monetization?.map((m) => (
-                  <span
-                    key={m}
-                    className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full"
-                  >
-                    {m}
-                  </span>
-                ))}
-                {s.payload.game_engine && (
-                  <span className="text-xs bg-c-tag text-c-faint px-2 py-0.5 rounded-full">
-                    {s.payload.game_engine}
-                  </span>
+                    <DetailRow
+                      label="Developer"
+                      value={s.payload.developer || "—"}
+                      oldValue={original?.developer}
+                      changed={!!original && fieldChanged(s.payload.developer, original.developer)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Status"
+                      value={STATUS_LABELS[s.payload.status] ?? s.payload.status}
+                      oldValue={original ? (STATUS_LABELS[original.status] ?? original.status) : undefined}
+                      changed={!!original && fieldChanged(s.payload.status, original.status)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Country"
+                      value={arrayToDisplay(s.payload.country)}
+                      oldValue={original ? arrayToDisplay(original.country) : undefined}
+                      changed={!!original && fieldChanged(s.payload.country, original.country)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Platforms"
+                      value={arrayToDisplay(s.payload.platforms)}
+                      oldValue={original ? arrayToDisplay(original.platforms) : undefined}
+                      changed={!!original && fieldChanged(s.payload.platforms, original.platforms)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Genres"
+                      value={arrayToDisplay(s.payload.genres)}
+                      oldValue={original ? arrayToDisplay(original.genres) : undefined}
+                      changed={!!original && fieldChanged(s.payload.genres, original.genres)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Description"
+                      value={s.payload.short_description}
+                      oldValue={original?.short_description}
+                      changed={!!original && fieldChanged(s.payload.short_description, original.short_description)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      multiline
+                    />
+
+                    <DetailRow
+                      label="Gameplay modes"
+                      value={arrayToDisplay(s.payload.gameplay_modes)}
+                      oldValue={original ? arrayToDisplay(original.gameplay_modes) : undefined}
+                      changed={!!original && fieldChanged(s.payload.gameplay_modes, original.gameplay_modes)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Monetization"
+                      value={arrayToDisplay(s.payload.monetization)}
+                      oldValue={original ? arrayToDisplay(original.monetization) : undefined}
+                      changed={!!original && fieldChanged(s.payload.monetization, original.monetization)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Game engine"
+                      value={s.payload.game_engine || "—"}
+                      oldValue={original?.game_engine}
+                      changed={!!original && fieldChanged(s.payload.game_engine, original.game_engine)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Release date"
+                      value={s.payload.release_date || "—"}
+                      oldValue={original?.release_date}
+                      changed={!!original && fieldChanged(s.payload.release_date, original.release_date)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Website URL"
+                      value={s.payload.website_url || "—"}
+                      oldValue={original?.website_url}
+                      changed={!!original && fieldChanged(s.payload.website_url, original.website_url)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      isUrl={!!s.payload.website_url}
+                    />
+
+                    <DetailRow
+                      label="Store links"
+                      value={storeLinksToDisplay(s.payload.store_links)}
+                      oldValue={original ? storeLinksToDisplay(original.store_links) : undefined}
+                      changed={!!original && storeLinksChanged(s.payload.store_links, original.store_links)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      multiline
+                    />
+
+                    <div className="text-xs text-c-faint pt-1">
+                      <span className="font-medium">Slug:</span> {s.payload.slug}
+                    </div>
+                  </div>
                 )}
-              </div>
 
-              {s.payload.website_url && (
-                <a
-                  href={s.payload.website_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-block mt-3 text-sm text-indigo-500 hover:underline"
-                >
-                  {s.payload.website_url} ↗
-                </a>
-              )}
-
-              <p className="text-xs text-c-faint mt-3">
-                {t("submittedBy", { name: s.submitter_name || "—" })}
-                {s.submitter_email ? ` (${s.submitter_email})` : ""}
-              </p>
-
-              <div className="flex gap-3 mt-4 pt-4 border-t border-c-border">
-                <button
-                  onClick={() => approveSubmission(s)}
-                  disabled={actionId === s.id}
-                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                >
-                  {actionId === s.id ? t("working") : t("approve")}
-                </button>
-                <button
-                  onClick={() => rejectSubmission(s.id)}
-                  disabled={actionId === s.id}
-                  className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
-                >
-                  {actionId === s.id ? t("working") : t("reject")}
-                </button>
-              </div>
-            </article>
-          ))}
+                {/* Actions */}
+                <div className="flex gap-3 px-5 py-4 border-t border-c-border">
+                  <button
+                    onClick={() => approveSubmission(s)}
+                    disabled={actionId === s.id}
+                    className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {actionId === s.id ? t("working") : t("approve")}
+                  </button>
+                  <button
+                    onClick={() => rejectSubmission(s.id)}
+                    disabled={actionId === s.id}
+                    className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                  >
+                    {actionId === s.id ? t("working") : t("reject")}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </main>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  oldValue,
+  changed,
+  changedLabel,
+  wasLabel,
+  multiline,
+  isUrl,
+}: {
+  label: string;
+  value: string;
+  oldValue?: string | null;
+  changed: boolean;
+  changedLabel: string;
+  wasLabel: string;
+  multiline?: boolean;
+  isUrl?: boolean;
+}) {
+  return (
+    <div className={`rounded-lg px-3 py-2 ${changed ? "bg-amber-500/10 border border-amber-500/20" : "bg-c-bg"}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xs font-medium text-c-faint uppercase tracking-wide">{label}</span>
+        {changed && (
+          <span className="text-xs bg-amber-500/20 text-amber-600 px-1.5 py-0.5 rounded-full">
+            {changedLabel}
+          </span>
+        )}
+      </div>
+      {isUrl && value !== "—" ? (
+        <a href={value} target="_blank" rel="noreferrer" className="text-sm text-indigo-500 hover:underline break-all">
+          {value}
+        </a>
+      ) : multiline ? (
+        <pre className="text-sm text-c-text whitespace-pre-wrap break-all font-sans">{value}</pre>
+      ) : (
+        <p className="text-sm text-c-text">{value}</p>
+      )}
+      {changed && oldValue != null && oldValue !== "" && (
+        <p className="text-xs text-c-faint mt-1">
+          {wasLabel}: <span className="line-through">{oldValue}</span>
+        </p>
+      )}
+    </div>
   );
 }

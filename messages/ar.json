@@ -120,7 +120,12 @@
     "approveFailed": "فشل القبول: {error}",
     "rejectFailed": "فشل الرفض: {error}",
     "notAllowed": "هذا الحساب لا يملك صلاحية الوصول للإدارة.",
-    "updateBadge": "تحديث"
+    "updateBadge": "تحديث",
+    "viewDetails": "عرض التفاصيل",
+    "hideDetails": "إخفاء التفاصيل",
+    "viewCurrentGame": "عرض اللعبة الحالية ↗",
+    "changed": "تم التعديل",
+    "was": "كان"
   },
   "countries": {
     "algeria": "الجزائر",

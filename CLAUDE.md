@@ -130,9 +130,10 @@ Vercel has the same variables set in project settings.
 7. ~~Localization (EN + AR / RTL)~~ ✓ Done (next-intl, `/en/` and `/ar/` routes, Cairo font for RTL)
 8. ~~Controlled country selection~~ ✓ Done (18 MENA countries, multi-select checkboxes, translated, stored as `text[]`)
 9. ~~Game update submissions~~ ✓ Done ("Suggest an update" on game detail → pre-filled form → update submission with `game_id`; admin approve patches existing game row)
-9. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
-10. Email notification to submitter on approve/reject
-11. Charts on stats page instead of plain lists
+10. ~~Admin full-detail view with diff highlighting~~ ✓ Done (expandable cards show all fields incl. store links; update submissions highlight changed fields in amber with "was: [old value]" annotation)
+11. Thumbnails via Supabase Storage (deferred — keeping text-only for now)
+12. Email notification to submitter on approve/reject
+13. Charts on stats page instead of plain lists
 
 ---
 
@@ -145,7 +146,7 @@ Vercel has the same variables set in project settings.
 - **Slugs** are generated from the game name via `slugify()` in `src/lib/slug.ts` at submission time. Falls back to `game-{timestamp}` for Arabic-only names (which would otherwise produce an empty slug). They live in `payload.slug` and are copied to `games.slug` on approve.
 - **Store links** are stored as `{ Steam, "Google Play", "App Store", PlayStation, Xbox, Nintendo, Itch, Others }` (all `url|null`) in both submissions payload and the games table. Rendered dynamically via `Object.entries` so adding new keys only requires updating the submit form.
 - **Update submissions:** Game detail page has a "Suggest an update" link → `/update/[slug]` → server fetches game → renders `<SubmitForm initialData={game} />`. On submit, the slug is preserved (not regenerated) and `game_id` is stored in the submissions row. On admin approve, if `game_id` is set the existing `games` row is `UPDATE`d (not `INSERT`ed), preserving the slug and all URL references.
-- **Admin flow:** Admin signs in with Supabase email/password auth → page loads pending submissions → clicking Approve/Reject calls a server-side API route (`/api/approve` or `/api/reject`) which verifies the session cookie and admin email before writing to the DB. Update submissions are shown with an "Update" badge.
+- **Admin flow:** Admin signs in with Supabase email/password auth → page loads pending submissions → clicking Approve/Reject calls a server-side API route (`/api/approve` or `/api/reject`) which verifies the session cookie and admin email before writing to the DB. Update submissions are shown with a blue "Update" badge. Each card has a "View details ↓" toggle that expands to show all fields (including store links). For update submissions, the original game is batch-fetched after the queue loads (`.in("id", gameIds)`) and stored in `originalGames: Record<string, Game>` state; changed fields are highlighted amber with a "changed" badge and a strikethrough "was: [old value]" annotation.
 - **Admin auth:** `[locale]/admin/page.tsx` uses `createBrowserClient` from `@supabase/auth-helpers-nextjs` (stores session in cookies, not localStorage) so the session is readable by the server-side API routes. The shared `supabase` client in `lib/supabase.ts` is only used by non-admin pages.
 - **Server routes auth:** `/api/approve` and `/api/reject` use `createServerClient` from `@supabase/auth-helpers-nextjs` to read the session from cookies and verify `user.email === NEXT_PUBLIC_ADMIN_EMAIL` before any DB write. API routes have no locale prefix and are excluded from the proxy matcher.
 - **Search:** Homepage accepts a `?q=` URL param (server-side, no JS required). Supabase `.or()` matches `name.ilike.%q%`, `developer.ilike.%q%`, and `genres.cs.{q}` (exact element match for genres). Search and filter pills compose — each preserves the other in the URL.
