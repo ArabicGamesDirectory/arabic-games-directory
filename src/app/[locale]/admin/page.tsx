@@ -54,6 +54,7 @@ type Game = {
 
 type StudioSubmission = {
   id: string;
+  studio_id: string | null;
   submitter_name: string | null;
   submitter_email: string | null;
   moderation_status: string;
@@ -646,7 +647,14 @@ export default function AdminPage() {
               <div className="p-5">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div>
-                    <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                      {s.studio_id && (
+                        <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
+                          {t("updateBadge")}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-c-faint mt-0.5">
                       {t("studioType")}: {s.payload.type}
                     </p>

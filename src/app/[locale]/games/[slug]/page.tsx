@@ -48,6 +48,17 @@ export default async function GameDetails({
     .eq("slug", slug)
     .single();
 
+  // Look up matching studio to make developer name a link
+  let studioSlug: string | null = null;
+  if (data?.developer) {
+    const { data: studioMatch } = await supabase
+      .from("studios")
+      .select("slug")
+      .ilike("name", data.developer)
+      .single();
+    studioSlug = studioMatch?.slug ?? null;
+  }
+
   if (error || !data) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10">
@@ -93,7 +104,18 @@ export default async function GameDetails({
             {game.name}
           </h1>
           {game.developer && (
-            <p className="text-sm text-c-muted mt-1 w-full">{game.developer}</p>
+            <p className="text-sm text-c-muted mt-1 w-full">
+              {studioSlug ? (
+                <Link
+                  href={`/studios/${studioSlug}`}
+                  className="hover:text-indigo-500 transition-colors"
+                >
+                  {game.developer}
+                </Link>
+              ) : (
+                game.developer
+              )}
+            </p>
           )}
           <span
             className={`mt-1 text-xs font-medium px-2.5 py-1 rounded-full ${

@@ -184,6 +184,26 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       return;
     }
 
+    // Auto-submit a studio entry if the developer name isn't already in the directory.
+    const developerName = payload.developer;
+    if (
+      !isUpdate &&
+      developerName &&
+      !studioNames.some((n) => n.toLowerCase() === developerName.toLowerCase())
+    ) {
+      supabase.from("studio_submissions").insert({
+        payload: {
+          name: developerName,
+          slug: slugify(developerName),
+          type: "studio",
+          description: null,
+          country: countries,
+          website_url: null,
+        },
+        moderation_status: "pending",
+      });
+    }
+
     formEl.reset();
     setDone({
       ok: true,

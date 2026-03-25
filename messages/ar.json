@@ -33,7 +33,12 @@
     "gameCountSingular": "لعبة واحدة",
     "gameCountPlural": "{count} لعبة",
     "noGames": "لا توجد ألعاب.",
-    "clearFilters": "مسح الفلاتر"
+    "clearFilters": "مسح الفلاتر",
+    "tabGames": "الألعاب",
+    "tabStudios": "الاستوديوهات",
+    "studioCountSingular": "استوديو واحد",
+    "studioCountPlural": "{count} استوديو",
+    "noStudios": "لا توجد استوديوهات بعد."
   },
   "gameDetail": {
     "genres": "الأنواع",
@@ -177,7 +182,15 @@
     "submittingButton": "جارٍ الإرسال...",
     "successMessage": "تم الإرسال! سنراجعه وننشره قريباً.",
     "fieldSubmitterName": "اسمك",
-    "fieldSubmitterEmail": "بريدك الإلكتروني"
+    "fieldSubmitterEmail": "بريدك الإلكتروني",
+    "updateTitle": "تحديث معلومات الاستوديو",
+    "updateSubtitle": "اقترح تغييرات على هذا التوثيق. سنراجع ونطبّقها.",
+    "updateButton": "إرسال التحديث",
+    "updateSuccessMessage": "تم إرسال التحديث! سنراجعه ونطبّقه قريباً.",
+    "notFound": "الاستوديو غير موجود.",
+    "suggestUpdate": "اقتراح تحديث",
+    "typeLabel": "النوع",
+    "websiteLabel": "الموقع ↗"
   },
   "stats": {
     "title": "إحصائيات",

@@ -33,7 +33,12 @@
     "gameCountSingular": "{count} game",
     "gameCountPlural": "{count} games",
     "noGames": "No games found.",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "tabGames": "Games",
+    "tabStudios": "Studios",
+    "studioCountSingular": "{count} studio",
+    "studioCountPlural": "{count} studios",
+    "noStudios": "No studios yet."
   },
   "gameDetail": {
     "genres": "Genres",
@@ -177,7 +182,15 @@
     "submittingButton": "Submitting...",
     "successMessage": "Submitted! We'll review and publish it soon.",
     "fieldSubmitterName": "Your name",
-    "fieldSubmitterEmail": "Your email"
+    "fieldSubmitterEmail": "Your email",
+    "updateTitle": "Update studio info",
+    "updateSubtitle": "Suggest changes to this listing. We'll review and apply them.",
+    "updateButton": "Submit update",
+    "updateSuccessMessage": "Update submitted! We'll review and apply it soon.",
+    "notFound": "Studio not found.",
+    "suggestUpdate": "Suggest an update",
+    "typeLabel": "Type",
+    "websiteLabel": "Website ↗"
   },
   "stats": {
     "title": "Statistics",

@@ -40,14 +40,30 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { submission } = body;
 
-  const { error: studioError } = await supabase.from("studios").insert({
-    slug: submission.payload.slug,
+  const studioFields = {
     name: submission.payload.name,
     type: submission.payload.type,
     description: submission.payload.description ?? null,
     country: submission.payload.country,
     website_url: submission.payload.website_url ?? null,
-  });
+  };
+
+  let studioError: { message: string } | null = null;
+
+  if (submission.studio_id) {
+    // Update submission — patch the existing studio row (slug preserved).
+    const { error } = await supabase
+      .from("studios")
+      .update(studioFields)
+      .eq("id", submission.studio_id);
+    studioError = error;
+  } else {
+    // New studio submission — insert a fresh row.
+    const { error } = await supabase
+      .from("studios")
+      .insert({ slug: submission.payload.slug, ...studioFields });
+    studioError = error;
+  }
 
   if (studioError) {
     return Response.json({ error: studioError.message }, { status: 500 });

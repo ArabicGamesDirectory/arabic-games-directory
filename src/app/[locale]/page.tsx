@@ -28,6 +28,16 @@ const STATUS_CLASSES: Record<string, string> = {
   cancelled: "bg-c-tag text-c-muted",
 };
 
+type Studio = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  description: string | null;
+  country: string[];
+  website_url: string | null;
+};
+
 export default async function Home({
   params,
   searchParams,
@@ -38,6 +48,7 @@ export default async function Home({
     platform?: string;
     status?: string;
     q?: string;
+    tab?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -47,9 +58,23 @@ export default async function Home({
   const tCommon = await getTranslations("common");
   const tStatus = await getTranslations("status");
   const tCountries = await getTranslations("countries");
+  const tStudio = await getTranslations("studio");
 
   const sp = await searchParams;
+  const tab = sp.tab === "studios" ? "studios" : "games";
   const q = sp.q?.trim() ?? "";
+
+  // Always fetch studios: used for the Studios tab AND to make developer names clickable on game cards.
+  const { data: studioData } = await supabase
+    .from("studios")
+    .select("id, slug, name, type, description, country, website_url")
+    .order("name");
+  const studios: Studio[] = (studioData as Studio[]) ?? [];
+
+  // name (lowercase) → slug lookup for linking developer names on game cards
+  const studioSlugMap = new Map<string, string>(
+    studios.map((s) => [s.name.toLowerCase(), s.slug])
+  );
 
   let query = supabase
     .from("games")
@@ -79,7 +104,7 @@ export default async function Home({
   }
 
   const typedGames: Game[] = games ?? [];
-  const count = typedGames.length;
+  const count = tab === "studios" ? studios.length : typedGames.length;
 
   const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
   const filters = [
@@ -121,6 +146,17 @@ export default async function Home({
       ? t("gameCountSingular", { count })
       : t("gameCountPlural", { count });
 
+  const studioCountText =
+    count === 1
+      ? t("studioCountSingular", { count })
+      : t("studioCountPlural", { count });
+
+  const TYPE_LABELS: Record<string, string> = {
+    individual: tStudio("typeIndividual"),
+    team: tStudio("typeTeam"),
+    studio: tStudio("typeStudio"),
+  };
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       <header className="mb-8">
@@ -131,23 +167,78 @@ export default async function Home({
             </h1>
             <p className="text-c-muted mt-1 text-sm">{t("description")}</p>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Link
-              href="/submit-studio"
-              className="bg-c-surface border border-c-border text-c-soft px-4 py-2 rounded-lg text-sm font-medium hover:border-c-border-hover hover:text-c-text transition-colors"
-            >
-              {tCommon("submitStudio")}
-            </Link>
-            <Link
-              href="/submit"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              {tCommon("submitGame")}
-            </Link>
-          </div>
+          <Link
+            href="/submit"
+            className="shrink-0 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            {tCommon("submitGame")}
+          </Link>
         </div>
       </header>
 
+      {/* Games / Studios tab switcher */}
+      <div className="flex gap-1 mb-6 bg-c-surface border border-c-border rounded-lg p-1 w-fit">
+        <Link
+          href="/"
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            tab === "games" ? "bg-c-bg text-c-text shadow-sm" : "text-c-muted hover:text-c-text"
+          }`}
+        >
+          {t("tabGames")}
+        </Link>
+        <Link
+          href="/?tab=studios"
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            tab === "studios" ? "bg-c-bg text-c-text shadow-sm" : "text-c-muted hover:text-c-text"
+          }`}
+        >
+          {t("tabStudios")}
+        </Link>
+      </div>
+
+      {/* Studios tab */}
+      {tab === "studios" && (
+        <>
+          <p className="text-sm text-c-faint mb-6">{studioCountText}</p>
+          <div className="grid gap-3">
+            {studios.length === 0 ? (
+              <div className="text-center py-16 text-c-muted">
+                <p>{t("noStudios")}</p>
+              </div>
+            ) : (
+              studios.map((s) => (
+                <Link
+                  key={s.slug}
+                  href={`/studios/${s.slug}`}
+                  className="block bg-c-surface border border-c-border rounded-xl p-5 hover:border-c-border-hover transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-lg font-semibold text-c-text leading-snug">
+                      {s.name}
+                    </h2>
+                    <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                      {TYPE_LABELS[s.type] ?? s.type}
+                    </span>
+                  </div>
+                  <p className="text-sm text-c-muted mt-1">
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {s.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")}
+                  </p>
+                  {s.description && (
+                    <p className="text-sm text-c-soft mt-3 leading-relaxed">{s.description}</p>
+                  )}
+                  {s.website_url && (
+                    <p className="text-sm text-indigo-500 mt-2">{tStudio("websiteLabel")}</p>
+                  )}
+                </Link>
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Games tab */}
+      {tab === "games" && (<>
       {/* Search */}
       <form method="get" action="" className="relative mb-4">
         {sp.platform && (
@@ -226,7 +317,18 @@ export default async function Home({
                     </Link>
                   </h2>
                   {g.developer && (
-                    <p className="text-xs text-c-faint mt-0.5">{g.developer}</p>
+                    <p className="text-xs text-c-faint mt-0.5">
+                      {studioSlugMap.has(g.developer.toLowerCase()) ? (
+                        <Link
+                          href={`/studios/${studioSlugMap.get(g.developer.toLowerCase())}`}
+                          className="hover:text-indigo-500 transition-colors"
+                        >
+                          {g.developer}
+                        </Link>
+                      ) : (
+                        g.developer
+                      )}
+                    </p>
                   )}
                 </div>
                 <span
@@ -313,6 +415,7 @@ export default async function Home({
           ))
         )}
       </div>
+      </>)}
 
       <footer className="mt-12 pt-8 border-t border-c-border flex gap-6 text-sm text-c-faint">
         <Link href="/stats" className="hover:text-c-muted transition-colors">

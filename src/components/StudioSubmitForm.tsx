@@ -7,11 +7,28 @@ import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
 import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 
-export function StudioSubmitForm() {
+export type StudioData = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  description: string | null;
+  country: string[];
+  website_url: string | null;
+};
+
+interface StudioSubmitFormProps {
+  initialData?: StudioData;
+  backHref?: string;
+}
+
+export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFormProps) {
   const t = useTranslations("studio");
   const tCommon = useTranslations("common");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tCountries = useTranslations("countries") as any;
+
+  const isUpdate = !!initialData;
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
@@ -39,7 +56,8 @@ export function StudioSubmitForm() {
 
     const payload = {
       name,
-      slug: slugify(name),
+      // Preserve slug on updates so URLs don't break.
+      slug: isUpdate ? initialData!.slug : slugify(name),
       type: String(form.get("type") || "studio"),
       description: String(form.get("description") || "").trim() || null,
       country: countries,
@@ -54,6 +72,7 @@ export function StudioSubmitForm() {
       submitter_email,
       payload,
       moderation_status: "pending",
+      ...(isUpdate && { studio_id: initialData!.id }),
     });
 
     setLoading(false);
@@ -64,7 +83,10 @@ export function StudioSubmitForm() {
     }
 
     formEl.reset();
-    setDone({ ok: true, message: t("successMessage") });
+    setDone({
+      ok: true,
+      message: isUpdate ? t("updateSuccessMessage") : t("successMessage"),
+    });
   }
 
   const inputClass =
@@ -72,15 +94,17 @@ export function StudioSubmitForm() {
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
-      <Link href="/" className="text-sm text-c-muted hover:text-c-text transition-colors">
+      <Link href={backHref} className="text-sm text-c-muted hover:text-c-text transition-colors">
         {tCommon("backToDirectory")}
       </Link>
 
       <div className="mt-8 mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-c-text">
-          {t("submitTitle")}
+          {isUpdate ? t("updateTitle") : t("submitTitle")}
         </h1>
-        <p className="text-c-muted text-sm mt-1">{t("submitSubtitle")}</p>
+        <p className="text-c-muted text-sm mt-1">
+          {isUpdate ? t("updateSubtitle") : t("submitSubtitle")}
+        </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-5">
@@ -95,13 +119,20 @@ export function StudioSubmitForm() {
               id="name"
               name="name"
               required
+              defaultValue={initialData?.name}
               className={inputClass}
               placeholder={t("placeholderName")}
             />
           </Field>
 
           <Field label={t("fieldType")} required>
-            <select id="type" name="type" required className={inputClass} defaultValue="studio">
+            <select
+              id="type"
+              name="type"
+              required
+              defaultValue={initialData?.type ?? "studio"}
+              className={inputClass}
+            >
               <option value="individual">{t("typeIndividual")}</option>
               <option value="team">{t("typeTeam")}</option>
               <option value="studio">{t("typeStudio")}</option>
@@ -113,13 +144,18 @@ export function StudioSubmitForm() {
               id="description"
               name="description"
               rows={3}
+              defaultValue={initialData?.description ?? ""}
               className={inputClass + " resize-none"}
               placeholder={t("placeholderDescription")}
             />
           </Field>
 
           <Field label={t("fieldCountry")} required>
-            <CheckboxGroup name="country" options={countryOptions} />
+            <CheckboxGroup
+              name="country"
+              options={countryOptions}
+              initialValues={initialData?.country}
+            />
           </Field>
 
           <Field label={t("fieldWebsiteUrl")}>
@@ -127,6 +163,7 @@ export function StudioSubmitForm() {
               id="website_url"
               name="website_url"
               type="url"
+              defaultValue={initialData?.website_url ?? ""}
               className={inputClass}
               placeholder={t("placeholderWebsiteUrl")}
             />
@@ -177,7 +214,11 @@ export function StudioSubmitForm() {
           disabled={loading}
           className="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
         >
-          {loading ? t("submittingButton") : t("submitButton")}
+          {loading
+            ? t("submittingButton")
+            : isUpdate
+            ? t("updateButton")
+            : t("submitButton")}
         </button>
       </form>
     </main>
@@ -207,9 +248,11 @@ function Field({
 function CheckboxGroup({
   name,
   options,
+  initialValues,
 }: {
   name: string;
   options: { value: string; label: string }[];
+  initialValues?: string[];
 }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -222,6 +265,7 @@ function CheckboxGroup({
             type="checkbox"
             name={name}
             value={opt.value}
+            defaultChecked={initialValues?.includes(opt.value)}
             className="sr-only"
           />
           {opt.label}
