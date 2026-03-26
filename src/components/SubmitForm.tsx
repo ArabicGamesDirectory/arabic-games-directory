@@ -37,6 +37,14 @@ const PLATFORM_OPTIONS = [
   "Nintendo Switch",
 ];
 
+// Used for state initialization (no translations needed at this level)
+const GENRE_BASE_VALUES = [
+  "Action", "Adventure", "Arcade", "Card / Board Game", "Casual",
+  "Educational", "Endless Runner", "Fighting", "Horror", "Idle / Clicker",
+  "Platformer", "Puzzle", "Racing", "RPG", "Shooter FPS",
+  "Simulation", "Sports", "Strategy", "Tower Defense", "Visual Novel",
+];
+
 const ENGINE_OPTIONS = [
   "Unity",
   "Unreal Engine",
@@ -94,6 +102,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const [storeLinksOpen, setStoreLinksOpen] = useState(
     () => isUpdate && Object.values(initialData?.store_links ?? {}).some(Boolean)
   );
+  const [genreOtherChecked, setGenreOtherChecked] = useState(
+    () => initialData?.genres?.some((g) => g === "Other" || !GENRE_BASE_VALUES.includes(g)) ?? false
+  );
+  const [genreOtherText, setGenreOtherText] = useState(
+    () => initialData?.genres?.find((g) => g !== "Other" && !GENRE_BASE_VALUES.includes(g)) ?? ""
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -122,25 +136,28 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     { value: "Subscription", label: t("monetizationSubscription") },
   ];
 
-  const GENRE_OPTIONS = (
+  const GENRE_OPTIONS_BASE = (
     [
       { value: "Action", key: "action" },
       { value: "Adventure", key: "adventure" },
+      { value: "Arcade", key: "arcade" },
+      { value: "Card / Board Game", key: "cardBoardGame" },
+      { value: "Casual", key: "casual" },
+      { value: "Educational", key: "educational" },
+      { value: "Endless Runner", key: "endlessRunner" },
+      { value: "Fighting", key: "fighting" },
+      { value: "Horror", key: "horror" },
+      { value: "Idle / Clicker", key: "idleClicker" },
+      { value: "Platformer", key: "platformer" },
       { value: "Puzzle", key: "puzzle" },
+      { value: "Racing", key: "racing" },
       { value: "RPG", key: "rpg" },
-      { value: "Strategy", key: "strategy" },
+      { value: "Shooter FPS", key: "shooterFPS" },
       { value: "Simulation", key: "simulation" },
       { value: "Sports", key: "sports" },
-      { value: "Racing", key: "racing" },
-      { value: "Horror", key: "horror" },
-      { value: "Platformer", key: "platformer" },
-      { value: "Shooter", key: "shooter" },
-      { value: "Fighting", key: "fighting" },
-      { value: "Survival", key: "survival" },
+      { value: "Strategy", key: "strategy" },
+      { value: "Tower Defense", key: "towerDefense" },
       { value: "Visual Novel", key: "visualNovel" },
-      { value: "Educational", key: "educational" },
-      { value: "Idle", key: "idle" },
-      { value: "Other", key: "other" },
     ] as const
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ).map(({ value, key }) => ({ value, label: tGenres(key as any) }));
@@ -160,16 +177,28 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     const name = String(form.get("name") || "").trim();
     const description = String(form.get("short_description") || "").trim();
     const countries = form.getAll("country") as string[];
-    const genres = form.getAll("genres") as string[];
+    const baseGenres = form.getAll("genres") as string[];
+    const allGenres = genreOtherChecked
+      ? [...baseGenres, genreOtherText.trim() || "Other"]
+      : baseGenres;
     const platforms = form.getAll("platforms") as string[];
+    const gameplayModes = form.getAll("gameplay_modes") as string[];
+    const gameEngine = String(form.get("game_engine") || "").trim();
+    const submitterName = String(form.get("submitter_name") || "").trim();
+    const submitterEmail = String(form.get("submitter_email") || "").trim();
 
     // Validate required fields
     const newErrors: Record<string, string> = {};
     if (!name) newErrors.name = t("errorRequired");
     if (!description) newErrors.short_description = t("errorRequired");
     if (countries.length === 0) newErrors.country = t("countryRequired");
-    if (genres.length === 0) newErrors.genres = t("genreRequired");
+    if (allGenres.length === 0) newErrors.genres = t("genreRequired");
     if (platforms.length === 0) newErrors.platforms = t("platformRequired");
+    if (!developerValue.trim()) newErrors.developer = t("errorRequired");
+    if (gameplayModes.length === 0) newErrors.gameplay_modes = t("gameplayModesRequired");
+    if (!gameEngine) newErrors.game_engine = t("errorRequired");
+    if (!submitterName) newErrors.submitter_name = t("errorRequired");
+    if (!submitterEmail) newErrors.submitter_email = t("errorRequired");
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -186,7 +215,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       developer: String(form.get("developer") || "").trim() || null,
       country: countries,
       platforms,
-      genres,
+      genres: allGenres,
       gameplay_modes: form.getAll("gameplay_modes") as string[],
       game_engine: String(form.get("game_engine") || "").trim() || null,
       monetization: form.getAll("monetization") as string[],
@@ -295,7 +324,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             />
           </Field>
 
-          <Field label={t("fieldDeveloper")}>
+          <Field label={t("fieldDeveloper")} required error={errors.developer}>
             <div className="relative">
               <input
                 id="developer"
@@ -305,7 +334,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
                 onFocus={() => setShowDeveloperSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowDeveloperSuggestions(false), 150)}
                 autoComplete="off"
-                className={inputCls()}
+                className={inputCls("developer")}
                 placeholder={t("placeholderDeveloper")}
               />
               {showDeveloperSuggestions && studioNames.filter((n) =>
@@ -354,9 +383,29 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
           <Field label={t("fieldGenres")} required error={errors.genres}>
             <CheckboxGroup
               name="genres"
-              options={GENRE_OPTIONS}
-              initialValues={initialData?.genres}
+              options={GENRE_OPTIONS_BASE}
+              initialValues={initialData?.genres?.filter((g) => GENRE_BASE_VALUES.includes(g))}
             />
+            <div className="mt-2 space-y-2">
+              <label className="flex items-center gap-1.5 bg-c-bg border border-c-border rounded-lg px-3 py-1.5 text-sm text-c-soft cursor-pointer hover:border-c-border-hover has-[:checked]:bg-indigo-600 has-[:checked]:border-indigo-600 has-[:checked]:text-white transition-colors select-none w-fit">
+                <input
+                  type="checkbox"
+                  checked={genreOtherChecked}
+                  onChange={(e) => setGenreOtherChecked(e.target.checked)}
+                  className="sr-only"
+                />
+                {tGenres("other")}
+              </label>
+              {genreOtherChecked && (
+                <input
+                  type="text"
+                  value={genreOtherText}
+                  onChange={(e) => setGenreOtherText(e.target.value)}
+                  className={inputCls()}
+                  placeholder={t("placeholderGenreOther")}
+                />
+              )}
+            </div>
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
@@ -412,7 +461,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             />
           </Field>
 
-          <Field label={t("fieldGameplayModes")}>
+          <Field label={t("fieldGameplayModes")} required error={errors.gameplay_modes}>
             <CheckboxGroup
               name="gameplay_modes"
               options={GAMEPLAY_MODE_OPTIONS}
@@ -420,12 +469,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             />
           </Field>
 
-          <Field label={t("fieldGameEngine")}>
+          <Field label={t("fieldGameEngine")} required error={errors.game_engine}>
             <input
               name="game_engine"
               list="engine-options"
               defaultValue={initialData?.game_engine ?? ""}
-              className={inputCls()}
+              className={inputCls("game_engine")}
               placeholder={t("placeholderGameEngine")}
             />
             <datalist id="engine-options">
@@ -479,25 +528,24 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
         {/* Submitter info */}
         <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
           <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
-            {t("sectionYourInfo")}{" "}
-            <span className="font-normal normal-case text-c-faint">{t("optional")}</span>
+            {t("sectionYourInfo")}
           </h2>
 
-          <Field label={t("fieldName")}>
+          <Field label={t("fieldName")} required error={errors.submitter_name}>
             <input
               id="submitter_name"
               name="submitter_name"
-              className={inputCls()}
+              className={inputCls("submitter_name")}
               placeholder={t("placeholderName")}
             />
           </Field>
 
-          <Field label={t("fieldEmail")}>
+          <Field label={t("fieldEmail")} required error={errors.submitter_email}>
             <input
               id="submitter_email"
               name="submitter_email"
               type="email"
-              className={inputCls()}
+              className={inputCls("submitter_email")}
               placeholder={t("placeholderEmail")}
             />
           </Field>
