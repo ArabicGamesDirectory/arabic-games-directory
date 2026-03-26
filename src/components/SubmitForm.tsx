@@ -232,7 +232,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       developerName &&
       !studioNames.some((n) => n.toLowerCase() === developerName.toLowerCase())
     ) {
-      supabase.from("studio_submissions").insert({
+      const { error: studioError } = await supabase.from("studio_submissions").insert({
         payload: {
           name: developerName,
           slug: slugify(developerName),
@@ -243,9 +243,13 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
         },
         moderation_status: "pending",
       });
+      if (studioError) {
+        console.error("Studio auto-submit failed:", studioError.message);
+      }
     }
 
     formEl.reset();
+    setDeveloperValue("");
     setDone({
       ok: true,
       message: isUpdate ? t("updateSuccessMessage") : t("successMessage"),
