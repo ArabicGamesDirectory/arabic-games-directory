@@ -34,10 +34,10 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitterName, setSubmitterName] = useState(() =>
-    typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
+    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
   );
   const [submitterEmail, setSubmitterEmail] = useState(() =>
-    typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
+    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
   );
 
   const countryOptions = COUNTRY_OPTIONS.map((c) => ({

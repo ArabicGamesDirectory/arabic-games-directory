@@ -96,10 +96,10 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
   const [submitterName, setSubmitterName] = useState(() =>
-    typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
+    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
   );
   const [submitterEmail, setSubmitterEmail] = useState(() =>
-    typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
+    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
   );
   const [studioNames, setStudioNames] = useState<string[]>([]);
   const [developerValue, setDeveloperValue] = useState(initialData?.developer ?? "");

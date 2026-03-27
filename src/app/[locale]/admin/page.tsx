@@ -639,6 +639,25 @@ export default function AdminPage() {
                     <div className="text-xs text-c-faint pt-1">
                       <span className="font-medium">Slug:</span> {s.payload.slug}
                     </div>
+
+                    <div className="border-t border-c-border pt-3 mt-1 space-y-2">
+                      <p className="text-xs font-medium text-c-faint uppercase tracking-wide">{t("submitterInfo")}</p>
+                      <DetailRow
+                        label="Name"
+                        value={s.submitter_name || "—"}
+                        changed={false}
+                        changedLabel=""
+                        wasLabel=""
+                      />
+                      <DetailRow
+                        label="Email"
+                        value={s.submitter_email || "—"}
+                        changed={false}
+                        changedLabel=""
+                        wasLabel=""
+                        isUrl={false}
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -789,6 +808,25 @@ export default function AdminPage() {
 
                     <div className="text-xs text-c-faint pt-1">
                       <span className="font-medium">Slug:</span> {s.payload.slug}
+                    </div>
+
+                    <div className="border-t border-c-border pt-3 mt-1 space-y-2">
+                      <p className="text-xs font-medium text-c-faint uppercase tracking-wide">{t("submitterInfo")}</p>
+                      <DetailRow
+                        label="Name"
+                        value={s.submitter_name || "—"}
+                        changed={false}
+                        changedLabel=""
+                        wasLabel=""
+                      />
+                      <DetailRow
+                        label="Email"
+                        value={s.submitter_email || "—"}
+                        changed={false}
+                        changedLabel=""
+                        wasLabel=""
+                        isUrl={false}
+                      />
                     </div>
                   </div>
                 )}

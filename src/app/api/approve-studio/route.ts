@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     // New studio submission — insert a fresh row.
     const { error } = await supabase
       .from("studios")
-      .insert({ slug: submission.payload.slug, ...studioFields });
+      .insert({ slug: submission.payload.slug, submitted_by: submission.submitter_name ?? null, ...studioFields });
     studioError = error;
   }
 

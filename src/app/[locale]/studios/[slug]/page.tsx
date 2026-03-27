@@ -11,6 +11,7 @@ type Studio = {
   description: string | null;
   country: string[];
   website_url: string | null;
+  submitted_by: string | null;
 };
 
 type Game = {
@@ -114,7 +115,13 @@ export default async function StudioPage({
         </div>
 
         {studio.description && (
-          <p className="mt-6 text-c-soft leading-relaxed" dir="auto">{studio.description}</p>
+          <p className="mt-6 text-c-soft leading-relaxed whitespace-pre-wrap" dir="auto">{studio.description}</p>
+        )}
+
+        {studio.submitted_by && (
+          <p className="mt-3 text-xs text-c-faint">
+            {t("submittedBy")}: {studio.submitted_by}
+          </p>
         )}
 
         {studio.website_url && (

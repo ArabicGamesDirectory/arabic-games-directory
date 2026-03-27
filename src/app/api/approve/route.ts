@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     // New game submission — insert a fresh row.
     const { error } = await supabase
       .from("games")
-      .insert({ slug: submission.payload.slug, ...gameFields });
+      .insert({ slug: submission.payload.slug, submitted_by: submission.submitter_name ?? null, ...gameFields });
     gameError = error;
   }
 

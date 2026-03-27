@@ -53,7 +53,8 @@
     "gameEngine": "Game engine",
     "links": "Links",
     "notFound": "Game not found.",
-    "suggestUpdate": "Suggest an update"
+    "suggestUpdate": "Suggest an update",
+    "submittedBy": "Submitted by"
   },
   "submit": {
     "title": "Submit a game",
@@ -152,6 +153,7 @@
     "signOut": "Sign out",
     "noPending": "No pending submissions.",
     "submittedBy": "Submitted by: {name}",
+    "submitterInfo": "Submitter info",
     "working": "Working...",
     "approve": "Approve",
     "reject": "Reject",
@@ -225,6 +227,7 @@
     "updateSuccessMessage": "Update submitted! We'll review and apply it soon.",
     "notFound": "Studio not found.",
     "suggestUpdate": "Suggest an update",
+    "submittedBy": "Submitted by",
     "typeLabel": "Type",
     "websiteLabel": "Website ↗",
     "gamesSection": "Games",

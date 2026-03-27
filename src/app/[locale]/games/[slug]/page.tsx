@@ -19,6 +19,7 @@ type Game = {
   release_date: string | null;
   website_url: string | null;
   store_links: Record<string, string | null>;
+  submitted_by: string | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -148,9 +149,15 @@ export default async function GameDetails({
           )}
         </div>
 
-        <p className="mt-6 text-c-soft leading-relaxed" dir="auto">
+        <p className="mt-6 text-c-soft leading-relaxed whitespace-pre-wrap" dir="auto">
           {game.short_description}
         </p>
+
+        {game.submitted_by && (
+          <p className="mt-3 text-xs text-c-faint">
+            {t("submittedBy")}: {game.submitted_by}
+          </p>
+        )}
 
         <div className="mt-8 grid gap-5">
           <DetailSection label={t("genres")}>

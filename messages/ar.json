@@ -53,7 +53,8 @@
     "gameEngine": "محرك اللعبة",
     "links": "الروابط",
     "notFound": "اللعبة غير موجودة.",
-    "suggestUpdate": "اقتراح تحديث"
+    "suggestUpdate": "اقتراح تحديث",
+    "submittedBy": "أُرسل بواسطة"
   },
   "submit": {
     "title": "أضف لعبة",
@@ -152,6 +153,7 @@
     "signOut": "تسجيل الخروج",
     "noPending": "لا توجد طلبات بانتظار المراجعة.",
     "submittedBy": "أُرسل بواسطة: {name}",
+    "submitterInfo": "معلومات مقدّم الطلب",
     "working": "جارٍ التنفيذ...",
     "approve": "قبول",
     "reject": "رفض",
@@ -225,6 +227,7 @@
     "updateSuccessMessage": "تم إرسال التحديث! سنراجعه ونطبّقه قريباً.",
     "notFound": "الاستوديو غير موجود.",
     "suggestUpdate": "اقتراح تحديث",
+    "submittedBy": "أُرسل بواسطة",
     "typeLabel": "النوع",
     "websiteLabel": "الموقع ↗",
     "gamesSection": "الألعاب",
