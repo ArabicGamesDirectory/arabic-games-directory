@@ -54,6 +54,8 @@ export async function POST(request: Request) {
     release_date: submission.payload.release_date,
     website_url: submission.payload.website_url,
     store_links: submission.payload.store_links,
+    publishing_type: submission.payload.publishing_type ?? null,
+    publisher_name: submission.payload.publisher_name ?? null,
   };
 
   let gameError: { message: string } | null = null;
@@ -69,7 +71,12 @@ export async function POST(request: Request) {
     // New game submission — insert a fresh row.
     const { error } = await supabase
       .from("games")
-      .insert({ slug: submission.payload.slug, submitted_by: submission.submitter_name ?? null, ...gameFields });
+      .insert({
+        slug: submission.payload.slug,
+        submitted_by: submission.submitter_name ?? null,
+        submitted_by_email: submission.submitter_email ?? null,
+        ...gameFields,
+      });
     gameError = error;
   }
 

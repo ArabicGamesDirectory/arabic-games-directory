@@ -31,6 +31,8 @@ type Submission = {
     release_date: string | null;
     website_url: string | null;
     store_links: Record<string, string | null>;
+    publishing_type: string | null;
+    publisher_name: string | null;
   };
 };
 
@@ -50,6 +52,8 @@ type Game = {
   release_date: string | null;
   website_url: string | null;
   store_links: Record<string, string | null>;
+  publishing_type: string | null;
+  publisher_name: string | null;
 };
 
 type StudioSubmission = {
@@ -76,6 +80,23 @@ type Studio = {
   description: string | null;
   country: string[];
   website_url: string | null;
+};
+
+type ApprovedGame = {
+  id: string;
+  slug: string;
+  name: string;
+  developer: string | null;
+  submitted_by: string | null;
+  submitted_by_email: string | null;
+};
+
+type ApprovedStudio = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  submitted_by: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -125,7 +146,10 @@ export default function AdminPage() {
   const [originalGames, setOriginalGames] = useState<Record<string, Game>>({});
   const [studioSubmissions, setStudioSubmissions] = useState<StudioSubmission[]>([]);
   const [originalStudios, setOriginalStudios] = useState<Record<string, Studio>>({});
-  const [activeTab, setActiveTab] = useState<"games" | "studios">("games");
+  const [approvedGames, setApprovedGames] = useState<ApprovedGame[]>([]);
+  const [approvedStudios, setApprovedStudios] = useState<ApprovedStudio[]>([]);
+  const [activeTab, setActiveTab] = useState<"games" | "studios" | "published">("games");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -215,6 +239,19 @@ export default function AdminPage() {
         setOriginalStudios(map);
       }
     }
+
+    // Fetch all approved games and studios for the Published tab
+    const { data: approved } = await supabase
+      .from("games")
+      .select("id, slug, name, developer, submitted_by, submitted_by_email")
+      .order("created_at", { ascending: false });
+    setApprovedGames((approved as ApprovedGame[]) ?? []);
+
+    const { data: approvedStudiosData } = await supabase
+      .from("studios")
+      .select("id, slug, name, type, submitted_by")
+      .order("created_at", { ascending: false });
+    setApprovedStudios((approvedStudiosData as ApprovedStudio[]) ?? []);
   }
 
   useEffect(() => {
@@ -241,6 +278,8 @@ export default function AdminPage() {
     setOriginalGames({});
     setStudioSubmissions([]);
     setOriginalStudios({});
+    setApprovedGames([]);
+    setApprovedStudios([]);
     setMessage(null);
   }
 
@@ -314,6 +353,44 @@ export default function AdminPage() {
     }
     setSubmissions((prev) => prev.filter((s) => s.id !== id));
     setMessage({ text: t("rejected"), ok: true });
+  }
+
+  async function deleteGame(id: string, name: string) {
+    if (!confirm(`Delete "${name}" permanently? This cannot be undone.`)) return;
+    setMessage(null);
+    setDeletingId(id);
+    const res = await fetch("/api/delete-game", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    setDeletingId(null);
+    if (!res.ok) {
+      setMessage({ text: `Delete failed: ${data.error}`, ok: false });
+      return;
+    }
+    setApprovedGames((prev) => prev.filter((g) => g.id !== id));
+    setMessage({ text: `"${name}" deleted.`, ok: true });
+  }
+
+  async function deleteStudio(id: string, name: string) {
+    if (!confirm(`Delete studio "${name}" permanently? This cannot be undone.`)) return;
+    setMessage(null);
+    setDeletingId(id);
+    const res = await fetch("/api/delete-studio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    setDeletingId(null);
+    if (!res.ok) {
+      setMessage({ text: `Delete failed: ${data.error}`, ok: false });
+      return;
+    }
+    setApprovedStudios((prev) => prev.filter((s) => s.id !== id));
+    setMessage({ text: `"${name}" deleted.`, ok: true });
   }
 
   const inputClass =
@@ -432,6 +509,16 @@ export default function AdminPage() {
           }`}
         >
           {t("tabStudios")}{studioSubmissions.length > 0 ? ` (${studioSubmissions.length})` : ""}
+        </button>
+        <button
+          onClick={() => setActiveTab("published")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "published"
+              ? "bg-c-bg text-c-text shadow-sm"
+              : "text-c-muted hover:text-c-text"
+          }`}
+        >
+          Published{approvedGames.length > 0 ? ` (${approvedGames.length})` : ""}
         </button>
       </div>
 
@@ -635,6 +722,26 @@ export default function AdminPage() {
                       wasLabel={t("was")}
                       multiline
                     />
+
+                    <DetailRow
+                      label="Publishing"
+                      value={s.payload.publishing_type === "self_published" ? "Self-published" : s.payload.publishing_type === "with_publisher" ? "With a publisher" : "—"}
+                      oldValue={original ? (original.publishing_type === "self_published" ? "Self-published" : original.publishing_type === "with_publisher" ? "With a publisher" : "—") : undefined}
+                      changed={!!original && fieldChanged(s.payload.publishing_type, original.publishing_type)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    {s.payload.publishing_type === "with_publisher" && (
+                      <DetailRow
+                        label="Publisher"
+                        value={s.payload.publisher_name || "—"}
+                        oldValue={original?.publisher_name}
+                        changed={!!original && fieldChanged(s.payload.publisher_name, original.publisher_name)}
+                        changedLabel={t("changed")}
+                        wasLabel={t("was")}
+                      />
+                    )}
 
                     <div className="text-xs text-c-faint pt-1">
                       <span className="font-medium">Slug:</span> {s.payload.slug}
@@ -852,6 +959,99 @@ export default function AdminPage() {
           })}
         </div>
       ))}
+
+      {/* Published tab — Games + Studios */}
+      {activeTab === "published" && (
+        <div className="space-y-8">
+
+          {/* Games section */}
+          <div>
+            <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider mb-3">
+              Games ({approvedGames.length})
+            </h2>
+            {approvedGames.length === 0 ? (
+              <p className="text-sm text-c-muted py-4">No published games yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {approvedGames.map((g) => (
+                  <div
+                    key={g.id}
+                    className="bg-c-surface border border-c-border rounded-xl px-5 py-4 flex items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                          href={`/games/${g.slug}`}
+                          className="font-medium text-c-text hover:text-indigo-500 transition-colors text-sm"
+                        >
+                          {g.name}
+                        </Link>
+                        {g.developer && (
+                          <span className="text-xs text-c-faint">— {g.developer}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-c-faint mt-0.5">
+                        {[g.submitted_by, g.submitted_by_email].filter(Boolean).join(" · ") || "No submitter info"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteGame(g.id, g.name)}
+                      disabled={deletingId === g.id}
+                      className="shrink-0 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-500/30 rounded-lg hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                    >
+                      {deletingId === g.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Studios section */}
+          <div>
+            <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider mb-3">
+              Studios ({approvedStudios.length})
+            </h2>
+            {approvedStudios.length === 0 ? (
+              <p className="text-sm text-c-muted py-4">No published studios yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {approvedStudios.map((s) => (
+                  <div
+                    key={s.id}
+                    className="bg-c-surface border border-c-border rounded-xl px-5 py-4 flex items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                          href={`/studios/${s.slug}`}
+                          className="font-medium text-c-text hover:text-indigo-500 transition-colors text-sm"
+                        >
+                          {s.name}
+                        </Link>
+                        <span className="text-xs bg-c-bg border border-c-border text-c-faint px-2 py-0.5 rounded-full">
+                          {s.type}
+                        </span>
+                      </div>
+                      <p className="text-xs text-c-faint mt-0.5">
+                        {s.submitted_by || "No submitter info"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteStudio(s.id, s.name)}
+                      disabled={deletingId === s.id}
+                      className="shrink-0 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-500/30 rounded-lg hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                    >
+                      {deletingId === s.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
     </main>
   );
 }

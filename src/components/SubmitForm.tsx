@@ -23,6 +23,8 @@ export type GameData = {
   release_date: string | null;
   website_url: string | null;
   store_links: Record<string, string | null>;
+  publishing_type: string | null;
+  publisher_name: string | null;
 };
 
 const PLATFORM_OPTIONS = [
@@ -106,6 +108,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const [showDeveloperSuggestions, setShowDeveloperSuggestions] = useState(false);
   // Open store links by default when updating a game that already has some
   const [storeLinksOpen, setStoreLinksOpen] = useState(true);
+  const [publishingType, setPublishingType] = useState(initialData?.publishing_type ?? "");
   const [genreOtherChecked, setGenreOtherChecked] = useState(
     () => initialData?.genres?.some((g) => g === "Other" || !GENRE_BASE_VALUES.includes(g)) ?? false
   );
@@ -224,6 +227,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       status: String(form.get("status") || "announced"),
       release_date: String(form.get("release_date") || "").trim() || null,
       website_url: String(form.get("website_url") || "").trim() || null,
+      publishing_type: publishingType || null,
+      publisher_name: publishingType === "with_publisher" ? String(form.get("publisher_name") || "").trim() || null : null,
       store_links: {
         Steam: String(form.get("steam") || "").trim() || null,
         "Google Play": String(form.get("google_play") || "").trim() || null,
@@ -366,6 +371,30 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               )}
             </div>
           </Field>
+
+          <Field label={t("fieldPublishing")}>
+            <select
+              name="publishing_type"
+              value={publishingType}
+              onChange={(e) => setPublishingType(e.target.value)}
+              className={inputCls()}
+            >
+              <option value="">{t("publishingUnknown")}</option>
+              <option value="self_published">{t("publishingSelf")}</option>
+              <option value="with_publisher">{t("publishingWith")}</option>
+            </select>
+          </Field>
+
+          {publishingType === "with_publisher" && (
+            <Field label={t("fieldPublisherName")}>
+              <input
+                name="publisher_name"
+                defaultValue={initialData?.publisher_name ?? ""}
+                className={inputCls()}
+                placeholder={t("placeholderPublisherName")}
+              />
+            </Field>
+          )}
 
           <Field label={t("fieldCountry")} required error={errors.country}>
             <CheckboxGroup

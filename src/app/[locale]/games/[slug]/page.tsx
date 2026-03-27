@@ -20,6 +20,8 @@ type Game = {
   website_url: string | null;
   store_links: Record<string, string | null>;
   submitted_by: string | null;
+  publishing_type: string | null;
+  publisher_name: string | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -189,6 +191,16 @@ export default async function GameDetails({
           {game.game_engine && (
             <DetailSection label={t("gameEngine")}>
               <Tag>{game.game_engine}</Tag>
+            </DetailSection>
+          )}
+
+          {game.publishing_type && (
+            <DetailSection label={t("publishing")}>
+              <Tag>
+                {game.publishing_type === "self_published"
+                  ? t("publishingSelf")
+                  : game.publisher_name || t("publishingWith")}
+              </Tag>
             </DetailSection>
           )}
         </div>
