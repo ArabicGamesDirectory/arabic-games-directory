@@ -148,7 +148,7 @@ export default async function GameDetails({
           )}
         </div>
 
-        <p className="mt-6 text-c-soft leading-relaxed">
+        <p className="mt-6 text-c-soft leading-relaxed" dir="auto">
           {game.short_description}
         </p>
 

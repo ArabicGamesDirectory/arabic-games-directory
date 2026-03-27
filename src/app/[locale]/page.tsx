@@ -301,7 +301,7 @@ export default async function Home({
                     {s.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")}
                   </p>
                   {s.description && (
-                    <p className="text-sm text-c-soft mt-3 leading-relaxed">{s.description}</p>
+                    <p className="text-sm text-c-soft mt-3 leading-relaxed" dir="auto">{s.description}</p>
                   )}
                   {s.website_url && (
                     <p className="text-sm text-indigo-500 mt-2">{tStudio("websiteLabel")}</p>
@@ -428,7 +428,7 @@ export default async function Home({
                 {g.release_date ? ` · ${g.release_date}` : ""}
               </p>
 
-              <p className="text-sm text-c-soft mt-3 leading-relaxed line-clamp-3">
+              <p className="text-sm text-c-soft mt-3 leading-relaxed line-clamp-3" dir="auto">
                 {g.short_description}
               </p>
 

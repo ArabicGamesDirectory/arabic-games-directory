@@ -114,7 +114,7 @@ export default async function StudioPage({
         </div>
 
         {studio.description && (
-          <p className="mt-6 text-c-soft leading-relaxed">{studio.description}</p>
+          <p className="mt-6 text-c-soft leading-relaxed" dir="auto">{studio.description}</p>
         )}
 
         {studio.website_url && (
@@ -158,7 +158,7 @@ export default async function StudioPage({
                   {g.platforms.join(", ")}
                   {g.release_date ? ` · ${g.release_date}` : ""}
                 </p>
-                <p className="text-sm text-c-soft mt-2 leading-relaxed line-clamp-2">
+                <p className="text-sm text-c-soft mt-2 leading-relaxed line-clamp-2" dir="auto">
                   {g.short_description}
                 </p>
                 {g.genres.length > 0 && (

@@ -95,6 +95,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
+  const [submitterName, setSubmitterName] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
+  );
+  const [submitterEmail, setSubmitterEmail] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
+  );
   const [studioNames, setStudioNames] = useState<string[]>([]);
   const [developerValue, setDeveloperValue] = useState(initialData?.developer ?? "");
   const [showDeveloperSuggestions, setShowDeveloperSuggestions] = useState(false);
@@ -184,9 +190,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     const platforms = form.getAll("platforms") as string[];
     const gameplayModes = form.getAll("gameplay_modes") as string[];
     const gameEngine = String(form.get("game_engine") || "").trim();
-    const submitterName = String(form.get("submitter_name") || "").trim();
-    const submitterEmail = String(form.get("submitter_email") || "").trim();
-
     // Validate required fields
     const newErrors: Record<string, string> = {};
     if (!name) newErrors.name = t("errorRequired");
@@ -197,8 +200,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     if (!developerValue.trim()) newErrors.developer = t("errorRequired");
     if (gameplayModes.length === 0) newErrors.gameplay_modes = t("gameplayModesRequired");
     if (!gameEngine) newErrors.game_engine = t("errorRequired");
-    if (!submitterName) newErrors.submitter_name = t("errorRequired");
-    if (!submitterEmail) newErrors.submitter_email = t("errorRequired");
+    if (!submitterName.trim()) newErrors.submitter_name = t("errorRequired");
+    if (!submitterEmail.trim()) newErrors.submitter_email = t("errorRequired");
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -235,8 +238,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       },
     };
 
-    const submitter_name = String(form.get("submitter_name") || "").trim() || null;
-    const submitter_email = String(form.get("submitter_email") || "").trim() || null;
+    const submitter_name = submitterName.trim() || null;
+    const submitter_email = submitterEmail.trim() || null;
 
     const { error } = await supabase.from("submissions").insert({
       submitter_name,
@@ -277,8 +280,13 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       }
     }
 
+    localStorage.setItem("submitter_name", submitter_name ?? "");
+    localStorage.setItem("submitter_email", submitter_email ?? "");
     formEl.reset();
     setDeveloperValue("");
+    setGenreOtherChecked(false);
+    setGenreOtherText("");
+    setStoreLinksOpen(false);
     setDone({
       ok: true,
       message: isUpdate ? t("updateSuccessMessage") : t("successMessage"),
@@ -374,6 +382,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               id="short_description"
               name="short_description"
               rows={4}
+              dir="auto"
               defaultValue={initialData?.short_description}
               className={inputCls("short_description") + " resize-none"}
               placeholder={t("placeholderDescription")}
@@ -535,6 +544,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <input
               id="submitter_name"
               name="submitter_name"
+              value={submitterName}
+              onChange={(e) => setSubmitterName(e.target.value)}
               className={inputCls("submitter_name")}
               placeholder={t("placeholderName")}
             />
@@ -545,6 +556,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               id="submitter_email"
               name="submitter_email"
               type="email"
+              value={submitterEmail}
+              onChange={(e) => setSubmitterEmail(e.target.value)}
               className={inputCls("submitter_email")}
               placeholder={t("placeholderEmail")}
             />

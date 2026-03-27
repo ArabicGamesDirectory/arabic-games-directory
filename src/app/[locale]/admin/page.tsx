@@ -68,6 +68,16 @@ type StudioSubmission = {
   };
 };
 
+type Studio = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  description: string | null;
+  country: string[];
+  website_url: string | null;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   announced: "Announced",
   in_dev: "In Dev",
@@ -114,6 +124,7 @@ export default function AdminPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [originalGames, setOriginalGames] = useState<Record<string, Game>>({});
   const [studioSubmissions, setStudioSubmissions] = useState<StudioSubmission[]>([]);
+  const [originalStudios, setOriginalStudios] = useState<Record<string, Studio>>({});
   const [activeTab, setActiveTab] = useState<"games" | "studios">("games");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
@@ -182,7 +193,28 @@ export default function AdminPage() {
       .eq("moderation_status", "pending")
       .order("created_at", { ascending: true });
 
-    setStudioSubmissions((studioData as StudioSubmission[]) ?? []);
+    const studioSubs = (studioData as StudioSubmission[]) ?? [];
+    setStudioSubmissions(studioSubs);
+
+    // Batch-fetch original studios for update submissions
+    const studioIds = studioSubs
+      .map((s) => s.studio_id)
+      .filter((id): id is string => !!id);
+
+    if (studioIds.length > 0) {
+      const { data: studios } = await supabase
+        .from("studios")
+        .select("*")
+        .in("id", studioIds);
+
+      if (studios) {
+        const map: Record<string, Studio> = {};
+        for (const st of studios as Studio[]) {
+          map[st.id] = st;
+        }
+        setOriginalStudios(map);
+      }
+    }
   }
 
   useEffect(() => {
@@ -208,6 +240,7 @@ export default function AdminPage() {
     setSubmissions([]);
     setOriginalGames({});
     setStudioSubmissions([]);
+    setOriginalStudios({});
     setMessage(null);
   }
 
@@ -639,73 +672,146 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {studioSubmissions.map((s) => (
-            <article
-              key={s.id}
-              className="bg-c-surface border border-c-border rounded-xl overflow-hidden"
-            >
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
-                      {s.studio_id && (
-                        <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
-                          {t("updateBadge")}
-                        </span>
-                      )}
+          {studioSubmissions.map((s) => {
+            const original = s.studio_id ? originalStudios[s.studio_id] : null;
+            const isExpanded = expandedId === s.id;
+            const countries = [s.payload.country].flat();
+
+            return (
+              <article
+                key={s.id}
+                className="bg-c-surface border border-c-border rounded-xl overflow-hidden"
+              >
+                {/* Compact header — always visible */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                        {s.studio_id && (
+                          <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
+                            {t("updateBadge")}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-c-faint mt-0.5">
+                        {t("studioType")}: {s.payload.type}
+                      </p>
                     </div>
-                    <p className="text-xs text-c-faint mt-0.5">
-                      {t("studioType")}: {s.payload.type}
-                    </p>
                   </div>
+
+                  <p className="text-sm text-c-muted">
+                    {countries.join(", ")}
+                  </p>
+
+                  {s.payload.description && (
+                    <p className="text-sm text-c-soft mt-3 leading-relaxed" dir="auto">
+                      {s.payload.description}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-c-faint mt-3">
+                    {t("submittedBy", { name: s.submitter_name || "—" })}
+                    {s.submitter_email ? ` (${s.submitter_email})` : ""}
+                  </p>
+
+                  {/* Toggle details */}
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                    className="mt-3 text-xs text-indigo-500 hover:text-indigo-600 transition-colors"
+                  >
+                    {isExpanded ? t("hideDetails") : t("viewDetails")} {isExpanded ? "↑" : "↓"}
+                  </button>
                 </div>
 
-                <p className="text-sm text-c-muted">
-                  {[s.payload.country].flat().join(", ")}
-                </p>
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="border-t border-c-border px-5 py-4 space-y-4">
+                    {s.studio_id && original && (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/studios/${original.slug}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-indigo-500 hover:underline"
+                        >
+                          {t("viewCurrentStudio")}
+                        </a>
+                      </div>
+                    )}
 
-                {s.payload.description && (
-                  <p className="text-sm text-c-soft mt-3 leading-relaxed">
-                    {s.payload.description}
-                  </p>
+                    <DetailRow
+                      label="Name"
+                      value={s.payload.name}
+                      oldValue={original?.name}
+                      changed={!!original && fieldChanged(s.payload.name, original.name)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Type"
+                      value={s.payload.type}
+                      oldValue={original?.type}
+                      changed={!!original && fieldChanged(s.payload.type, original.type)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Country"
+                      value={arrayToDisplay(s.payload.country)}
+                      oldValue={original ? arrayToDisplay(original.country) : undefined}
+                      changed={!!original && fieldChanged(s.payload.country, original.country)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Description"
+                      value={s.payload.description || "—"}
+                      oldValue={original?.description}
+                      changed={!!original && fieldChanged(s.payload.description, original.description)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      multiline
+                    />
+
+                    <DetailRow
+                      label="Website URL"
+                      value={s.payload.website_url || "—"}
+                      oldValue={original?.website_url}
+                      changed={!!original && fieldChanged(s.payload.website_url, original.website_url)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      isUrl={!!s.payload.website_url}
+                    />
+
+                    <div className="text-xs text-c-faint pt-1">
+                      <span className="font-medium">Slug:</span> {s.payload.slug}
+                    </div>
+                  </div>
                 )}
 
-                {s.payload.website_url && (
-                  <a
-                    href={s.payload.website_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block mt-3 text-sm text-indigo-500 hover:underline"
+                <div className="flex gap-3 px-5 py-4 border-t border-c-border">
+                  <button
+                    onClick={() => approveStudio(s)}
+                    disabled={actionId === s.id}
+                    className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                   >
-                    {s.payload.website_url} ↗
-                  </a>
-                )}
-
-                <p className="text-xs text-c-faint mt-3">
-                  {t("submittedBy", { name: s.submitter_name || "—" })}
-                  {s.submitter_email ? ` (${s.submitter_email})` : ""}
-                </p>
-              </div>
-
-              <div className="flex gap-3 px-5 py-4 border-t border-c-border">
-                <button
-                  onClick={() => approveStudio(s)}
-                  disabled={actionId === s.id}
-                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                >
-                  {actionId === s.id ? t("working") : t("approve")}
-                </button>
-                <button
-                  onClick={() => rejectStudio(s.id)}
-                  disabled={actionId === s.id}
-                  className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
-                >
-                  {actionId === s.id ? t("working") : t("reject")}
-                </button>
-              </div>
-            </article>
-          ))}
+                    {actionId === s.id ? t("working") : t("approve")}
+                  </button>
+                  <button
+                    onClick={() => rejectStudio(s.id)}
+                    disabled={actionId === s.id}
+                    className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                  >
+                    {actionId === s.id ? t("working") : t("reject")}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       ))}
     </main>

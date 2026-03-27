@@ -32,6 +32,13 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitterName, setSubmitterName] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
+  );
+  const [submitterEmail, setSubmitterEmail] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
+  );
 
   const countryOptions = COUNTRY_OPTIONS.map((c) => ({
     value: c,
@@ -40,19 +47,25 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setDone(null);
 
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
     const name = String(form.get("name") || "").trim();
     const countries = form.getAll("country") as string[];
+    const newErrors: Record<string, string> = {};
+    if (!name) newErrors.name = t("errorRequired");
+    if (countries.length === 0) newErrors.country = t("countryRequired");
+    if (!submitterName.trim()) newErrors.submitter_name = t("errorRequired");
+    if (!submitterEmail.trim()) newErrors.submitter_email = t("errorRequired");
 
-    if (countries.length === 0) {
-      setDone({ ok: false, message: t("countryRequired") });
-      setLoading(false);
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+
+    setErrors({});
+    setLoading(true);
 
     const payload = {
       name,
@@ -64,8 +77,8 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
       website_url: String(form.get("website_url") || "").trim() || null,
     };
 
-    const submitter_name = String(form.get("submitter_name") || "").trim() || null;
-    const submitter_email = String(form.get("submitter_email") || "").trim() || null;
+    const submitter_name = submitterName.trim() || null;
+    const submitter_email = submitterEmail.trim() || null;
 
     const { error } = await supabase.from("studio_submissions").insert({
       submitter_name,
@@ -82,6 +95,8 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
       return;
     }
 
+    localStorage.setItem("submitter_name", submitter_name ?? "");
+    localStorage.setItem("submitter_email", submitter_email ?? "");
     formEl.reset();
     setDone({
       ok: true,
@@ -89,8 +104,12 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
     });
   }
 
-  const inputClass =
-    "w-full bg-c-surface border border-c-border rounded-lg px-3 py-2 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors";
+  const inputCls = (field?: string) =>
+    `w-full bg-c-surface border ${
+      field && errors[field]
+        ? "border-red-500/50 focus:ring-red-500"
+        : "border-c-border focus:ring-indigo-500"
+    } rounded-lg px-3 py-2 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:border-transparent transition-colors`;
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
@@ -114,13 +133,12 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
             {t("sectionStudioInfo")}
           </h2>
 
-          <Field label={t("fieldName")} required>
+          <Field label={t("fieldName")} required error={errors.name}>
             <input
               id="name"
               name="name"
-              required
               defaultValue={initialData?.name}
-              className={inputClass}
+              className={inputCls("name")}
               placeholder={t("placeholderName")}
             />
           </Field>
@@ -129,9 +147,8 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
             <select
               id="type"
               name="type"
-              required
               defaultValue={initialData?.type ?? "studio"}
-              className={inputClass}
+              className={inputCls()}
             >
               <option value="individual">{t("typeIndividual")}</option>
               <option value="team">{t("typeTeam")}</option>
@@ -144,13 +161,14 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
               id="description"
               name="description"
               rows={3}
+              dir="auto"
               defaultValue={initialData?.description ?? ""}
-              className={inputClass + " resize-none"}
+              className={inputCls() + " resize-none"}
               placeholder={t("placeholderDescription")}
             />
           </Field>
 
-          <Field label={t("fieldCountry")} required>
+          <Field label={t("fieldCountry")} required error={errors.country}>
             <CheckboxGroup
               name="country"
               options={countryOptions}
@@ -164,7 +182,7 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
               name="website_url"
               type="url"
               defaultValue={initialData?.website_url ?? ""}
-              className={inputClass}
+              className={inputCls()}
               placeholder={t("placeholderWebsiteUrl")}
             />
           </Field>
@@ -173,25 +191,28 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
         {/* Submitter info */}
         <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
           <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
-            {t("sectionYourInfo")}{" "}
-            <span className="font-normal normal-case text-c-faint">{t("optional")}</span>
+            {t("sectionYourInfo")}
           </h2>
 
-          <Field label={t("fieldSubmitterName")}>
+          <Field label={t("fieldSubmitterName")} required error={errors.submitter_name}>
             <input
               id="submitter_name"
               name="submitter_name"
-              className={inputClass}
+              value={submitterName}
+              onChange={(e) => setSubmitterName(e.target.value)}
+              className={inputCls("submitter_name")}
               placeholder={t("placeholderSubmitterName")}
             />
           </Field>
 
-          <Field label={t("fieldSubmitterEmail")}>
+          <Field label={t("fieldSubmitterEmail")} required error={errors.submitter_email}>
             <input
               id="submitter_email"
               name="submitter_email"
               type="email"
-              className={inputClass}
+              value={submitterEmail}
+              onChange={(e) => setSubmitterEmail(e.target.value)}
+              className={inputCls("submitter_email")}
               placeholder={t("placeholderSubmitterEmail")}
             />
           </Field>
@@ -228,10 +249,12 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
 function Field({
   label,
   required,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -241,6 +264,7 @@ function Field({
         {required && <span className="text-red-500 ms-0.5">*</span>}
       </label>
       {children}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
