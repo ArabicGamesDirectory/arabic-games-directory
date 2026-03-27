@@ -105,9 +105,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const [developerValue, setDeveloperValue] = useState(initialData?.developer ?? "");
   const [showDeveloperSuggestions, setShowDeveloperSuggestions] = useState(false);
   // Open store links by default when updating a game that already has some
-  const [storeLinksOpen, setStoreLinksOpen] = useState(
-    () => isUpdate && Object.values(initialData?.store_links ?? {}).some(Boolean)
-  );
+  const [storeLinksOpen, setStoreLinksOpen] = useState(true);
   const [genreOtherChecked, setGenreOtherChecked] = useState(
     () => initialData?.genres?.some((g) => g === "Other" || !GENRE_BASE_VALUES.includes(g)) ?? false
   );
