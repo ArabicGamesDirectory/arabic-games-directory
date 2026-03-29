@@ -454,8 +454,10 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               >
                 <option value="announced">{t("statusAnnounced")}</option>
                 <option value="in_dev">{t("statusInDev")}</option>
+                <option value="prototype">{t("statusPrototype")}</option>
                 <option value="early_access">{t("statusEarlyAccess")}</option>
                 <option value="released">{t("statusReleased")}</option>
+                <option value="on_hold">{t("statusOnHold")}</option>
                 <option value="cancelled">{t("statusCancelled")}</option>
               </select>
             </Field>

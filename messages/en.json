@@ -16,8 +16,10 @@
   "status": {
     "announced": "Announced",
     "in_dev": "In Dev",
+    "prototype": "Prototype",
     "early_access": "Early Access",
     "released": "Released",
+    "on_hold": "On Hold",
     "cancelled": "Cancelled"
   },
   "home": {
@@ -112,8 +114,10 @@
     "placeholderEmail": "you@example.com",
     "statusAnnounced": "Announced",
     "statusInDev": "In development",
+    "statusPrototype": "Prototype",
     "statusEarlyAccess": "Early access",
     "statusReleased": "Released",
+    "statusOnHold": "On hold",
     "statusCancelled": "Cancelled",
     "modeSinglePlayer": "Single Player",
     "modeMultiplayer": "Multiplayer",

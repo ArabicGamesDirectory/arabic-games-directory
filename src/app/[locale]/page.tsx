@@ -23,8 +23,10 @@ type Game = {
 const STATUS_CLASSES: Record<string, string> = {
   announced: "bg-blue-500/15 text-blue-500",
   in_dev: "bg-amber-500/15 text-amber-500",
+  prototype: "bg-cyan-500/15 text-cyan-500",
   early_access: "bg-purple-500/15 text-purple-500",
   released: "bg-emerald-500/15 text-emerald-500",
+  on_hold: "bg-orange-500/15 text-orange-500",
   cancelled: "bg-c-tag text-c-muted",
 };
 
@@ -418,7 +420,7 @@ export default async function Home({
                     STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
                   }`}
                 >
-                  {tStatus(g.status as "announced" | "in_dev" | "early_access" | "released" | "cancelled") ?? g.status}
+                  {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled") ?? g.status}
                 </span>
               </div>
 

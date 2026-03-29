@@ -16,8 +16,10 @@
   "status": {
     "announced": "مُعلَن عنه",
     "in_dev": "قيد التطوير",
+    "prototype": "نموذج أولي",
     "early_access": "وصول مبكر",
     "released": "مُصدَر",
+    "on_hold": "متوقف مؤقتاً",
     "cancelled": "مُلغى"
   },
   "home": {
@@ -112,8 +114,10 @@
     "placeholderEmail": "you@example.com",
     "statusAnnounced": "مُعلَن عنه",
     "statusInDev": "قيد التطوير",
+    "statusPrototype": "نموذج أولي",
     "statusEarlyAccess": "وصول مبكر",
     "statusReleased": "مُصدَر",
+    "statusOnHold": "متوقف مؤقتاً",
     "statusCancelled": "مُلغى",
     "modeSinglePlayer": "لاعب واحد",
     "modeMultiplayer": "متعدد اللاعبين",

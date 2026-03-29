@@ -128,8 +128,10 @@ export default async function StatsPage({
               key as
                 | "announced"
                 | "in_dev"
+                | "prototype"
                 | "early_access"
                 | "released"
+                | "on_hold"
                 | "cancelled"
             ) ?? key
           }

@@ -102,8 +102,10 @@ type ApprovedStudio = {
 const STATUS_LABELS: Record<string, string> = {
   announced: "Announced",
   in_dev: "In Dev",
+  prototype: "Prototype",
   early_access: "Early Access",
   released: "Released",
+  on_hold: "On Hold",
   cancelled: "Cancelled",
 };
 
