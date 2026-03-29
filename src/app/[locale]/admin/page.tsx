@@ -107,6 +107,7 @@ const STATUS_LABELS: Record<string, string> = {
   released: "Released",
   on_hold: "On Hold",
   cancelled: "Cancelled",
+  delisted: "Delisted",
 };
 
 function normalizeVal(v: unknown): string {

@@ -32,6 +32,7 @@ const STATUS_CLASSES: Record<string, string> = {
   released: "bg-emerald-500/15 text-emerald-500",
   on_hold: "bg-orange-500/15 text-orange-500",
   cancelled: "bg-c-tag text-c-muted",
+  delisted: "bg-c-tag text-c-muted",
 };
 
 export default async function GameDetails({
@@ -127,7 +128,7 @@ export default async function GameDetails({
               STATUS_CLASSES[game.status] ?? "bg-c-tag text-c-muted"
             }`}
           >
-            {tStatus(game.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled") ?? game.status}
+            {tStatus(game.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? game.status}
           </span>
         </div>
 

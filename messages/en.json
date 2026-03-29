@@ -20,7 +20,8 @@
     "early_access": "Early Access",
     "released": "Released",
     "on_hold": "On Hold",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "delisted": "Delisted"
   },
   "home": {
     "title": "Arabic Games Directory",
@@ -119,6 +120,7 @@
     "statusReleased": "Released",
     "statusOnHold": "On hold",
     "statusCancelled": "Cancelled",
+    "statusDelisted": "Delisted",
     "modeSinglePlayer": "Single Player",
     "modeMultiplayer": "Multiplayer",
     "modeCoop": "Co-op",

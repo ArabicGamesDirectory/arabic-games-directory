@@ -20,7 +20,8 @@
     "early_access": "وصول مبكر",
     "released": "مُصدَر",
     "on_hold": "متوقف مؤقتاً",
-    "cancelled": "مُلغى"
+    "cancelled": "مُلغى",
+    "delisted": "مُزال من المتاجر"
   },
   "home": {
     "title": "دليل الألعاب العربية",
@@ -119,6 +120,7 @@
     "statusReleased": "مُصدَر",
     "statusOnHold": "متوقف مؤقتاً",
     "statusCancelled": "مُلغى",
+    "statusDelisted": "مُزال من المتاجر",
     "modeSinglePlayer": "لاعب واحد",
     "modeMultiplayer": "متعدد اللاعبين",
     "modeCoop": "تعاوني",

@@ -28,6 +28,7 @@ const STATUS_CLASSES: Record<string, string> = {
   released: "bg-emerald-500/15 text-emerald-500",
   on_hold: "bg-orange-500/15 text-orange-500",
   cancelled: "bg-c-tag text-c-muted",
+  delisted: "bg-c-tag text-c-muted",
 };
 
 type Studio = {
@@ -420,7 +421,7 @@ export default async function Home({
                     STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
                   }`}
                 >
-                  {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled") ?? g.status}
+                  {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
                 </span>
               </div>
 

@@ -133,6 +133,7 @@ export default async function StatsPage({
                 | "released"
                 | "on_hold"
                 | "cancelled"
+                | "delisted"
             ) ?? key
           }
         />
