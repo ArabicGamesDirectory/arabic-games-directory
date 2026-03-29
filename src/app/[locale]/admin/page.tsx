@@ -759,7 +759,7 @@ export default function AdminPage() {
                         wasLabel=""
                       />
                       <DetailRow
-                        label="Email"
+                        label="Contact"
                         value={s.submitter_email || "—"}
                         changed={false}
                         changedLabel=""
@@ -929,7 +929,7 @@ export default function AdminPage() {
                         wasLabel=""
                       />
                       <DetailRow
-                        label="Email"
+                        label="Contact"
                         value={s.submitter_email || "—"}
                         changed={false}
                         changedLabel=""

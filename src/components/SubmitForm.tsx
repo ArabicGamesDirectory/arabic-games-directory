@@ -584,7 +584,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <input
               id="submitter_email"
               name="submitter_email"
-              type="email"
               value={submitterEmail}
               onChange={(e) => setSubmitterEmail(e.target.value)}
               className={inputCls("submitter_email")}

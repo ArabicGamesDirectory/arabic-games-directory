@@ -209,7 +209,6 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
             <input
               id="submitter_email"
               name="submitter_email"
-              type="email"
               value={submitterEmail}
               onChange={(e) => setSubmitterEmail(e.target.value)}
               className={inputCls("submitter_email")}
