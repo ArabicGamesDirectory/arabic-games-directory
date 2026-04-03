@@ -69,11 +69,23 @@ export async function POST(request: Request) {
       .eq("id", submission.game_id);
     gameError = error;
   } else {
-    // New game submission — insert a fresh row.
+    // New game submission — resolve slug collisions, then insert.
+    const baseSlug = submission.payload.slug as string;
+    const { data: existingSlugs } = await supabase
+      .from("games")
+      .select("slug")
+      .like("slug", `${baseSlug}%`);
+    const taken = new Set((existingSlugs ?? []).map((r: { slug: string }) => r.slug));
+    let slug = baseSlug;
+    let suffix = 2;
+    while (taken.has(slug)) {
+      slug = `${baseSlug}-${suffix++}`;
+    }
+
     const { error } = await supabase
       .from("games")
       .insert({
-        slug: submission.payload.slug,
+        slug,
         submitted_by: submission.submitter_name ?? null,
         submitted_by_email: submission.submitter_email ?? null,
         ...gameFields,

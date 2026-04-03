@@ -59,10 +59,22 @@ export async function POST(request: Request) {
       .eq("id", submission.studio_id);
     studioError = error;
   } else {
-    // New studio submission — insert a fresh row.
+    // New studio submission — resolve slug collisions, then insert.
+    const baseSlug = submission.payload.slug as string;
+    const { data: existingSlugs } = await supabase
+      .from("studios")
+      .select("slug")
+      .like("slug", `${baseSlug}%`);
+    const taken = new Set((existingSlugs ?? []).map((r: { slug: string }) => r.slug));
+    let slug = baseSlug;
+    let suffix = 2;
+    while (taken.has(slug)) {
+      slug = `${baseSlug}-${suffix++}`;
+    }
+
     const { error } = await supabase
       .from("studios")
-      .insert({ slug: submission.payload.slug, submitted_by: submission.submitter_name ?? null, ...studioFields });
+      .insert({ slug, submitted_by: submission.submitter_name ?? null, ...studioFields });
     studioError = error;
   }
 

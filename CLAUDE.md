@@ -9,6 +9,7 @@ A public directory of games developed in the MENA region. Anyone can submit a ga
 - **Hosting:** Vercel
 - **Content:** Text, links, and optional thumbnails (stored in Supabase Storage)
 - **Localization:** English + Arabic (RTL) via `next-intl`
+- **Key packages:** `sharp` (thumbnail processing), `recharts` (stats charts), `@supabase/auth-helpers-nextjs` (admin auth)
 
 ---
 
@@ -59,7 +60,8 @@ arabic-games-directory/
 │   │   ├── ThemeToggle.tsx     # Floating light/dark theme switcher (persists to localStorage)
 │   │   ├── LanguageSwitcher.tsx  # Floating EN↔AR switcher (fixed bottom start-4)
 │   │   ├── SubmitForm.tsx      # Shared form for new game submissions and update suggestions (accepts initialData); developer field has datalist autocomplete from approved studios; includes optional thumbnail upload field
-│   │   └── StudioSubmitForm.tsx  # Form for submitting a new studio/team/individual; includes optional thumbnail upload field
+│   │   ├── StudioSubmitForm.tsx  # Form for submitting a new studio/team/individual; includes optional thumbnail upload field
+│   │   └── StatsCharts.tsx     # "use client" Recharts charts for the stats page; exports StatsCharts + ChartEntry type
 │   ├── i18n/
 │   │   ├── routing.ts          # Defines locales: ['en', 'ar'], defaultLocale: 'en'
 │   │   ├── request.ts          # next-intl server config — loads messages per locale
@@ -181,7 +183,7 @@ Vercel has the same variables set in project settings.
 2. ~~Tailwind for UI (replacing inline styles)~~ ✓ Done
 3. ~~Controlled dropdowns for platform on submit form~~ ✓ Done (platforms, gameplay modes, monetization, and genres are now checkboxes; game engine uses datalist; country uses checkboxes).
 4. ~~URL validation on website and store link fields~~ ✓ Done (`website_url` in both forms, all store link fields in `SubmitForm`; validated on submit only using `new URL()` try/catch; empty fields always pass; error key `validation.invalidUrl` shared across all URL fields; `type="url"` intentionally absent — validation is JS-only)
-5. Slug collision handling on approve (check uniqueness, auto-append suffix if clash)
+5. ~~Slug collision handling on approve~~ ✓ Done (on INSERT path in `/api/approve` and `/api/approve-studio`: query all slugs matching `baseSlug%`, build a taken set, increment suffix `-2`, `-3`, … until a free slug is found)
 6. ~~Search by game name or developer~~ ✓ Done (server-side via `?q=` param; searches name + developer with `ilike`, genres with exact `cs` match; filters and search compose together)
 7. ~~Localization (EN + AR / RTL)~~ ✓ Done (next-intl, `/en/` and `/ar/` routes, Cairo font for RTL)
 8. ~~Controlled country selection~~ ✓ Done (18 MENA countries, multi-select checkboxes, translated, stored as `text[]`)
@@ -198,7 +200,7 @@ Vercel has the same variables set in project settings.
 19. ~~Thumbnails via Supabase Storage~~ ✓ Done (optional thumbnail upload on both game and studio submit forms; `/api/upload-thumbnail` converts to 460×215 WebP via `sharp`; stored in `thumbnails` bucket; `thumbnail_url` column on `games` and `studios` tables; displayed on homepage cards, game detail, and studio detail pages; placeholder shown on cards when no thumbnail; no placeholder on detail pages)
 20. ~~Server-side pagination on homepage~~ ✓ Done (10 results per page; `?page=` for games tab, `?studiosPage=` for studios tab; Prev/Next controls hidden when only one page; resets to page 1 when search/filter active; games use Supabase `.range()` with `{ count: "exact" }`; studios paginate over the already-filtered in-memory slice)
 21. Email notification to submitter on approve/reject
-22. Charts on stats page instead of plain lists
+22. ~~Charts on stats page~~ ✓ Done (Recharts-based; `StatsCharts.tsx` is a `"use client"` component; server page resolves all translated labels and passes `ChartEntry[]` arrays; By Country → horizontal bar chart; By Status → donut chart with status-matched colors; By Platform → donut chart; By Genre → horizontal bar chart; tooltip styled with `--c-surface`/`--c-border`/`--c-text` CSS vars)
 23. Link games to studios via `studio_id` FK (currently stores studio name as plain text in `developer`; name-matching is done with `.ilike` at render time)
 
 ---
@@ -238,6 +240,8 @@ Vercel has the same variables set in project settings.
 - **Submitter info persistence:** Both `SubmitForm` and `StudioSubmitForm` persist `submitter_name` and `submitter_email` to `localStorage` (keys `submitter_name`, `submitter_email`) on every successful submission. On mount, new submission forms pre-fill from `localStorage` so returning submitters don't retype their details. **Update forms always start empty** (`isUpdate` skips the localStorage read) — the person suggesting an update may differ from the original submitter. The fields are fully controlled inputs (`submitterName` / `submitterEmail` state); validation and payload construction use the state values directly rather than reading from `FormData`.
 - **Thumbnail upload (forms):** Both `SubmitForm` and `StudioSubmitForm` have an optional thumbnail field at the top of the info section. Upload happens on file selection (not on form submit). Flow: client validates type (`image/jpeg`, `image/png`, `image/webp`) and size (≤150 KB) before sending → `POST /api/upload-thumbnail` with `FormData` containing `file` and `slug` → API converts to 460×215 WebP via `sharp`, uploads to `thumbnails` bucket with service role key, returns `{ url }` → form stores URL in `thumbnailUrl` state → included in payload on submit. A local `URL.createObjectURL()` preview is shown immediately on selection (before upload completes). Upload status: `idle | uploading | done | error`. On `isUpdate`, pre-fills preview and URL from `initialData.thumbnail_url`. Field is fully optional — no validation error if skipped. Reset clears `thumbnailUrl`, `thumbnailPreview`, `thumbnailStatus` to initial state.
 - **Thumbnail display:** Homepage cards (both games and studios) use a compact side-by-side layout: thumbnail is `230×108` on the start side (`rounded-s-lg`, `object-cover`), content fills the remaining space (`flex-1 min-w-0 p-4`). On mobile (`< sm:`), layout stacks vertically (`flex-col sm:flex-row`) with thumbnail full-width on top. When no thumbnail exists, a `bg-c-surface` placeholder div with a muted emoji (🎮 for games, 🏢 for studios) is shown at the same dimensions — no broken image. On detail pages (game detail, studio detail), thumbnail is `460×215` (`rounded-xl`) and shown only when it exists — no placeholder on detail pages. All `<img>` elements use `loading="lazy"` and `decoding="async"` except the first card on page 1 (index 0, page === 1) which uses `loading="eager"` to avoid LCP penalty.
+- **Slug collision handling:** On the INSERT path of `/api/approve` and `/api/approve-studio`, before inserting a new row the route queries all existing slugs matching `${baseSlug}%`, builds a `Set` of taken values, then tries `baseSlug`, `baseSlug-2`, `baseSlug-3`, … until a free one is found. Update approvals (where `game_id` / `studio_id` is set) skip this — they `UPDATE` the existing row and preserve its slug unchanged.
+- **Stats charts:** The stats page (`/stats`) is a server component that fetches all games, aggregates counts, resolves translated labels, then passes `ChartEntry[]` arrays to the `StatsCharts` client component. All i18n is resolved server-side — the client component only receives `{ name: string; value: number; color?: string }[]`. Chart types: By Country → `BarChart` horizontal; By Status → `PieChart` donut with status-specific colors matching the badge palette; By Platform → `PieChart` donut; By Genre → `BarChart` horizontal. Tooltips use `var(--c-surface)` / `var(--c-border)` / `var(--c-text)` inline styles so they theme-switch correctly. Requires `recharts` (already in `package.json`).
 - **Homepage pagination:** Games and studios are paginated separately. Page size is 10. Games use URL param `?page=N`, studios use `?studiosPage=N`, so both tabs can paginate independently without resetting each other. When a search query or filter is active, links reset to page 1 (params omitted when page === 1). Games pagination uses Supabase `.range(from, to)` with `{ count: "exact" }` to get the total count in one query. Studios pagination slices `filteredStudios` in-memory. Prev/Next controls are hidden when `totalPages === 1`. Disabled direction links render as muted `<span>` instead of `<Link>`.
 
 ---

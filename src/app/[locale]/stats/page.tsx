@@ -2,6 +2,18 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
+import { StatsCharts, type ChartEntry } from "@/components/StatsCharts";
+
+const STATUS_COLORS: Record<string, string> = {
+  announced: "#3b82f6",
+  in_dev: "#f59e0b",
+  prototype: "#06b6d4",
+  early_access: "#8b5cf6",
+  released: "#10b981",
+  on_hold: "#f97316",
+  cancelled: "#71717a",
+  delisted: "#71717a",
+};
 
 type Game = {
   country: string[];
@@ -29,7 +41,7 @@ export default async function StatsPage({
 
   if (error) {
     return (
-      <main className="max-w-4xl mx-auto px-4 py-10">
+      <main className="max-w-3xl mx-auto px-4 py-10">
         <p className="text-red-500">Error: {error.message}</p>
       </main>
     );
@@ -38,67 +50,62 @@ export default async function StatsPage({
   const games: Game[] = data ?? [];
   const count = games.length;
 
-  const byCountry: Record<string, number> = {};
-  const byPlatform: Record<string, number> = {};
-  const byGenre: Record<string, number> = {};
-  const byStatus: Record<string, number> = {};
+  const rawCountry: Record<string, number> = {};
+  const rawPlatform: Record<string, number> = {};
+  const rawGenre: Record<string, number> = {};
+  const rawStatus: Record<string, number> = {};
 
   for (const game of games) {
-    for (const c of game.country) byCountry[c] = (byCountry[c] || 0) + 1;
-    byStatus[game.status] = (byStatus[game.status] || 0) + 1;
-    for (const p of game.platforms) byPlatform[p] = (byPlatform[p] || 0) + 1;
-    for (const g of game.genres) byGenre[g] = (byGenre[g] || 0) + 1;
+    for (const c of game.country) rawCountry[c] = (rawCountry[c] || 0) + 1;
+    rawStatus[game.status] = (rawStatus[game.status] || 0) + 1;
+    for (const p of game.platforms) rawPlatform[p] = (rawPlatform[p] || 0) + 1;
+    for (const g of game.genres) rawGenre[g] = (rawGenre[g] || 0) + 1;
   }
+
+  function toSortedEntries(
+    raw: Record<string, number>,
+    translateKey?: (k: string) => string,
+    colorMap?: Record<string, string>
+  ): ChartEntry[] {
+    return Object.entries(raw)
+      .sort((a, b) => b[1] - a[1])
+      .map(([key, value]) => ({
+        name: translateKey ? translateKey(key) : key,
+        value,
+        ...(colorMap ? { color: colorMap[key] } : {}),
+      }));
+  }
+
+  const byCountry = toSortedEntries(rawCountry, (k) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tCountries(COUNTRY_KEY_MAP[k] as any) ?? k
+  );
+  const byStatus = toSortedEntries(
+    rawStatus,
+    (k) =>
+      tStatus(
+        k as
+          | "announced"
+          | "in_dev"
+          | "prototype"
+          | "early_access"
+          | "released"
+          | "on_hold"
+          | "cancelled"
+          | "delisted"
+      ) ?? k,
+    STATUS_COLORS
+  );
+  const byPlatform = toSortedEntries(rawPlatform);
+  const byGenre = toSortedEntries(rawGenre);
 
   const subtitleText =
     count === 1
       ? t("subtitleSingular", { count })
       : t("subtitlePlural", { count });
 
-  function StatCard({
-    title,
-    data,
-    translateKey,
-  }: {
-    title: string;
-    data: Record<string, number>;
-    translateKey?: (key: string) => string;
-  }) {
-    const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
-    const max = sorted[0]?.[1] ?? 1;
-
-    return (
-      <div className="bg-c-surface border border-c-border rounded-xl p-5">
-        <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider mb-4">
-          {title}
-        </h2>
-        <div className="space-y-3">
-          {sorted.map(([key, count]) => (
-            <div key={key}>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-c-soft">
-                  {translateKey ? translateKey(key) : key}
-                </span>
-                <span className="text-c-faint tabular-nums">{count}</span>
-              </div>
-              <div className="h-1.5 bg-c-tag rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 rounded-full"
-                  style={{ width: `${(count / max) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-          {sorted.length === 0 && (
-            <p className="text-c-faint text-sm">{t("noData")}</p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
+    <main className="max-w-3xl mx-auto px-4 py-10">
       <Link
         href="/"
         className="text-sm text-c-muted hover:text-c-text transition-colors"
@@ -113,33 +120,19 @@ export default async function StatsPage({
         <p className="text-c-muted text-sm mt-1">{subtitleText}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard
-          title={t("byCountry")}
-          data={byCountry}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          translateKey={(key) => tCountries(COUNTRY_KEY_MAP[key] as any) ?? key}
-        />
-        <StatCard
-          title={t("byStatus")}
-          data={byStatus}
-          translateKey={(key) =>
-            tStatus(
-              key as
-                | "announced"
-                | "in_dev"
-                | "prototype"
-                | "early_access"
-                | "released"
-                | "on_hold"
-                | "cancelled"
-                | "delisted"
-            ) ?? key
-          }
-        />
-        <StatCard title={t("byPlatform")} data={byPlatform} />
-        <StatCard title={t("byGenre")} data={byGenre} />
-      </div>
+      <StatsCharts
+        byCountry={byCountry}
+        byStatus={byStatus}
+        byPlatform={byPlatform}
+        byGenre={byGenre}
+        labels={{
+          byCountry: t("byCountry"),
+          byStatus: t("byStatus"),
+          byPlatform: t("byPlatform"),
+          byGenre: t("byGenre"),
+          noData: t("noData"),
+        }}
+      />
     </main>
   );
 }
