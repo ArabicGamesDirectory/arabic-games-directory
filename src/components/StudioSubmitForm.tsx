@@ -28,6 +28,7 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
   const tCommon = useTranslations("common");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tCountries = useTranslations("countries") as any;
+  const tValidation = useTranslations("validation");
 
   const isUpdate = !!initialData;
 
@@ -111,6 +112,16 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
     if (countries.length === 0) newErrors.country = t("countryRequired");
     if (!submitterName.trim()) newErrors.submitter_name = t("errorRequired");
     if (!submitterEmail.trim()) newErrors.submitter_email = t("errorRequired");
+
+    // URL validation — optional, only validate if non-empty
+    const websiteUrl = String(form.get("website_url") || "").trim();
+    if (websiteUrl) {
+      try {
+        new URL(websiteUrl);
+      } catch {
+        newErrors.website_url = tValidation("invalidUrl");
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -233,13 +244,12 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
             />
           </Field>
 
-          <Field label={t("fieldWebsiteUrl")}>
+          <Field label={t("fieldWebsiteUrl")} error={errors.website_url}>
             <input
               id="website_url"
               name="website_url"
-              type="url"
               defaultValue={initialData?.website_url ?? ""}
-              className={inputCls()}
+              className={inputCls("website_url")}
               placeholder={t("placeholderWebsiteUrl")}
             />
           </Field>

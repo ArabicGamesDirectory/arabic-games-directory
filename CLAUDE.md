@@ -180,7 +180,7 @@ Vercel has the same variables set in project settings.
 1. ~~Server-side admin API routes (security)~~ ✓ Done
 2. ~~Tailwind for UI (replacing inline styles)~~ ✓ Done
 3. ~~Controlled dropdowns for platform on submit form~~ ✓ Done (platforms, gameplay modes, monetization, and genres are now checkboxes; game engine uses datalist; country uses checkboxes).
-4. URL validation on website and store link fields
+4. ~~URL validation on website and store link fields~~ ✓ Done (`website_url` in both forms, all store link fields in `SubmitForm`; validated on submit only using `new URL()` try/catch; empty fields always pass; error key `validation.invalidUrl` shared across all URL fields; `type="url"` intentionally absent — validation is JS-only)
 5. Slug collision handling on approve (check uniqueness, auto-append suffix if clash)
 6. ~~Search by game name or developer~~ ✓ Done (server-side via `?q=` param; searches name + developer with `ilike`, genres with exact `cs` match; filters and search compose together)
 7. ~~Localization (EN + AR / RTL)~~ ✓ Done (next-intl, `/en/` and `/ar/` routes, Cairo font for RTL)

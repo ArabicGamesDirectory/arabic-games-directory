@@ -143,6 +143,9 @@
     "thumbnailInvalidType": "نوع ملف غير صالح. المقبول: jpg، png، webp.",
     "thumbnailHint": "الحد الأقصى 150 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 256×256."
   },
+  "validation": {
+    "invalidUrl": "يرجى إدخال رابط صحيح يبدأ بـ http:// أو https://"
+  },
   "genres": {
     "action": "أكشن",
     "adventure": "مغامرة",

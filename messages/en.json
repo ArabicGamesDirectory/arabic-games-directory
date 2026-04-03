@@ -143,6 +143,9 @@
     "thumbnailInvalidType": "Invalid file type. Accepted: jpg, png, webp.",
     "thumbnailHint": "Max 150 KB. JPG, PNG, or WebP. Will be cropped to 256\u00d7256."
   },
+  "validation": {
+    "invalidUrl": "Please enter a valid URL starting with http:// or https://"
+  },
   "genres": {
     "action": "Action",
     "adventure": "Adventure",

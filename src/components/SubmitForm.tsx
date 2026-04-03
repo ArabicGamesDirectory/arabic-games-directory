@@ -93,6 +93,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const tCountries = useTranslations("countries");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tGenres = useTranslations("genres");
+  const tValidation = useTranslations("validation");
 
   const isUpdate = !!initialData;
 
@@ -257,6 +258,28 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     if (!gameEngine) newErrors.game_engine = t("errorRequired");
     if (!submitterName.trim()) newErrors.submitter_name = t("errorRequired");
     if (!submitterEmail.trim()) newErrors.submitter_email = t("errorRequired");
+
+    // URL validation — optional fields, only validate if non-empty
+    const urlFields: [string, string][] = [
+      ["website_url", String(form.get("website_url") || "").trim()],
+      ["steam", String(form.get("steam") || "").trim()],
+      ["google_play", String(form.get("google_play") || "").trim()],
+      ["app_store", String(form.get("app_store") || "").trim()],
+      ["playstation", String(form.get("playstation") || "").trim()],
+      ["xbox", String(form.get("xbox") || "").trim()],
+      ["nintendo", String(form.get("nintendo") || "").trim()],
+      ["itch", String(form.get("itch") || "").trim()],
+      ["others", String(form.get("others") || "").trim()],
+    ];
+    for (const [field, value] of urlFields) {
+      if (value) {
+        try {
+          new URL(value);
+        } catch {
+          newErrors[field] = tValidation("invalidUrl");
+        }
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -561,13 +584,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             </Field>
           </div>
 
-          <Field label={t("fieldWebsiteUrl")}>
+          <Field label={t("fieldWebsiteUrl")} error={errors.website_url}>
             <input
               id="website_url"
               name="website_url"
-              type="url"
               defaultValue={initialData?.website_url ?? ""}
-              className={inputCls()}
+              className={inputCls("website_url")}
               placeholder={t("placeholderWebsiteUrl")}
             />
           </Field>
@@ -636,13 +658,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
           {storeLinksOpen && (
             <div className="px-5 pb-5 space-y-4 border-t border-c-border pt-4">
               {STORE_FIELDS.map(({ id, label, placeholder }) => (
-                <Field key={id} label={label}>
+                <Field key={id} label={label} error={errors[id]}>
                   <input
                     id={id}
                     name={id}
-                    type="url"
                     defaultValue={initialData?.store_links?.[STORE_KEY_MAP[id]] ?? ""}
-                    className={inputCls()}
+                    className={inputCls(id)}
                     placeholder={placeholder}
                   />
                 </Field>
