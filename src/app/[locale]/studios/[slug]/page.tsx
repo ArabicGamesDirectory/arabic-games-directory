@@ -12,6 +12,7 @@ type Studio = {
   country: string[];
   website_url: string | null;
   submitted_by: string | null;
+  thumbnail_url: string | null;
 };
 
 type Game = {
@@ -99,6 +100,18 @@ export default async function StudioPage({
       </div>
 
       <div className="mt-8">
+        {studio.thumbnail_url && (
+          <img
+            src={studio.thumbnail_url}
+            alt={studio.name}
+            width={256}
+            height={256}
+            loading="lazy"
+            decoding="async"
+            className="w-64 h-64 object-cover rounded-xl mb-6"
+          />
+        )}
+
         <div className="flex items-start gap-3 flex-wrap">
           <h1 className="text-3xl font-bold tracking-tight text-c-text w-full">
             {studio.name}

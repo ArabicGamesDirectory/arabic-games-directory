@@ -15,6 +15,7 @@ export type StudioData = {
   description: string | null;
   country: string[];
   website_url: string | null;
+  thumbnail_url: string | null;
 };
 
 interface StudioSubmitFormProps {
@@ -39,6 +40,58 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
   const [submitterEmail, setSubmitterEmail] = useState(() =>
     !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
   );
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initialData?.thumbnail_url ?? null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(initialData?.thumbnail_url ?? null);
+  const [thumbnailStatus, setThumbnailStatus] = useState<"idle" | "uploading" | "done" | "error">(
+    initialData?.thumbnail_url ? "done" : "idle"
+  );
+
+  async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
+    if (!ACCEPTED.includes(file.type)) {
+      setThumbnailStatus("error");
+      setThumbnailPreview(null);
+      setThumbnailUrl(null);
+      setErrors((prev) => ({ ...prev, thumbnail: t("thumbnailInvalidType") }));
+      return;
+    }
+    if (file.size > 150 * 1024) {
+      setThumbnailStatus("error");
+      setThumbnailPreview(null);
+      setThumbnailUrl(null);
+      setErrors((prev) => ({ ...prev, thumbnail: t("thumbnailTooLarge") }));
+      return;
+    }
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.thumbnail;
+      return next;
+    });
+
+    setThumbnailPreview(URL.createObjectURL(file));
+    setThumbnailStatus("uploading");
+
+    const formData = new FormData();
+    formData.append("file", file);
+    const nameInput = document.getElementById("name") as HTMLInputElement | null;
+    const slug = isUpdate ? initialData!.slug : slugify(nameInput?.value || "upload");
+    formData.append("slug", slug);
+
+    try {
+      const res = await fetch("/api/upload-thumbnail", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setThumbnailUrl(data.url);
+      setThumbnailStatus("done");
+    } catch {
+      setThumbnailStatus("error");
+      setErrors((prev) => ({ ...prev, thumbnail: t("thumbnailError") }));
+    }
+  }
 
   const countryOptions = COUNTRY_OPTIONS.map((c) => ({
     value: c,
@@ -75,6 +128,7 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
       description: String(form.get("description") || "").trim() || null,
       country: countries,
       website_url: String(form.get("website_url") || "").trim() || null,
+      thumbnail_url: thumbnailUrl,
     };
 
     const submitter_name = submitterName.trim() || null;
@@ -98,6 +152,9 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
     localStorage.setItem("submitter_name", submitter_name ?? "");
     localStorage.setItem("submitter_email", submitter_email ?? "");
     formEl.reset();
+    setThumbnailUrl(null);
+    setThumbnailPreview(null);
+    setThumbnailStatus("idle");
     setDone({
       ok: true,
       message: isUpdate ? t("updateSuccessMessage") : t("successMessage"),
@@ -185,6 +242,35 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
               className={inputCls()}
               placeholder={t("placeholderWebsiteUrl")}
             />
+          </Field>
+
+          <Field label={t("fieldThumbnail")} error={errors.thumbnail}>
+            <div className="flex items-start gap-4">
+              {thumbnailPreview && (
+                <img
+                  src={thumbnailPreview}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="w-20 h-20 rounded-lg object-cover border border-c-border"
+                />
+              )}
+              <div className="flex-1 space-y-1.5">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleThumbnailChange}
+                  className="block w-full text-sm text-c-soft file:me-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-c-tag file:text-c-tag-text hover:file:bg-c-border file:cursor-pointer file:transition-colors"
+                />
+                <p className="text-xs text-c-faint">{t("thumbnailHint")}</p>
+                {thumbnailStatus === "uploading" && (
+                  <p className="text-xs text-amber-500">{t("thumbnailUploading")}</p>
+                )}
+                {thumbnailStatus === "done" && (
+                  <p className="text-xs text-emerald-500">{t("thumbnailDone")}</p>
+                )}
+              </div>
+            </div>
           </Field>
         </div>
 

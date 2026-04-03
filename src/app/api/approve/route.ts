@@ -56,6 +56,7 @@ export async function POST(request: Request) {
     store_links: submission.payload.store_links,
     publishing_type: submission.payload.publishing_type ?? null,
     publisher_name: submission.payload.publisher_name ?? null,
+    thumbnail_url: submission.payload.thumbnail_url ?? null,
   };
 
   let gameError: { message: string } | null = null;

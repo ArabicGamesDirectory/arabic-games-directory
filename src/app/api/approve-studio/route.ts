@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     description: submission.payload.description ?? null,
     country: submission.payload.country,
     website_url: submission.payload.website_url ?? null,
+    thumbnail_url: submission.payload.thumbnail_url ?? null,
   };
 
   let studioError: { message: string } | null = null;

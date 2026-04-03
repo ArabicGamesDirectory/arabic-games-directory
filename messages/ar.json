@@ -47,7 +47,11 @@
     "noStudios": "لا توجد استوديوهات بعد.",
     "noStudiosHint": "تُضاف الاستوديوهات تلقائياً عند إرسال لعبة.",
     "noStudiosFound": "لا توجد نتائج للاستوديوهات.",
-    "studiosCta": "هل استوديوك غير موجود؟ أرسل لعبة وسنضيف الاستوديو تلقائياً."
+    "studiosCta": "هل استوديوك غير موجود؟ أرسل لعبة وسنضيف الاستوديو تلقائياً.",
+    "thumbnailAlt": "صورة {name}",
+    "paginationPrev": "السابق",
+    "paginationNext": "التالي",
+    "paginationPage": "صفحة {current} من {total}"
   },
   "gameDetail": {
     "genres": "الأنواع",
@@ -130,7 +134,14 @@
     "monetizationPremium": "مدفوع",
     "monetizationAds": "إعلانات",
     "monetizationIAP": "مشتريات داخلية",
-    "monetizationSubscription": "اشتراك"
+    "monetizationSubscription": "اشتراك",
+    "fieldThumbnail": "صورة مصغرة (اختياري)",
+    "thumbnailUploading": "جارٍ الرفع…",
+    "thumbnailDone": "تم الرفع",
+    "thumbnailError": "فشل الرفع. حاول مرة أخرى.",
+    "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 150 كيلوبايت.",
+    "thumbnailInvalidType": "نوع ملف غير صالح. المقبول: jpg، png، webp.",
+    "thumbnailHint": "الحد الأقصى 150 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 256×256."
   },
   "genres": {
     "action": "أكشن",
@@ -246,7 +257,14 @@
     "typeLabel": "النوع",
     "websiteLabel": "الموقع ↗",
     "gamesSection": "الألعاب",
-    "noGamesYet": "لا توجد ألعاب في الدليل بعد."
+    "noGamesYet": "لا توجد ألعاب في الدليل بعد.",
+    "fieldThumbnail": "صورة مصغرة (اختياري)",
+    "thumbnailUploading": "جارٍ الرفع…",
+    "thumbnailDone": "تم الرفع",
+    "thumbnailError": "فشل الرفع. حاول مرة أخرى.",
+    "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 150 كيلوبايت.",
+    "thumbnailInvalidType": "نوع ملف غير صالح. المقبول: jpg، png، webp.",
+    "thumbnailHint": "الحد الأقصى 150 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 256×256."
   },
   "stats": {
     "title": "إحصائيات",

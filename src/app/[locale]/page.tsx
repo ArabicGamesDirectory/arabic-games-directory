@@ -3,6 +3,8 @@ import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 
+const PAGE_SIZE = 10;
+
 type Game = {
   name: string;
   developer: string | null;
@@ -18,6 +20,7 @@ type Game = {
   store_links: Record<string, string | null>;
   slug: string;
   short_description: string;
+  thumbnail_url: string | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -39,6 +42,7 @@ type Studio = {
   description: string | null;
   country: string[];
   website_url: string | null;
+  thumbnail_url: string | null;
 };
 
 export default async function Home({
@@ -52,6 +56,8 @@ export default async function Home({
     status?: string;
     q?: string;
     tab?: string;
+    page?: string;
+    studiosPage?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -67,7 +73,11 @@ export default async function Home({
   const tab = sp.tab === "studios" ? "studios" : "games";
   const q = sp.q?.trim() ?? "";
 
-  // Build tab URLs that preserve current filter/search state (#10)
+  // Reset to page 1 when filters/search are active
+  const gamesPage = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+  const studiosPage = Math.max(1, parseInt(sp.studiosPage ?? "1", 10) || 1);
+
+  // Build tab URLs that preserve current filter/search state
   const gameParams = new URLSearchParams();
   if (sp.platform) gameParams.set("platform", sp.platform);
   if (sp.status) gameParams.set("status", sp.status);
@@ -80,46 +90,60 @@ export default async function Home({
   if (q) studioParams.set("q", q);
   const studiosTabHref = `/?${studioParams}`;
 
-  // Always fetch studios: used for the Studios tab AND to make developer names clickable on game cards.
-  const { data: studioData } = await supabase
+  // Always fetch all studios for the studioSlugMap (needed for developer name linking on game cards)
+  const { data: allStudioData } = await supabase
     .from("studios")
-    .select("id, slug, name, type, description, country, website_url")
+    .select("id, slug, name, type, description, country, website_url, thumbnail_url")
     .order("name");
-  const studios: Studio[] = (studioData as Studio[]) ?? [];
-
-  // Filter studios by search query when on studios tab (client-side on already-fetched data)
-  const filteredStudios =
-    q && tab === "studios"
-      ? studios.filter(
-          (s) =>
-            s.name.toLowerCase().includes(q.toLowerCase()) ||
-            (s.description ?? "").toLowerCase().includes(q.toLowerCase())
-        )
-      : studios;
+  const allStudios: Studio[] = (allStudioData as Studio[]) ?? [];
 
   // name (lowercase) → slug lookup for linking developer names on game cards
   const studioSlugMap = new Map<string, string>(
-    studios.map((s) => [s.name.toLowerCase(), s.slug])
+    allStudios.map((s) => [s.name.toLowerCase(), s.slug])
   );
 
-  let query = supabase
+  // --- Studios tab: server-side filtered + paginated ---
+  let filteredStudios: Studio[] = allStudios;
+  if (q && tab === "studios") {
+    const ql = q.toLowerCase();
+    filteredStudios = allStudios.filter(
+      (s) =>
+        s.name.toLowerCase().includes(ql) ||
+        (s.description ?? "").toLowerCase().includes(ql)
+    );
+  }
+  const studiosTotalCount = filteredStudios.length;
+  const studiosTotalPages = Math.max(1, Math.ceil(studiosTotalCount / PAGE_SIZE));
+  const studiosPageClamped = Math.min(studiosPage, studiosTotalPages);
+  const studiosSlice = filteredStudios.slice(
+    (studiosPageClamped - 1) * PAGE_SIZE,
+    studiosPageClamped * PAGE_SIZE
+  );
+
+  // --- Games tab: server-side filtered + paginated ---
+  let gamesQuery = supabase
     .from("games")
     .select(
-      "name, developer, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description"
+      "name, developer, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url",
+      { count: "exact" }
     )
     .order("created_at", { ascending: false });
 
-  if (sp.country) query = query.contains("country", [sp.country]);
-  if (sp.platform) query = query.contains("platforms", [sp.platform]);
-  if (sp.status) query = query.eq("status", sp.status);
+  if (sp.country) gamesQuery = gamesQuery.contains("country", [sp.country]);
+  if (sp.platform) gamesQuery = gamesQuery.contains("platforms", [sp.platform]);
+  if (sp.status) gamesQuery = gamesQuery.eq("status", sp.status);
 
   if (q) {
-    query = query.or(
+    gamesQuery = gamesQuery.or(
       `name.ilike.%${q}%,developer.ilike.%${q}%,genres.cs.{${q}}`
     );
   }
 
-  const { data: games, error } = await query;
+  // Paginate
+  const gamesFrom = (gamesPage - 1) * PAGE_SIZE;
+  gamesQuery = gamesQuery.range(gamesFrom, gamesFrom + PAGE_SIZE - 1);
+
+  const { data: games, error, count: gamesTotalCount } = await gamesQuery;
 
   if (error) {
     return (
@@ -129,8 +153,11 @@ export default async function Home({
     );
   }
 
-  const typedGames: Game[] = games ?? [];
-  const count = tab === "studios" ? filteredStudios.length : typedGames.length;
+  const typedGames: Game[] = (games as Game[]) ?? [];
+  const gamesTotalPages = Math.max(1, Math.ceil((gamesTotalCount ?? 0) / PAGE_SIZE));
+  const gamesPageClamped = Math.min(gamesPage, gamesTotalPages);
+
+  const count = tab === "studios" ? studiosTotalCount : (gamesTotalCount ?? 0);
 
   const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
   const filters = [
@@ -186,6 +213,23 @@ export default async function Home({
     studio: tStudio("typeStudio"),
   };
 
+  // Build pagination href helpers
+  function gamesPaginationHref(page: number) {
+    const p = new URLSearchParams();
+    if (sp.platform) p.set("platform", sp.platform);
+    if (sp.status) p.set("status", sp.status);
+    if (q) p.set("q", q);
+    if (page > 1) p.set("page", String(page));
+    return p.size > 0 ? `/?${p}` : "/";
+  }
+
+  function studiosPaginationHref(page: number) {
+    const p = new URLSearchParams({ tab: "studios" });
+    if (q) p.set("q", q);
+    if (page > 1) p.set("studiosPage", String(page));
+    return `/?${p}`;
+  }
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       <header className="mb-8">
@@ -205,7 +249,7 @@ export default async function Home({
         </div>
       </header>
 
-      {/* Tab switcher + Stats link (#9, #10) */}
+      {/* Tab switcher + Stats link */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex gap-1 bg-c-surface border border-c-border rounded-lg p-1">
           <Link
@@ -266,7 +310,7 @@ export default async function Home({
 
           <p className="text-sm text-c-faint mb-6">{studioCountText}</p>
           <div className="grid gap-3">
-            {studios.length === 0 ? (
+            {allStudios.length === 0 ? (
               <div className="text-center py-16">
                 <p className="text-4xl mb-3">🏢</p>
                 <p className="text-c-muted font-medium">{t("noStudios")}</p>
@@ -285,35 +329,82 @@ export default async function Home({
                 </Link>
               </div>
             ) : (
-              filteredStudios.map((s) => (
+              studiosSlice.map((s, i) => (
                 <Link
                   key={s.slug}
                   href={`/studios/${s.slug}`}
-                  className="block bg-c-surface border border-c-border rounded-xl p-5 hover:border-c-border-hover transition-colors"
+                  className="block bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-lg font-semibold text-c-text leading-snug">
-                      {s.name}
-                    </h2>
-                    <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
-                      {TYPE_LABELS[s.type] ?? s.type}
-                    </span>
+                  {s.thumbnail_url ? (
+                    <img
+                      src={s.thumbnail_url}
+                      alt={t("thumbnailAlt", { name: s.name })}
+                      width={256}
+                      height={256}
+                      loading={i === 0 && studiosPageClamped === 1 ? "eager" : "lazy"}
+                      decoding="async"
+                      className="w-full h-64 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-64 bg-c-surface flex items-center justify-center">
+                      <span className="text-5xl text-c-faint">🏢</span>
+                    </div>
+                  )}
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="text-lg font-semibold text-c-text leading-snug">
+                        {s.name}
+                      </h2>
+                      <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                        {TYPE_LABELS[s.type] ?? s.type}
+                      </span>
+                    </div>
+                    <p className="text-sm text-c-muted mt-1">
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {s.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")}
+                    </p>
+                    {s.description && (
+                      <p className="text-sm text-c-soft mt-3 leading-relaxed" dir="auto">{s.description}</p>
+                    )}
+                    {s.website_url && (
+                      <p className="text-sm text-indigo-500 mt-2">{tStudio("websiteLabel")}</p>
+                    )}
                   </div>
-                  <p className="text-sm text-c-muted mt-1">
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {s.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")}
-                  </p>
-                  {s.description && (
-                    <p className="text-sm text-c-soft mt-3 leading-relaxed" dir="auto">{s.description}</p>
-                  )}
-                  {s.website_url && (
-                    <p className="text-sm text-indigo-500 mt-2">{tStudio("websiteLabel")}</p>
-                  )}
                 </Link>
               ))
             )}
           </div>
-          {/* CTA hint (#14) */}
+
+          {/* Studios pagination */}
+          {studiosTotalPages > 1 && (
+            <nav className="flex items-center justify-center gap-4 mt-8">
+              {studiosPageClamped > 1 ? (
+                <Link
+                  href={studiosPaginationHref(studiosPageClamped - 1)}
+                  className="text-sm text-indigo-500 hover:underline"
+                >
+                  {t("paginationPrev")}
+                </Link>
+              ) : (
+                <span className="text-sm text-c-faint">{t("paginationPrev")}</span>
+              )}
+              <span className="text-sm text-c-muted">
+                {t("paginationPage", { current: studiosPageClamped, total: studiosTotalPages })}
+              </span>
+              {studiosPageClamped < studiosTotalPages ? (
+                <Link
+                  href={studiosPaginationHref(studiosPageClamped + 1)}
+                  className="text-sm text-indigo-500 hover:underline"
+                >
+                  {t("paginationNext")}
+                </Link>
+              ) : (
+                <span className="text-sm text-c-faint">{t("paginationNext")}</span>
+              )}
+            </nav>
+          )}
+
+          {/* CTA hint */}
           <p className="text-xs text-c-faint text-center mt-6 px-4">
             {t("studiosCta")}
           </p>
@@ -386,113 +477,159 @@ export default async function Home({
             </Link>
           </div>
         ) : (
-          typedGames.map((g) => (
+          typedGames.map((g, i) => (
             <article
               key={g.slug}
-              className="bg-c-surface border border-c-border rounded-xl p-5 hover:border-c-border-hover transition-colors"
+              className="bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-c-text leading-snug">
-                    <Link
-                      href={`/games/${g.slug}`}
-                      className="hover:text-indigo-500 transition-colors"
-                    >
-                      {g.name}
-                    </Link>
-                  </h2>
-                  {g.developer && (
-                    <p className="text-xs text-c-faint mt-0.5">
-                      {studioSlugMap.has(g.developer.toLowerCase()) ? (
-                        <Link
-                          href={`/studios/${studioSlugMap.get(g.developer.toLowerCase())}`}
-                          className="hover:text-indigo-500 transition-colors"
-                        >
-                          {g.developer}
-                        </Link>
-                      ) : (
-                        g.developer
-                      )}
-                    </p>
-                  )}
-                </div>
-                <span
-                  className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
-                    STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
-                  }`}
-                >
-                  {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
-                </span>
-              </div>
-
-              <p className="text-sm text-c-muted mt-1">
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {g.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")} · {g.platforms.join(", ")}
-                {g.release_date ? ` · ${g.release_date}` : ""}
-              </p>
-
-              <p className="text-sm text-c-soft mt-3 leading-relaxed line-clamp-3" dir="auto">
-                {g.short_description}
-              </p>
-
-              {(() => {
-                const allTags = [
-                  ...g.genres.map((v) => ({ v, cls: "bg-c-tag text-c-tag-text" })),
-                  ...(g.gameplay_modes ?? []).map((v) => ({ v, cls: "bg-blue-500/10 text-blue-500" })),
-                  ...(g.monetization ?? []).map((v) => ({ v, cls: "bg-amber-500/10 text-amber-500" })),
-                  ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint" }] : []),
-                ];
-                const visible = allTags.slice(0, 5);
-                const extra = allTags.length - visible.length;
-                return (
-                  <div className="flex gap-1.5 flex-wrap mt-3">
-                    {visible.map(({ v, cls }) => (
-                      <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
-                    ))}
-                    {extra > 0 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-faint">
-                        +{extra}
-                      </span>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {(g.website_url ||
-                Object.values(g.store_links ?? {}).some(Boolean)) && (
-                <div className="flex items-center gap-3 flex-wrap mt-4 pt-4 border-t border-c-border">
-                  {g.website_url && (
-                    <a
-                      href={g.website_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-indigo-500 hover:underline"
-                    >
-                      {tCommon("website")}
-                    </a>
-                  )}
-                  {(() => {
-                    const storeNames = Object.entries(g.store_links ?? {})
-                      .filter(([, val]) => typeof val === "string" && val)
-                      .map(([key]) => key);
-                    if (storeNames.length === 0) return null;
-                    const shown = storeNames.slice(0, 2);
-                    const extra = storeNames.length - shown.length;
-                    return (
-                      <Link
-                        href={`/games/${g.slug}`}
-                        className="text-sm text-c-faint hover:text-c-muted transition-colors"
-                      >
-                        {shown.join(" · ")}{extra > 0 ? ` +${extra}` : ""}
-                      </Link>
-                    );
-                  })()}
+              {g.thumbnail_url ? (
+                <img
+                  src={g.thumbnail_url}
+                  alt={t("thumbnailAlt", { name: g.name })}
+                  width={256}
+                  height={256}
+                  loading={i === 0 && gamesPageClamped === 1 ? "eager" : "lazy"}
+                  decoding="async"
+                  className="w-full h-64 object-cover"
+                />
+              ) : (
+                <div className="w-full h-64 bg-c-surface flex items-center justify-center">
+                  <span className="text-5xl text-c-faint">🎮</span>
                 </div>
               )}
+              <div className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-c-text leading-snug">
+                      <Link
+                        href={`/games/${g.slug}`}
+                        className="hover:text-indigo-500 transition-colors"
+                      >
+                        {g.name}
+                      </Link>
+                    </h2>
+                    {g.developer && (
+                      <p className="text-xs text-c-faint mt-0.5">
+                        {studioSlugMap.has(g.developer.toLowerCase()) ? (
+                          <Link
+                            href={`/studios/${studioSlugMap.get(g.developer.toLowerCase())}`}
+                            className="hover:text-indigo-500 transition-colors"
+                          >
+                            {g.developer}
+                          </Link>
+                        ) : (
+                          g.developer
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
+                      STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
+                    }`}
+                  >
+                    {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
+                  </span>
+                </div>
+
+                <p className="text-sm text-c-muted mt-1">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {g.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")} · {g.platforms.join(", ")}
+                  {g.release_date ? ` · ${g.release_date}` : ""}
+                </p>
+
+                <p className="text-sm text-c-soft mt-3 leading-relaxed line-clamp-3" dir="auto">
+                  {g.short_description}
+                </p>
+
+                {(() => {
+                  const allTags = [
+                    ...g.genres.map((v) => ({ v, cls: "bg-c-tag text-c-tag-text" })),
+                    ...(g.gameplay_modes ?? []).map((v) => ({ v, cls: "bg-blue-500/10 text-blue-500" })),
+                    ...(g.monetization ?? []).map((v) => ({ v, cls: "bg-amber-500/10 text-amber-500" })),
+                    ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint" }] : []),
+                  ];
+                  const visible = allTags.slice(0, 5);
+                  const extra = allTags.length - visible.length;
+                  return (
+                    <div className="flex gap-1.5 flex-wrap mt-3">
+                      {visible.map(({ v, cls }) => (
+                        <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
+                      ))}
+                      {extra > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-faint">
+                          +{extra}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {(g.website_url ||
+                  Object.values(g.store_links ?? {}).some(Boolean)) && (
+                  <div className="flex items-center gap-3 flex-wrap mt-4 pt-4 border-t border-c-border">
+                    {g.website_url && (
+                      <a
+                        href={g.website_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-indigo-500 hover:underline"
+                      >
+                        {tCommon("website")}
+                      </a>
+                    )}
+                    {(() => {
+                      const storeNames = Object.entries(g.store_links ?? {})
+                        .filter(([, val]) => typeof val === "string" && val)
+                        .map(([key]) => key);
+                      if (storeNames.length === 0) return null;
+                      const shown = storeNames.slice(0, 2);
+                      const extra = storeNames.length - shown.length;
+                      return (
+                        <Link
+                          href={`/games/${g.slug}`}
+                          className="text-sm text-c-faint hover:text-c-muted transition-colors"
+                        >
+                          {shown.join(" · ")}{extra > 0 ? ` +${extra}` : ""}
+                        </Link>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
             </article>
           ))
         )}
       </div>
+
+      {/* Games pagination */}
+      {gamesTotalPages > 1 && (
+        <nav className="flex items-center justify-center gap-4 mt-8">
+          {gamesPageClamped > 1 ? (
+            <Link
+              href={gamesPaginationHref(gamesPageClamped - 1)}
+              className="text-sm text-indigo-500 hover:underline"
+            >
+              {t("paginationPrev")}
+            </Link>
+          ) : (
+            <span className="text-sm text-c-faint">{t("paginationPrev")}</span>
+          )}
+          <span className="text-sm text-c-muted">
+            {t("paginationPage", { current: gamesPageClamped, total: gamesTotalPages })}
+          </span>
+          {gamesPageClamped < gamesTotalPages ? (
+            <Link
+              href={gamesPaginationHref(gamesPageClamped + 1)}
+              className="text-sm text-indigo-500 hover:underline"
+            >
+              {t("paginationNext")}
+            </Link>
+          ) : (
+            <span className="text-sm text-c-faint">{t("paginationNext")}</span>
+          )}
+        </nav>
+      )}
       </>)}
 
       <footer className="mt-12 pt-8 border-t border-c-border flex gap-6 text-sm text-c-faint">

@@ -22,6 +22,7 @@ type Game = {
   submitted_by: string | null;
   publishing_type: string | null;
   publisher_name: string | null;
+  thumbnail_url: string | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -105,6 +106,18 @@ export default async function GameDetails({
       </div>
 
       <div className="mt-8">
+        {game.thumbnail_url && (
+          <img
+            src={game.thumbnail_url}
+            alt={game.name}
+            width={256}
+            height={256}
+            loading="lazy"
+            decoding="async"
+            className="w-64 h-64 object-cover rounded-xl mb-6"
+          />
+        )}
+
         <div className="flex items-start gap-3 flex-wrap">
           <h1 className="text-3xl font-bold tracking-tight text-c-text">
             {game.name}

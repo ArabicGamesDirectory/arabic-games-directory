@@ -25,6 +25,7 @@ export type GameData = {
   store_links: Record<string, string | null>;
   publishing_type: string | null;
   publisher_name: string | null;
+  thumbnail_url: string | null;
 };
 
 const PLATFORM_OPTIONS = [
@@ -116,6 +117,59 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     () => initialData?.genres?.find((g) => g !== "Other" && !GENRE_BASE_VALUES.includes(g)) ?? ""
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initialData?.thumbnail_url ?? null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(initialData?.thumbnail_url ?? null);
+  const [thumbnailStatus, setThumbnailStatus] = useState<"idle" | "uploading" | "done" | "error">(
+    initialData?.thumbnail_url ? "done" : "idle"
+  );
+
+  async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
+    if (!ACCEPTED.includes(file.type)) {
+      setThumbnailStatus("error");
+      setThumbnailPreview(null);
+      setThumbnailUrl(null);
+      setErrors((prev) => ({ ...prev, thumbnail: t("thumbnailInvalidType") }));
+      return;
+    }
+    if (file.size > 150 * 1024) {
+      setThumbnailStatus("error");
+      setThumbnailPreview(null);
+      setThumbnailUrl(null);
+      setErrors((prev) => ({ ...prev, thumbnail: t("thumbnailTooLarge") }));
+      return;
+    }
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.thumbnail;
+      return next;
+    });
+
+    // Show local preview immediately
+    setThumbnailPreview(URL.createObjectURL(file));
+    setThumbnailStatus("uploading");
+
+    const formData = new FormData();
+    formData.append("file", file);
+    const nameInput = document.getElementById("name") as HTMLInputElement | null;
+    const slug = isUpdate ? initialData!.slug : slugify(nameInput?.value || "upload");
+    formData.append("slug", slug);
+
+    try {
+      const res = await fetch("/api/upload-thumbnail", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setThumbnailUrl(data.url);
+      setThumbnailStatus("done");
+    } catch {
+      setThumbnailStatus("error");
+      setErrors((prev) => ({ ...prev, thumbnail: t("thumbnailError") }));
+    }
+  }
 
   useEffect(() => {
     supabase
@@ -239,6 +293,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
         Xbox: String(form.get("xbox") || "").trim() || null,
         Nintendo: String(form.get("nintendo") || "").trim() || null,
       },
+      thumbnail_url: thumbnailUrl,
     };
 
     const submitter_name = submitterName.trim() || null;
@@ -290,6 +345,9 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     setGenreOtherChecked(false);
     setGenreOtherText("");
     setStoreLinksOpen(false);
+    setThumbnailUrl(null);
+    setThumbnailPreview(null);
+    setThumbnailStatus("idle");
     setDone({
       ok: true,
       message: isUpdate ? t("updateSuccessMessage") : t("successMessage"),
@@ -324,6 +382,35 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
           <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
             {t("sectionGameInfo")}
           </h2>
+
+          <Field label={t("fieldThumbnail")} error={errors.thumbnail}>
+            <div className="flex items-start gap-4">
+              {thumbnailPreview && (
+                <img
+                  src={thumbnailPreview}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="w-20 h-20 rounded-lg object-cover border border-c-border"
+                />
+              )}
+              <div className="flex-1 space-y-1.5">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleThumbnailChange}
+                  className="block w-full text-sm text-c-soft file:me-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-c-tag file:text-c-tag-text hover:file:bg-c-border file:cursor-pointer file:transition-colors"
+                />
+                <p className="text-xs text-c-faint">{t("thumbnailHint")}</p>
+                {thumbnailStatus === "uploading" && (
+                  <p className="text-xs text-amber-500">{t("thumbnailUploading")}</p>
+                )}
+                {thumbnailStatus === "done" && (
+                  <p className="text-xs text-emerald-500">{t("thumbnailDone")}</p>
+                )}
+              </div>
+            </div>
+          </Field>
 
           <Field label={t("fieldGameName")} required error={errors.name}>
             <input
