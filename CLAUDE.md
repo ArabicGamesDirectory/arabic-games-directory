@@ -54,7 +54,7 @@ arabic-games-directory/
 │   │       ├── delete-studio/
 │   │       │   └── route.ts    # POST — hard-delete an approved studio by id (admin only)
 │   │       └── upload-thumbnail/
-│   │           └── route.ts    # POST — receives file + slug, converts to 256×256 WebP via sharp, uploads to Supabase Storage bucket "thumbnails", returns public URL
+│   │           └── route.ts    # POST — receives file + slug, converts to 460×215 WebP via sharp, uploads to Supabase Storage bucket "thumbnails", returns public URL
 │   ├── components/
 │   │   ├── ThemeToggle.tsx     # Floating light/dark theme switcher (persists to localStorage)
 │   │   ├── LanguageSwitcher.tsx  # Floating EN↔AR switcher (fixed bottom start-4)
@@ -115,7 +115,7 @@ Vercel has the same variables set in project settings.
 | publisher_name | text | nullable — set when publishing_type = `with_publisher` |
 | submitted_by | text | nullable — submitter name copied from submission on first approve |
 | submitted_by_email | text | nullable — submitter email copied from submission on first approve |
-| thumbnail_url | text | nullable — public URL of the 256×256 WebP stored in Supabase Storage bucket "thumbnails" |
+| thumbnail_url | text | nullable — public URL of the 460×215 WebP stored in Supabase Storage bucket "thumbnails" |
 | created_at | timestamptz | default now() |
 | updated_at | timestamptz | auto-updated via trigger |
 
@@ -130,7 +130,7 @@ Vercel has the same variables set in project settings.
 | country | text[] | not null — array of country names |
 | website_url | text | nullable |
 | submitted_by | text | nullable — submitter name copied from submission on first approve |
-| thumbnail_url | text | nullable — public URL of the 256×256 WebP stored in Supabase Storage bucket "thumbnails" |
+| thumbnail_url | text | nullable — public URL of the 460×215 WebP stored in Supabase Storage bucket "thumbnails" |
 | created_at | timestamptz | default now() |
 | updated_at | timestamptz | auto-updated via trigger |
 
@@ -167,7 +167,7 @@ Vercel has the same variables set in project settings.
 
 ### Supabase Storage
 - **Bucket:** `thumbnails` — public read, no RLS policies needed. All uploads go through `/api/upload-thumbnail` which uses `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). The bucket is public so stored URLs are directly accessible without auth.
-- **File format:** All uploads are converted to WebP at 256×256 (cover crop) by the API route before storage. Original format is irrelevant — always stored as `.webp`.
+- **File format:** All uploads are converted to WebP at 460×215 (cover crop) by the API route before storage. Original format is irrelevant — always stored as `.webp`.
 - **Filename pattern:** `{slug}-{timestamp}.webp`
 - **Max input size:** 150 KB enforced client-side in the form and server-side in the API route before processing.
 - **Accepted input types:** `image/jpeg`, `image/png`, `image/webp`.
@@ -195,7 +195,7 @@ Vercel has the same variables set in project settings.
 16. ~~Genres as checkboxes~~ ✓ Done (20 predefined genres sorted alphabetically: Action, Adventure, Arcade, Card / Board Game, Casual, Educational, Endless Runner, Fighting, Horror, Idle / Clicker, Platformer, Puzzle, Racing, RPG, Shooter FPS, Simulation, Sports, Strategy, Tower Defense, Visual Novel — plus an "Other" toggle that reveals a free-text field; stored as English values in `text[]`; translated via `genres` i18n namespace; pre-fills on update form)
 17. ~~Form validation feedback~~ ✓ Done (`errors` state validated on submit; inline red error messages per field via `Field` component `error` prop; `inputCls(field?)` helper applies red border when field has error; validates: name, description, country ≥1, genres ≥1, platforms ≥1, developer (non-empty), gameplay_modes ≥1, game_engine (non-empty), submitter_name (non-empty), submitter_email (non-empty); HTML `required` removed — all validation through JS)
 18. ~~Admin published games list with delete~~ ✓ Done ("Published" tab in admin lists all approved games and studios; Games section shows name, developer, submitter name · email; Studios section shows name, type badge, submitter name; Delete buttons call `/api/delete-game` and `/api/delete-studio` respectively; confirm dialog; optimistic list update)
-19. ~~Thumbnails via Supabase Storage~~ ✓ Done (optional thumbnail upload on both game and studio submit forms; `/api/upload-thumbnail` converts to 256×256 WebP via `sharp`; stored in `thumbnails` bucket; `thumbnail_url` column on `games` and `studios` tables; displayed on homepage cards, game detail, and studio detail pages; placeholder shown on cards when no thumbnail; no placeholder on detail pages)
+19. ~~Thumbnails via Supabase Storage~~ ✓ Done (optional thumbnail upload on both game and studio submit forms; `/api/upload-thumbnail` converts to 460×215 WebP via `sharp`; stored in `thumbnails` bucket; `thumbnail_url` column on `games` and `studios` tables; displayed on homepage cards, game detail, and studio detail pages; placeholder shown on cards when no thumbnail; no placeholder on detail pages)
 20. ~~Server-side pagination on homepage~~ ✓ Done (10 results per page; `?page=` for games tab, `?studiosPage=` for studios tab; Prev/Next controls hidden when only one page; resets to page 1 when search/filter active; games use Supabase `.range()` with `{ count: "exact" }`; studios paginate over the already-filtered in-memory slice)
 21. Email notification to submitter on approve/reject
 22. Charts on stats page instead of plain lists
@@ -236,8 +236,8 @@ Vercel has the same variables set in project settings.
 - **Submitted by (public display):** Both `games` and `studios` tables have a `submitted_by text` column (nullable). The `games` table also has `submitted_by_email text` (nullable, stores the submitter's contact info — may be an email, URL, or social handle). Both are populated from the submission on first approve (INSERT path in `/api/approve`); `/api/approve-studio` populates `submitted_by` only. Neither column is overwritten on update approvals, preserving original submitter credit. The game detail and studio detail pages display `"Submitted by: {name}"` in small muted text below the description when the field is set. Only the name is shown publicly — `submitted_by_email` is never rendered on public pages; it is visible only to the admin in the "Published" tab.
 - **Submitter contact field:** The second submitter info field is labelled "Contact" (not "Email") — submitters may enter an email, website URL, social media handle, or any other contact info. The input has no `type="email"` constraint. The DB column is still named `submitter_email` (in `submissions` and `studio_submissions`) and `submitted_by_email` (in `games`) — no migration needed, the label change is UI-only. The admin panel shows this field as "Contact" in both game and studio submission detail cards.
 - **Submitter info persistence:** Both `SubmitForm` and `StudioSubmitForm` persist `submitter_name` and `submitter_email` to `localStorage` (keys `submitter_name`, `submitter_email`) on every successful submission. On mount, new submission forms pre-fill from `localStorage` so returning submitters don't retype their details. **Update forms always start empty** (`isUpdate` skips the localStorage read) — the person suggesting an update may differ from the original submitter. The fields are fully controlled inputs (`submitterName` / `submitterEmail` state); validation and payload construction use the state values directly rather than reading from `FormData`.
-- **Thumbnail upload (forms):** Both `SubmitForm` and `StudioSubmitForm` have an optional thumbnail field at the top of the info section. Upload happens on file selection (not on form submit). Flow: client validates type (`image/jpeg`, `image/png`, `image/webp`) and size (≤150 KB) before sending → `POST /api/upload-thumbnail` with `FormData` containing `file` and `slug` → API converts to 256×256 WebP via `sharp`, uploads to `thumbnails` bucket with service role key, returns `{ url }` → form stores URL in `thumbnailUrl` state → included in payload on submit. A local `URL.createObjectURL()` preview is shown immediately on selection (before upload completes). Upload status: `idle | uploading | done | error`. On `isUpdate`, pre-fills preview and URL from `initialData.thumbnail_url`. Field is fully optional — no validation error if skipped. Reset clears `thumbnailUrl`, `thumbnailPreview`, `thumbnailStatus` to initial state.
-- **Thumbnail display:** On homepage cards (both games and studios), a 256×256 image fills the card top with `object-cover`; when no thumbnail exists a `bg-c-surface` placeholder div with a muted emoji icon is shown instead (no broken image). On detail pages (game detail, studio detail), thumbnail is shown only when it exists — no placeholder. All `<img>` elements use `loading="lazy"` and `decoding="async"` except the first card on page 1 (index 0, `gamesPageClamped === 1`) which uses `loading="eager"` to avoid LCP penalty.
+- **Thumbnail upload (forms):** Both `SubmitForm` and `StudioSubmitForm` have an optional thumbnail field at the top of the info section. Upload happens on file selection (not on form submit). Flow: client validates type (`image/jpeg`, `image/png`, `image/webp`) and size (≤150 KB) before sending → `POST /api/upload-thumbnail` with `FormData` containing `file` and `slug` → API converts to 460×215 WebP via `sharp`, uploads to `thumbnails` bucket with service role key, returns `{ url }` → form stores URL in `thumbnailUrl` state → included in payload on submit. A local `URL.createObjectURL()` preview is shown immediately on selection (before upload completes). Upload status: `idle | uploading | done | error`. On `isUpdate`, pre-fills preview and URL from `initialData.thumbnail_url`. Field is fully optional — no validation error if skipped. Reset clears `thumbnailUrl`, `thumbnailPreview`, `thumbnailStatus` to initial state.
+- **Thumbnail display:** On homepage cards (both games and studios), a 460×215 image fills the card top with `object-cover`; when no thumbnail exists a `bg-c-surface` placeholder div with a muted emoji icon is shown instead (no broken image). On detail pages (game detail, studio detail), thumbnail is shown only when it exists — no placeholder. All `<img>` elements use `loading="lazy"` and `decoding="async"` except the first card on page 1 (index 0, `gamesPageClamped === 1`) which uses `loading="eager"` to avoid LCP penalty.
 - **Homepage pagination:** Games and studios are paginated separately. Page size is 10. Games use URL param `?page=N`, studios use `?studiosPage=N`, so both tabs can paginate independently without resetting each other. When a search query or filter is active, links reset to page 1 (params omitted when page === 1). Games pagination uses Supabase `.range(from, to)` with `{ count: "exact" }` to get the total count in one query. Studios pagination slices `filteredStudios` in-memory. Prev/Next controls are hidden when `totalPages === 1`. Disabled direction links render as muted `<span>` instead of `<Link>`.
 
 ---

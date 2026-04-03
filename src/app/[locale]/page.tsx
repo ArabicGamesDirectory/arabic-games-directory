@@ -343,10 +343,10 @@ export default async function Home({
                       height={256}
                       loading={i === 0 && studiosPageClamped === 1 ? "eager" : "lazy"}
                       decoding="async"
-                      className="w-full h-64 object-cover"
+                      className="w-full h-[215px] object-cover"
                     />
                   ) : (
-                    <div className="w-full h-64 bg-c-surface flex items-center justify-center">
+                    <div className="w-full h-[215px] bg-c-surface flex items-center justify-center">
                       <span className="text-5xl text-c-faint">🏢</span>
                     </div>
                   )}
@@ -486,14 +486,14 @@ export default async function Home({
                 <img
                   src={g.thumbnail_url}
                   alt={t("thumbnailAlt", { name: g.name })}
-                  width={256}
-                  height={256}
+                  width={460}
+                  height={215}
                   loading={i === 0 && gamesPageClamped === 1 ? "eager" : "lazy"}
                   decoding="async"
-                  className="w-full h-64 object-cover"
+                  className="w-full h-[215px] object-cover"
                 />
               ) : (
-                <div className="w-full h-64 bg-c-surface flex items-center justify-center">
+                <div className="w-full h-[215px] bg-c-surface flex items-center justify-center">
                   <span className="text-5xl text-c-faint">🎮</span>
                 </div>
               )}

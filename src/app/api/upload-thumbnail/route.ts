@@ -34,9 +34,9 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  // Convert to WebP at 256×256 with cover crop
+  // Convert to WebP at 460×215 with cover crop
   const webpBuffer = await sharp(buffer)
-    .resize(256, 256, { fit: "cover" })
+    .resize(460, 215, { fit: "cover" })
     .webp({ quality: 80 })
     .toBuffer();
 

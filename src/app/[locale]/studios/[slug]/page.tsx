@@ -104,11 +104,11 @@ export default async function StudioPage({
           <img
             src={studio.thumbnail_url}
             alt={studio.name}
-            width={256}
-            height={256}
+            width={460}
+            height={215}
             loading="lazy"
             decoding="async"
-            className="w-64 h-64 object-cover rounded-xl mb-6"
+            className="w-full max-w-[460px] h-[215px] object-cover rounded-xl mb-6"
           />
         )}
 
