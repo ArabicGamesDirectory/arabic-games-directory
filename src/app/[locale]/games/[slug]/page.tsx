@@ -23,7 +23,7 @@ type Game = {
   publishing_type: string | null;
   publisher_name: string | null;
   thumbnail_url: string | null;
-  studios: { slug: string } | null;
+  studios: { slug: string }[] | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -114,9 +114,9 @@ export default async function GameDetails({
           </h1>
           {game.developer && (
             <p className="text-sm text-c-muted mt-1 w-full">
-              {game.studios?.slug ? (
+              {game.studios?.[0]?.slug ? (
                 <Link
-                  href={`/studios/${game.studios.slug}`}
+                  href={`/studios/${game.studios[0].slug}`}
                   className="hover:text-indigo-500 transition-colors"
                 >
                   {game.developer}
