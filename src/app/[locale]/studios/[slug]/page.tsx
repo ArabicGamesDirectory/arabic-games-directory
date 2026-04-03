@@ -68,11 +68,11 @@ export default async function StudioPage({
 
   const studio = data as Studio;
 
-  // Fetch games by this studio (case-insensitive name match)
+  // Fetch games linked to this studio via FK
   const { data: gamesData } = await supabase
     .from("games")
     .select("slug, name, status, short_description, platforms, genres, release_date")
-    .ilike("developer", studio.name)
+    .eq("studio_id", studio.id)
     .order("created_at", { ascending: false });
   const studioGames: Game[] = (gamesData as Game[]) ?? [];
 

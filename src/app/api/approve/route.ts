@@ -91,10 +91,35 @@ export async function POST(request: Request) {
         ...gameFields,
       });
     gameError = error;
+
+    // Link to studio via FK if a matching studio name exists.
+    if (!error && submission.payload.developer) {
+      const { data: studioMatch } = await supabase
+        .from("studios")
+        .select("id")
+        .ilike("name", submission.payload.developer)
+        .single();
+      if (studioMatch) {
+        await supabase.from("games").update({ studio_id: studioMatch.id }).eq("slug", slug);
+      }
+    }
   }
 
   if (gameError) {
     return Response.json({ error: gameError.message }, { status: 500 });
+  }
+
+  // For update submissions, re-link studio in case developer name changed.
+  if (submission.game_id && submission.payload.developer) {
+    const { data: studioMatch } = await supabase
+      .from("studios")
+      .select("id")
+      .ilike("name", submission.payload.developer)
+      .single();
+    await supabase
+      .from("games")
+      .update({ studio_id: studioMatch?.id ?? null })
+      .eq("id", submission.game_id);
   }
 
   const { error: updateError } = await supabase

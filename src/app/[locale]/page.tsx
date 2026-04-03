@@ -21,6 +21,7 @@ type Game = {
   slug: string;
   short_description: string;
   thumbnail_url: string | null;
+  studios: { slug: string } | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -97,11 +98,6 @@ export default async function Home({
     .order("name");
   const allStudios: Studio[] = (allStudioData as Studio[]) ?? [];
 
-  // name (lowercase) → slug lookup for linking developer names on game cards
-  const studioSlugMap = new Map<string, string>(
-    allStudios.map((s) => [s.name.toLowerCase(), s.slug])
-  );
-
   // --- Studios tab: server-side filtered + paginated ---
   let filteredStudios: Studio[] = allStudios;
   if (q && tab === "studios") {
@@ -124,7 +120,7 @@ export default async function Home({
   let gamesQuery = supabase
     .from("games")
     .select(
-      "name, developer, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url",
+      "name, developer, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url, studios(slug)",
       { count: "exact" }
     )
     .order("created_at", { ascending: false });
@@ -517,9 +513,9 @@ export default async function Home({
                       </h2>
                       {g.developer && (
                         <p className="text-xs text-c-faint mt-0.5">
-                          {studioSlugMap.has(g.developer.toLowerCase()) ? (
+                          {g.studios?.slug ? (
                             <Link
-                              href={`/studios/${studioSlugMap.get(g.developer.toLowerCase())}`}
+                              href={`/studios/${g.studios.slug}`}
                               className="hover:text-indigo-500 transition-colors"
                             >
                               {g.developer}

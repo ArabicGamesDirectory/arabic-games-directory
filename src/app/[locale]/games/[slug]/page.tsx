@@ -23,6 +23,7 @@ type Game = {
   publishing_type: string | null;
   publisher_name: string | null;
   thumbnail_url: string | null;
+  studios: { slug: string } | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -51,20 +52,9 @@ export default async function GameDetails({
 
   const { data, error } = await supabase
     .from("games")
-    .select("*")
+    .select("*, studios(slug)")
     .eq("slug", slug)
     .single();
-
-  // Look up matching studio to make developer name a link
-  let studioSlug: string | null = null;
-  if (data?.developer) {
-    const { data: studioMatch } = await supabase
-      .from("studios")
-      .select("slug")
-      .ilike("name", data.developer)
-      .single();
-    studioSlug = studioMatch?.slug ?? null;
-  }
 
   if (error || !data) {
     return (
@@ -124,9 +114,9 @@ export default async function GameDetails({
           </h1>
           {game.developer && (
             <p className="text-sm text-c-muted mt-1 w-full">
-              {studioSlug ? (
+              {game.studios?.slug ? (
                 <Link
-                  href={`/studios/${studioSlug}`}
+                  href={`/studios/${game.studios.slug}`}
                   className="hover:text-indigo-500 transition-colors"
                 >
                   {game.developer}
