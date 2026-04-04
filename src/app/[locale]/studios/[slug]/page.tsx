@@ -18,11 +18,16 @@ type Studio = {
 type Game = {
   slug: string;
   name: string;
+  developer: string | null;
   status: string;
-  short_description: string;
+  country: string[];
   platforms: string[];
   genres: string[];
+  gameplay_modes: string[] | null;
+  monetization: string[] | null;
+  game_engine: string | null;
   release_date: string | null;
+  thumbnail_url: string | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -71,7 +76,7 @@ export default async function StudioPage({
   // Fetch games linked to this studio via FK
   const { data: gamesData } = await supabase
     .from("games")
-    .select("slug, name, status, short_description, platforms, genres, release_date")
+    .select("slug, name, developer, status, country, platforms, genres, gameplay_modes, monetization, game_engine, release_date, thumbnail_url")
     .eq("studio_id", studio.id)
     .order("created_at", { ascending: false });
   const studioGames: Game[] = (gamesData as Game[]) ?? [];
@@ -162,43 +167,84 @@ export default async function StudioPage({
         ) : (
           <div className="grid gap-3">
             {studioGames.map((g) => (
-              <Link
+              <article
                 key={g.slug}
-                href={`/games/${g.slug}`}
-                className="block bg-c-surface border border-c-border rounded-xl p-4 hover:border-c-border-hover transition-colors"
+                className="bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-base font-medium text-c-text leading-snug">{g.name}</h3>
-                  <span
-                    className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
-                      STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
-                    }`}
-                  >
-                    {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
-                  </span>
-                </div>
-                <p className="text-xs text-c-muted mt-1">
-                  {g.platforms.join(", ")}
-                  {g.release_date ? ` · ${g.release_date}` : ""}
-                </p>
-                <p className="text-sm text-c-soft mt-2 leading-relaxed line-clamp-2" dir="auto">
-                  {g.short_description}
-                </p>
-                {g.genres.length > 0 && (
-                  <div className="flex gap-1.5 flex-wrap mt-2">
-                    {g.genres.slice(0, 4).map((genre) => (
-                      <span key={genre} className="text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
-                        {genre}
+                <div className="flex flex-col sm:flex-row items-start">
+                  {/* Thumbnail */}
+                  {g.thumbnail_url ? (
+                    <img
+                      src={g.thumbnail_url}
+                      alt={g.name}
+                      width={230}
+                      height={108}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full sm:w-[230px] shrink-0 object-cover self-stretch"
+                    />
+                  ) : (
+                    <div className="w-full sm:w-[230px] shrink-0 bg-c-surface flex items-center justify-center self-stretch">
+                      <span className="text-3xl text-c-faint">🎮</span>
+                    </div>
+                  )}
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-c-text leading-snug">
+                          <Link
+                            href={`/games/${g.slug}`}
+                            className="hover:text-indigo-500 transition-colors"
+                          >
+                            {g.name}
+                          </Link>
+                        </h3>
+                        {g.developer && (
+                          <p className="text-xs text-c-faint mt-0.5">{g.developer}</p>
+                        )}
+                      </div>
+                      <span
+                        className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
+                          STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
+                        }`}
+                      >
+                        {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
                       </span>
-                    ))}
-                    {g.genres.length > 4 && (
-                      <span className="text-xs bg-c-tag text-c-faint px-2 py-0.5 rounded-full">
-                        +{g.genres.length - 4}
-                      </span>
-                    )}
+                    </div>
+
+                    <p className="text-xs text-c-muted mt-1">
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {g.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")} · {g.platforms.join(", ")}
+                      {g.release_date ? ` · ${g.release_date}` : ""}
+                    </p>
+
+                    {(() => {
+                      const allTags = [
+                        ...g.genres.map((v) => ({ v, cls: "bg-c-tag text-c-tag-text" })),
+                        ...(g.gameplay_modes ?? []).map((v) => ({ v, cls: "bg-blue-500/10 text-blue-500" })),
+                        ...(g.monetization ?? []).map((v) => ({ v, cls: "bg-amber-500/10 text-amber-500" })),
+                        ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint" }] : []),
+                      ];
+                      const visible = allTags.slice(0, 5);
+                      const extra = allTags.length - visible.length;
+                      return (
+                        <div className="flex gap-1.5 flex-wrap mt-2">
+                          {visible.map(({ v, cls }) => (
+                            <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
+                          ))}
+                          {extra > 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-faint">
+                              +{extra}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
-                )}
-              </Link>
+                </div>
+              </article>
             ))}
           </div>
         )}
