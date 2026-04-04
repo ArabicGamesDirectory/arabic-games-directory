@@ -80,6 +80,7 @@ export default async function GameDetails({
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
+      {/* Top nav row */}
       <div className="flex items-center justify-between gap-4">
         <Link
           href="/"
@@ -95,6 +96,7 @@ export default async function GameDetails({
         </Link>
       </div>
 
+      {/* Hero block */}
       <div className="mt-8">
         {game.thumbnail_url && (
           <img
@@ -104,149 +106,155 @@ export default async function GameDetails({
             height={215}
             loading="lazy"
             decoding="async"
-            className="w-full max-w-[460px] h-[215px] object-cover rounded-xl mb-6"
+            className="w-full aspect-[460/215] object-cover rounded-xl mb-6"
           />
         )}
 
-        <div className="flex items-start gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold tracking-tight text-c-text">
-            {game.name}
-          </h1>
-          {game.developer && (
-            <p className="text-sm text-c-muted mt-1 w-full">
-              {game.studios?.slug ? (
-                <Link
-                  href={`/studios/${game.studios.slug}`}
-                  className="hover:text-indigo-500 transition-colors"
-                >
-                  {game.developer}
-                </Link>
-              ) : (
-                game.developer
-              )}
-            </p>
-          )}
+        {/* Title row */}
+        <h1 className="text-3xl font-bold text-c-text">
+          {game.name}
+        </h1>
+
+        {game.developer && (
+          <p className="text-sm text-c-muted mt-1">
+            {game.studios?.slug ? (
+              <Link
+                href={`/studios/${game.studios.slug}`}
+                className="hover:text-indigo-500 transition-colors"
+              >
+                {game.developer}
+              </Link>
+            ) : (
+              game.developer
+            )}
+          </p>
+        )}
+
+        {/* Status + meta pills */}
+        <div className="flex gap-2 flex-wrap mt-3">
           <span
-            className={`mt-1 text-xs font-medium px-2.5 py-1 rounded-full ${
+            className={`text-xs font-medium px-2.5 py-1 rounded-full ${
               STATUS_CLASSES[game.status] ?? "bg-c-tag text-c-muted"
             }`}
           >
             {tStatus(game.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? game.status}
           </span>
-        </div>
-
-        <div className="flex gap-2 flex-wrap mt-4">
           {game.country.map((c) => (
-            <span key={c} className="text-sm bg-c-tag text-c-tag-text px-3 py-1 rounded-full">
+            <span key={c} className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {tCountries(COUNTRY_KEY_MAP[c] as any) ?? c}
             </span>
           ))}
           {game.platforms.map((p) => (
-            <span
-              key={p}
-              className="text-sm bg-c-tag text-c-tag-text px-3 py-1 rounded-full"
-            >
+            <span key={p} className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
               {p}
             </span>
           ))}
           {game.release_date && (
-            <span className="text-sm bg-c-tag text-c-tag-text px-3 py-1 rounded-full">
+            <span className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
               {game.release_date}
             </span>
           )}
         </div>
 
-        <p className="mt-6 text-c-soft leading-relaxed whitespace-pre-wrap" dir="auto">
+        {/* Description */}
+        <p className="mt-4 text-c-soft leading-relaxed whitespace-pre-wrap" dir="auto">
           {game.short_description}
         </p>
 
+        {/* Submitted by */}
         {game.submitted_by && (
           <p className="mt-3 text-xs text-c-faint">
             {t("submittedBy")}: {game.submitted_by}
           </p>
         )}
+      </div>
 
-        <div className="mt-8 grid gap-5">
-          <DetailSection label={t("genres")}>
-            {game.genres.map((g) => (
-              <Tag key={g}>{g}</Tag>
-            ))}
-          </DetailSection>
-
-          {(game.gameplay_modes?.length ?? 0) > 0 && (
-            <DetailSection label={t("gameplayModes")}>
-              {game.gameplay_modes!.map((m) => (
-                <Tag key={m} color="blue">
-                  {m}
-                </Tag>
-              ))}
-            </DetailSection>
-          )}
-
-          {(game.monetization?.length ?? 0) > 0 && (
-            <DetailSection label={t("monetization")}>
-              {game.monetization!.map((m) => (
-                <Tag key={m} color="amber">
-                  {m}
-                </Tag>
-              ))}
-            </DetailSection>
-          )}
-
-          {game.game_engine && (
-            <DetailSection label={t("gameEngine")}>
-              <Tag>{game.game_engine}</Tag>
-            </DetailSection>
-          )}
-
-          {game.publishing_type && (
-            <DetailSection label={t("publishing")}>
-              <Tag>
-                {game.publishing_type === "self_published"
-                  ? t("publishingSelf")
-                  : game.publisher_name || t("publishingWith")}
-              </Tag>
-            </DetailSection>
-          )}
-        </div>
-
-        {(game.website_url || storeLinks.length > 0) && (
-          <div className="mt-8 pt-8 border-t border-c-border">
-            <p className="text-xs font-medium text-c-faint uppercase tracking-wider mb-3">
-              {t("links")}
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              {game.website_url && (
-                <a
-                  href={game.website_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center bg-c-surface border border-c-border hover:border-c-border-hover text-sm text-c-text px-4 py-2 rounded-lg transition-colors"
-                >
-                  {tCommon("officialWebsite")}
-                </a>
-              )}
-              {storeLinks.map(([key, val]) => (
-                <a
-                  key={key}
-                  href={val as string}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center bg-c-surface border border-c-border hover:border-c-border-hover text-sm text-c-text px-4 py-2 rounded-lg transition-colors"
-                >
-                  {key} ↗
-                </a>
+      {/* Two-column details grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+        {game.genres.length > 0 && (
+          <DetailCell label={t("genres")}>
+            <div className="flex gap-1.5 flex-wrap">
+              {game.genres.map((g) => (
+                <Tag key={g}>{g}</Tag>
               ))}
             </div>
-          </div>
+          </DetailCell>
+        )}
+
+        {(game.gameplay_modes?.length ?? 0) > 0 && (
+          <DetailCell label={t("gameplayModes")}>
+            <div className="flex gap-1.5 flex-wrap">
+              {game.gameplay_modes!.map((m) => (
+                <Tag key={m} color="blue">{m}</Tag>
+              ))}
+            </div>
+          </DetailCell>
+        )}
+
+        {(game.monetization?.length ?? 0) > 0 && (
+          <DetailCell label={t("monetization")}>
+            <div className="flex gap-1.5 flex-wrap">
+              {game.monetization!.map((m) => (
+                <Tag key={m} color="amber">{m}</Tag>
+              ))}
+            </div>
+          </DetailCell>
+        )}
+
+        {game.game_engine && (
+          <DetailCell label={t("gameEngine")}>
+            <p className="text-sm text-c-text">{game.game_engine}</p>
+          </DetailCell>
+        )}
+
+        {game.publishing_type && (
+          <DetailCell label={t("publishing")}>
+            <p className="text-sm text-c-text">
+              {game.publishing_type === "self_published"
+                ? t("publishingSelf")
+                : game.publisher_name || t("publishingWith")}
+            </p>
+          </DetailCell>
         )}
       </div>
+
+      {/* Links section */}
+      {(game.website_url || storeLinks.length > 0) && (
+        <div className="mt-8">
+          <p className="text-xs font-semibold tracking-wider text-c-faint uppercase mb-2">
+            {t("links")}
+          </p>
+          <div className="flex gap-2 flex-wrap mt-2">
+            {game.website_url && (
+              <a
+                href={game.website_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-c-border bg-c-surface hover:bg-c-bg text-c-text transition-colors"
+              >
+                {tCommon("officialWebsite")}
+              </a>
+            )}
+            {storeLinks.map(([key, val]) => (
+              <a
+                key={key}
+                href={val as string}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-c-border bg-c-surface hover:bg-c-bg text-c-text transition-colors"
+              >
+                {key} ↗
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
 
-function DetailSection({
+function DetailCell({
   label,
   children,
 }: {
@@ -255,10 +263,10 @@ function DetailSection({
 }) {
   return (
     <div>
-      <p className="text-xs font-medium text-c-faint uppercase tracking-wider mb-2">
+      <p className="text-xs font-semibold tracking-wider text-c-faint uppercase mb-2">
         {label}
       </p>
-      <div className="flex gap-1.5 flex-wrap">{children}</div>
+      {children}
     </div>
   );
 }
