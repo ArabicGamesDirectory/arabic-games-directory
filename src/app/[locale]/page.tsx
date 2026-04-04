@@ -541,10 +541,6 @@ export default async function Home({
                     {g.release_date ? ` · ${g.release_date}` : ""}
                   </p>
 
-                  <p className="text-sm text-c-soft mt-2 leading-relaxed line-clamp-2" dir="auto">
-                    {g.short_description}
-                  </p>
-
                   {(() => {
                     const allTags = [
                       ...g.genres.map((v) => ({ v, cls: "bg-c-tag text-c-tag-text" })),
@@ -568,37 +564,6 @@ export default async function Home({
                     );
                   })()}
 
-                  {(g.website_url ||
-                    Object.values(g.store_links ?? {}).some(Boolean)) && (
-                    <div className="pt-3 mt-3 border-t border-c-border flex flex-wrap gap-2">
-                      {(() => {
-                        const storeNames = Object.entries(g.store_links ?? {})
-                          .filter(([, val]) => typeof val === "string" && val)
-                          .map(([key]) => key);
-                        if (storeNames.length === 0) return null;
-                        const shown = storeNames.slice(0, 2);
-                        const extra = storeNames.length - shown.length;
-                        return (
-                          <>
-                            {shown.map((name) => (
-                              <Link
-                                key={name}
-                                href={`/games/${g.slug}`}
-                                className="text-xs font-medium px-2 py-0.5 rounded-md bg-c-surface border border-c-border text-c-muted hover:text-c-text hover:border-c-border-hover transition-colors"
-                              >
-                                {name}
-                              </Link>
-                            ))}
-                            {extra > 0 && (
-                              <span className="text-xs px-2 py-0.5 rounded-md bg-c-surface border border-c-border text-c-muted">
-                                +{extra}
-                              </span>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
                 </div>
               </div>
             </article>
