@@ -341,10 +341,10 @@ export default async function Home({
                         height={108}
                         loading={i === 0 && studiosPageClamped === 1 ? "eager" : "lazy"}
                         decoding="async"
-                        className="w-full sm:w-[230px] shrink-0 h-[108px] object-cover rounded-s-lg self-stretch sm:self-center"
+                        className="w-full sm:w-[230px] shrink-0 object-cover rounded-s-lg self-stretch"
                       />
                     ) : (
-                      <div className="w-full sm:w-[230px] shrink-0 h-[108px] bg-c-surface flex items-center justify-center rounded-s-lg self-stretch sm:self-center">
+                      <div className="w-full sm:w-[230px] shrink-0 bg-c-surface flex items-center justify-center rounded-s-lg self-stretch">
                         <span className="text-3xl text-c-faint">🏢</span>
                       </div>
                     )}
@@ -491,10 +491,10 @@ export default async function Home({
                     height={108}
                     loading={i === 0 && gamesPageClamped === 1 ? "eager" : "lazy"}
                     decoding="async"
-                    className="w-full sm:w-[230px] shrink-0 h-[108px] object-cover self-start"
+                    className="w-full sm:w-[230px] shrink-0 object-cover self-stretch"
                   />
                 ) : (
-                  <div className="w-full sm:w-[230px] shrink-0 h-[108px] bg-c-surface flex items-center justify-center self-start">
+                  <div className="w-full sm:w-[230px] shrink-0 bg-c-surface flex items-center justify-center self-stretch">
                     <span className="text-3xl text-c-faint">🎮</span>
                   </div>
                 )}
