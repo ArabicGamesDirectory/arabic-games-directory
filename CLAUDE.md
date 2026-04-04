@@ -54,8 +54,11 @@ arabic-games-directory/
 │   │       │   └── route.ts    # POST — hard-delete an approved game by id (admin only)
 │   │       ├── delete-studio/
 │   │       │   └── route.ts    # POST — hard-delete an approved studio by id (admin only)
-│   │       └── upload-thumbnail/
-│   │           └── route.ts    # POST — receives file + slug, converts to 460×215 WebP via sharp, uploads to Supabase Storage bucket "thumbnails", returns public URL
+│   │       ├── upload-thumbnail/
+│   │       │   └── route.ts    # POST — validates magic bytes, converts to 460×215 WebP via sharp, uploads to thumbnails/temp/, returns public URL
+│   │       └── cron/
+│   │           └── cleanup-thumbnails/
+│   │               └── route.ts  # GET — deletes temp/ thumbnails older than 24h; secured with CRON_SECRET
 │   ├── components/
 │   │   ├── ThemeToggle.tsx     # Floating light/dark theme switcher (persists to localStorage)
 │   │   ├── LanguageSwitcher.tsx  # Floating EN↔AR switcher (fixed bottom start-4)
@@ -70,11 +73,13 @@ arabic-games-directory/
 │   └── lib/
 │       ├── supabase.ts         # Supabase client (anon key, public) — used by non-admin pages
 │       ├── countries.ts        # COUNTRY_OPTIONS list + COUNTRY_KEY_MAP for i18n
-│       └── slug.ts             # slugify() helper — falls back to game-{timestamp} for Arabic-only names
+│       ├── slug.ts             # slugify() helper — falls back to game-{timestamp} for Arabic-only names
+│       └── promoteThumbnail.ts # Moves temp thumbnail to permanent path on approve; used by /api/approve and /api/approve-studio
 ├── .env.local                  # Local env vars (never commit)
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json
+├── vercel.json                 # Vercel Cron config — cleanup-thumbnails runs daily at 03:00 UTC
 └── next.config.ts              # Wrapped with createNextIntlPlugin
 ```
 
@@ -174,7 +179,7 @@ Vercel has the same variables set in project settings.
 ### Supabase Storage
 - **Bucket:** `thumbnails` — public read, no RLS policies needed. All uploads go through `/api/upload-thumbnail` which uses `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). The bucket is public so stored URLs are directly accessible without auth.
 - **File format:** All uploads are converted to WebP at 460×215 (cover crop) by the API route before storage. Original format is irrelevant — always stored as `.webp`.
-- **Filename pattern:** `{slug}-{timestamp}.webp`
+- **Filename pattern:** `{slug}-{timestamp}.webp` (permanent) / `temp/{slug}-{timestamp}.webp` (before approval)
 - **Max input size:** 200 KB enforced client-side in the form and server-side in the API route before processing.
 - **Temp prefix:** All uploads go to `thumbnails/temp/{slug}-{timestamp}.webp`. On approve, `/api/approve` and `/api/approve-studio` call `promoteThumbnail()` (`src/lib/promoteThumbnail.ts`) which copies the file to `thumbnails/{slug}-{timestamp}.webp`, deletes the temp original, and returns the permanent URL. The `thumbnail_url` written to the DB row is always the permanent URL. If promotion fails silently, the temp URL remains in the DB and the cron job will eventually delete the orphan file.
 - **Cron cleanup:** `/api/cron/cleanup-thumbnails` runs daily at 03:00 UTC (configured in `vercel.json`). It lists all files under the `temp/` prefix, filters for those whose embedded timestamp is older than 24 hours, and deletes them. Secured with `Authorization: Bearer {CRON_SECRET}`.
