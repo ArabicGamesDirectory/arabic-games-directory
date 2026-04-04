@@ -23,7 +23,7 @@ type Game = {
   publishing_type: string | null;
   publisher_name: string | null;
   thumbnail_url: string | null;
-  studios: { slug: string }[] | null;
+  studios: { slug: string } | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -70,7 +70,7 @@ export default async function GameDetails({
     );
   }
 
-  const game = data as Game;
+  const game = data as unknown as Game;
 
   const storeLinks = game.store_links
     ? Object.entries(game.store_links).filter(
@@ -114,9 +114,9 @@ export default async function GameDetails({
           </h1>
           {game.developer && (
             <p className="text-sm text-c-muted mt-1 w-full">
-              {game.studios?.[0]?.slug ? (
+              {game.studios?.slug ? (
                 <Link
-                  href={`/studios/${game.studios[0].slug}`}
+                  href={`/studios/${game.studios.slug}`}
                   className="hover:text-indigo-500 transition-colors"
                 >
                   {game.developer}

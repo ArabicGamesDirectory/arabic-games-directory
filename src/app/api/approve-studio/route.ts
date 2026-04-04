@@ -58,6 +58,15 @@ export async function POST(request: Request) {
       .update(studioFields)
       .eq("id", submission.studio_id);
     studioError = error;
+
+    // Retroactively link any games that matched by name but had no studio_id yet.
+    if (!error) {
+      await supabase
+        .from("games")
+        .update({ studio_id: submission.studio_id })
+        .is("studio_id", null)
+        .ilike("developer", studioFields.name);
+    }
   } else {
     // New studio submission — resolve slug collisions, then insert.
     const baseSlug = submission.payload.slug as string;
@@ -72,10 +81,21 @@ export async function POST(request: Request) {
       slug = `${baseSlug}-${suffix++}`;
     }
 
-    const { error } = await supabase
+    const { data: insertedStudio, error } = await supabase
       .from("studios")
-      .insert({ slug, submitted_by: submission.submitter_name ?? null, ...studioFields });
+      .insert({ slug, submitted_by: submission.submitter_name ?? null, ...studioFields })
+      .select("id")
+      .single();
     studioError = error;
+
+    // Retroactively link any games that matched by name but had no studio_id yet.
+    if (!error && insertedStudio) {
+      await supabase
+        .from("games")
+        .update({ studio_id: insertedStudio.id })
+        .is("studio_id", null)
+        .ilike("developer", studioFields.name);
+    }
   }
 
   if (studioError) {

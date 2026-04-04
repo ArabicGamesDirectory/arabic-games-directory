@@ -21,7 +21,7 @@ type Game = {
   slug: string;
   short_description: string;
   thumbnail_url: string | null;
-  studios: { slug: string }[] | null;
+  studios: { slug: string } | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -149,7 +149,7 @@ export default async function Home({
     );
   }
 
-  const typedGames: Game[] = (games as Game[]) ?? [];
+  const typedGames: Game[] = (games as unknown as Game[]) ?? [];
   const gamesTotalPages = Math.max(1, Math.ceil((gamesTotalCount ?? 0) / PAGE_SIZE));
   const gamesPageClamped = Math.min(gamesPage, gamesTotalPages);
 
@@ -513,9 +513,9 @@ export default async function Home({
                       </h2>
                       {g.developer && (
                         <p className="text-xs text-c-faint mt-0.5">
-                          {g.studios?.[0]?.slug ? (
+                          {g.studios?.slug ? (
                             <Link
-                              href={`/studios/${g.studios[0].slug}`}
+                              href={`/studios/${g.studios.slug}`}
                               className="hover:text-indigo-500 transition-colors"
                             >
                               {g.developer}
