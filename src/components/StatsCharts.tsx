@@ -115,24 +115,44 @@ function DonutChart({ data }: { data: ChartEntry[] }) {
   );
 }
 
+function SummaryList({ data }: { data: ChartEntry[] }) {
+  return (
+    <div>
+      {data.map((entry) => (
+        <div
+          key={entry.name}
+          className="flex justify-between items-center py-1.5 border-b border-c-border last:border-0"
+        >
+          <span className="text-sm text-c-text">{entry.name}</span>
+          <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-c-surface border border-c-border text-c-muted">
+            {entry.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatCard({
   title,
+  data,
   children,
   noData,
-  empty,
 }: {
   title: string;
+  data: ChartEntry[];
   children: React.ReactNode;
   noData: string;
-  empty: boolean;
 }) {
   return (
     <div className="bg-c-surface border border-c-border rounded-xl p-5">
       <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider mb-4">
         {title}
       </h2>
-      {empty ? (
+      {data.length === 0 ? (
         <p className="text-c-faint text-sm">{noData}</p>
+      ) : data.length < 3 ? (
+        <SummaryList data={data} />
       ) : (
         children
       )}
@@ -161,16 +181,16 @@ export function StatsCharts({
 }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <StatCard title={labels.byCountry} noData={labels.noData} empty={byCountry.length === 0}>
+      <StatCard title={labels.byCountry} data={byCountry} noData={labels.noData}>
         <HBarChart data={byCountry} />
       </StatCard>
-      <StatCard title={labels.byStatus} noData={labels.noData} empty={byStatus.length === 0}>
+      <StatCard title={labels.byStatus} data={byStatus} noData={labels.noData}>
         <DonutChart data={byStatus} />
       </StatCard>
-      <StatCard title={labels.byPlatform} noData={labels.noData} empty={byPlatform.length === 0}>
+      <StatCard title={labels.byPlatform} data={byPlatform} noData={labels.noData}>
         <DonutChart data={byPlatform} />
       </StatCard>
-      <StatCard title={labels.byGenre} noData={labels.noData} empty={byGenre.length === 0}>
+      <StatCard title={labels.byGenre} data={byGenre} noData={labels.noData}>
         <HBarChart data={byGenre} />
       </StatCard>
     </div>

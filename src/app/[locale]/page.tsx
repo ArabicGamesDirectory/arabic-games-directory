@@ -491,10 +491,10 @@ export default async function Home({
                     height={108}
                     loading={i === 0 && gamesPageClamped === 1 ? "eager" : "lazy"}
                     decoding="async"
-                    className="w-full sm:w-[230px] shrink-0 h-[108px] object-cover rounded-s-lg self-stretch sm:self-center"
+                    className="w-full sm:w-[230px] shrink-0 h-[108px] object-cover self-start"
                   />
                 ) : (
-                  <div className="w-full sm:w-[230px] shrink-0 h-[108px] bg-c-surface flex items-center justify-center rounded-s-lg self-stretch sm:self-center">
+                  <div className="w-full sm:w-[230px] shrink-0 h-[108px] bg-c-surface flex items-center justify-center self-start">
                     <span className="text-3xl text-c-faint">🎮</span>
                   </div>
                 )}
@@ -570,17 +570,7 @@ export default async function Home({
 
                   {(g.website_url ||
                     Object.values(g.store_links ?? {}).some(Boolean)) && (
-                    <div className="flex items-center gap-3 flex-wrap mt-3 pt-3 border-t border-c-border">
-                      {g.website_url && (
-                        <a
-                          href={g.website_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-indigo-500 hover:underline"
-                        >
-                          {tCommon("website")}
-                        </a>
-                      )}
+                    <div className="pt-3 mt-3 border-t border-c-border flex flex-wrap gap-2">
                       {(() => {
                         const storeNames = Object.entries(g.store_links ?? {})
                           .filter(([, val]) => typeof val === "string" && val)
@@ -589,12 +579,22 @@ export default async function Home({
                         const shown = storeNames.slice(0, 2);
                         const extra = storeNames.length - shown.length;
                         return (
-                          <Link
-                            href={`/games/${g.slug}`}
-                            className="text-xs text-c-faint hover:text-c-muted transition-colors"
-                          >
-                            {shown.join(" · ")}{extra > 0 ? ` +${extra}` : ""}
-                          </Link>
+                          <>
+                            {shown.map((name) => (
+                              <Link
+                                key={name}
+                                href={`/games/${g.slug}`}
+                                className="text-xs font-medium px-2 py-0.5 rounded-md bg-c-surface border border-c-border text-c-muted hover:text-c-text hover:border-c-border-hover transition-colors"
+                              >
+                                {name}
+                              </Link>
+                            ))}
+                            {extra > 0 && (
+                              <span className="text-xs px-2 py-0.5 rounded-md bg-c-surface border border-c-border text-c-muted">
+                                +{extra}
+                              </span>
+                            )}
+                          </>
                         );
                       })()}
                     </div>
@@ -636,11 +636,6 @@ export default async function Home({
       )}
       </>)}
 
-      <footer className="mt-12 pt-8 border-t border-c-border flex gap-6 text-sm text-c-faint">
-        <Link href="/admin" className="hover:text-c-muted transition-colors">
-          {tCommon("admin")}
-        </Link>
-      </footer>
     </main>
   );
 }

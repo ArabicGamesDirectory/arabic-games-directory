@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
@@ -123,6 +123,15 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const [thumbnailStatus, setThumbnailStatus] = useState<"idle" | "uploading" | "done" | "error">(
     initialData?.thumbnail_url ? "done" : "idle"
   );
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+
+  function handleThumbnailRemove() {
+    setThumbnailUrl(null);
+    setThumbnailPreview(null);
+    setThumbnailStatus("idle");
+    setErrors((prev) => { const next = { ...prev }; delete next.thumbnail; return next; });
+    if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
+  }
 
   async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -407,32 +416,56 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
           </h2>
 
           <Field label={t("fieldThumbnail")} error={errors.thumbnail}>
-            <div className="flex items-start gap-4">
-              {thumbnailPreview && (
+            <input
+              ref={thumbnailInputRef}
+              type="file"
+              id="thumbnail-upload-game"
+              accept=".jpg,.jpeg,.png,.webp"
+              onChange={handleThumbnailChange}
+              className="sr-only"
+            />
+            {thumbnailPreview ? (
+              <div className="relative aspect-[460/215] w-full overflow-hidden rounded-lg">
                 <img
                   src={thumbnailPreview}
                   alt=""
-                  width={80}
-                  height={80}
-                  className="w-20 h-20 rounded-lg object-cover border border-c-border"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
-              )}
-              <div className="flex-1 space-y-1.5">
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp"
-                  onChange={handleThumbnailChange}
-                  className="block w-full text-sm text-c-soft file:me-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-c-tag file:text-c-tag-text hover:file:bg-c-border file:cursor-pointer file:transition-colors"
-                />
-                <p className="text-xs text-c-faint">{t("thumbnailHint")}</p>
                 {thumbnailStatus === "uploading" && (
-                  <p className="text-xs text-amber-500">{t("thumbnailUploading")}</p>
+                  <div className="absolute inset-0 flex items-center justify-center bg-c-bg/60 rounded-lg">
+                    <svg className="animate-spin h-6 w-6 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </div>
                 )}
-                {thumbnailStatus === "done" && (
-                  <p className="text-xs text-emerald-500">{t("thumbnailDone")}</p>
-                )}
+                <button
+                  type="button"
+                  onClick={handleThumbnailRemove}
+                  className="absolute top-2 end-2 bg-c-bg/80 hover:bg-c-bg text-c-soft hover:text-c-text rounded-full w-7 h-7 flex items-center justify-center transition-colors text-base leading-none"
+                  aria-label="Remove thumbnail"
+                >
+                  ×
+                </button>
               </div>
-            </div>
+            ) : (
+              <label
+                htmlFor="thumbnail-upload-game"
+                className={`flex flex-col items-center justify-center w-full py-8 px-4 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+                  errors.thumbnail
+                    ? "border-red-500/50"
+                    : "border-c-border hover:border-c-border-hover hover:bg-c-surface"
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-c-faint mb-3">
+                  <polyline points="16 16 12 12 8 16" />
+                  <line x1="12" y1="12" x2="12" y2="21" />
+                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
+                </svg>
+                <p className="text-sm text-c-soft">{t("thumbnailClickToUpload")}</p>
+                <p className="text-xs text-c-faint mt-1">{t("thumbnailHint")}</p>
+              </label>
+            )}
           </Field>
 
           <Field label={t("fieldGameName")} required error={errors.name}>
@@ -511,6 +544,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               name="country"
               options={countryOptions}
               initialValues={initialData?.country}
+              grid3
             />
           </Field>
 
@@ -578,7 +612,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
                 id="release_date"
                 name="release_date"
                 type="date"
-                defaultValue={initialData?.release_date ?? ""}
+                defaultValue={isUpdate ? (initialData?.release_date ?? "") : ""}
                 className={inputCls()}
               />
             </Field>
@@ -759,17 +793,19 @@ function CheckboxGroup({
   name,
   options,
   initialValues,
+  grid3,
 }: {
   name: string;
   options: { value: string; label: string }[];
   initialValues?: string[];
+  grid3?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={grid3 ? "grid grid-cols-3 gap-2" : "flex flex-wrap gap-2"}>
       {options.map((opt) => (
         <label
           key={opt.value}
-          className="flex items-center gap-1.5 bg-c-bg border border-c-border rounded-lg px-3 py-1.5 text-sm text-c-soft cursor-pointer hover:border-c-border-hover has-[:checked]:bg-indigo-600 has-[:checked]:border-indigo-600 has-[:checked]:text-white transition-colors select-none"
+          className="flex items-center gap-1.5 min-w-0 bg-c-bg border border-c-border rounded-lg px-3 py-1.5 text-sm text-c-soft cursor-pointer hover:border-c-border-hover has-[:checked]:bg-indigo-600 has-[:checked]:border-indigo-600 has-[:checked]:text-white transition-colors select-none"
         >
           <input
             type="checkbox"
