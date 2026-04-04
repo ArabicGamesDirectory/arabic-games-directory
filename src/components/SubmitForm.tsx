@@ -145,7 +145,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       setErrors((prev) => ({ ...prev, thumbnail: t("thumbnailInvalidType") }));
       return;
     }
-    if (file.size > 150 * 1024) {
+    if (file.size > 200 * 1024) {
       setThumbnailStatus("error");
       setThumbnailPreview(null);
       setThumbnailUrl(null);

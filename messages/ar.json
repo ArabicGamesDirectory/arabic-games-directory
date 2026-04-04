@@ -140,9 +140,9 @@
     "thumbnailUploading": "جارٍ الرفع…",
     "thumbnailDone": "تم الرفع",
     "thumbnailError": "فشل الرفع. حاول مرة أخرى.",
-    "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 150 كيلوبايت.",
+    "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 200 كيلوبايت.",
     "thumbnailInvalidType": "نوع ملف غير صالح. المقبول: jpg، png، webp.",
-    "thumbnailHint": "الحد الأقصى 150 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 460×215."
+    "thumbnailHint": "الحد الأقصى 200 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 460×215."
   },
   "validation": {
     "invalidUrl": "يرجى إدخال رابط صحيح يبدأ بـ http:// أو https://"
@@ -267,9 +267,9 @@
     "thumbnailUploading": "جارٍ الرفع…",
     "thumbnailDone": "تم الرفع",
     "thumbnailError": "فشل الرفع. حاول مرة أخرى.",
-    "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 150 كيلوبايت.",
+    "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 200 كيلوبايت.",
     "thumbnailInvalidType": "نوع ملف غير صالح. المقبول: jpg، png، webp.",
-    "thumbnailHint": "الحد الأقصى 150 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 460×215."
+    "thumbnailHint": "الحد الأقصى 200 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 460×215."
   },
   "stats": {
     "title": "إحصائيات",

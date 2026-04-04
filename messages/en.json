@@ -140,9 +140,9 @@
     "thumbnailUploading": "Uploading…",
     "thumbnailDone": "Uploaded",
     "thumbnailError": "Upload failed. Try again.",
-    "thumbnailTooLarge": "File too large. Maximum size is 150 KB.",
+    "thumbnailTooLarge": "File too large. Maximum size is 200 KB.",
     "thumbnailInvalidType": "Invalid file type. Accepted: jpg, png, webp.",
-    "thumbnailHint": "Max 150 KB. JPG, PNG, or WebP. Will be cropped to 460×215."
+    "thumbnailHint": "Max 200 KB. JPG, PNG, or WebP. Will be cropped to 460×215."
   },
   "validation": {
     "invalidUrl": "Please enter a valid URL starting with http:// or https://"
@@ -267,9 +267,9 @@
     "thumbnailUploading": "Uploading…",
     "thumbnailDone": "Uploaded",
     "thumbnailError": "Upload failed. Try again.",
-    "thumbnailTooLarge": "File too large. Maximum size is 150 KB.",
+    "thumbnailTooLarge": "File too large. Maximum size is 200 KB.",
     "thumbnailInvalidType": "Invalid file type. Accepted: jpg, png, webp.",
-    "thumbnailHint": "Max 150 KB. JPG, PNG, or WebP. Will be cropped to 460×215."
+    "thumbnailHint": "Max 200 KB. JPG, PNG, or WebP. Will be cropped to 460×215."
   },
   "stats": {
     "title": "Statistics",

@@ -172,7 +172,7 @@ Vercel has the same variables set in project settings.
 - **Bucket:** `thumbnails` — public read, no RLS policies needed. All uploads go through `/api/upload-thumbnail` which uses `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). The bucket is public so stored URLs are directly accessible without auth.
 - **File format:** All uploads are converted to WebP at 460×215 (cover crop) by the API route before storage. Original format is irrelevant — always stored as `.webp`.
 - **Filename pattern:** `{slug}-{timestamp}.webp`
-- **Max input size:** 150 KB enforced client-side in the form and server-side in the API route before processing.
+- **Max input size:** 200 KB enforced client-side in the form and server-side in the API route before processing.
 - **Accepted input types:** `image/jpeg`, `image/png`, `image/webp`.
 
 ---

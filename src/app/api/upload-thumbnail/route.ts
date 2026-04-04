@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
-const MAX_FILE_SIZE = 150 * 1024; // 150 KB
+const MAX_FILE_SIZE = 200 * 1024; // 200 KB
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(request: Request) {
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   if (file.size > MAX_FILE_SIZE) {
     return Response.json(
-      { error: "File too large. Maximum size is 150 KB." },
+      { error: "File too large. Maximum size is 200 KB." },
       { status: 400 }
     );
   }
