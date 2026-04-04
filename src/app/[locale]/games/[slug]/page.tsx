@@ -162,12 +162,6 @@ export default async function GameDetails({
           {game.short_description}
         </p>
 
-        {/* Submitted by */}
-        {game.submitted_by && (
-          <p className="mt-3 text-xs text-c-faint">
-            {t("submittedBy")}: {game.submitted_by}
-          </p>
-        )}
       </div>
 
       {/* Two-column details grid */}
@@ -207,24 +201,24 @@ export default async function GameDetails({
             <p className="text-sm text-c-text">{game.game_engine}</p>
           </DetailCell>
         )}
-
-        {game.publishing_type && (
-          <DetailCell label={t("publishing")}>
-            <p className="text-sm text-c-text">
-              {game.publishing_type === "self_published"
-                ? t("publishingSelf")
-                : game.publisher_name || t("publishingWith")}
-            </p>
-          </DetailCell>
-        )}
       </div>
 
       {/* Links section */}
       {(game.website_url || storeLinks.length > 0) && (
         <div className="mt-8">
-          <p className="text-xs font-semibold tracking-wider text-c-faint uppercase mb-2">
-            {t("links")}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold tracking-wider text-c-faint uppercase">
+              {t("links")}
+            </p>
+            {game.publishing_type && (
+              <span className="text-xs text-c-faint">
+                ·{" "}
+                {game.publishing_type === "self_published"
+                  ? t("publishingSelf")
+                  : game.publisher_name || t("publishingWith")}
+              </span>
+            )}
+          </div>
           <div className="flex gap-2 flex-wrap mt-2">
             {game.website_url && (
               <a
@@ -249,6 +243,13 @@ export default async function GameDetails({
             ))}
           </div>
         </div>
+      )}
+
+      {/* Submitted by — absolute last element */}
+      {game.submitted_by && (
+        <p className="mt-8 text-xs text-c-faint">
+          {t("submittedBy")}: {game.submitted_by}
+        </p>
       )}
     </main>
   );
