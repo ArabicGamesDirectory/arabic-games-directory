@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { promoteThumbnail } from "@/lib/promoteThumbnail";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -63,9 +64,10 @@ export async function POST(request: Request) {
 
   if (submission.game_id) {
     // Update submission — patch the existing game row (slug is preserved).
+    const permanentUrl = await promoteThumbnail(supabase, gameFields.thumbnail_url);
     const { error } = await supabase
       .from("games")
-      .update(gameFields)
+      .update({ ...gameFields, ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}) })
       .eq("id", submission.game_id);
     gameError = error;
   } else {
@@ -82,6 +84,7 @@ export async function POST(request: Request) {
       slug = `${baseSlug}-${suffix++}`;
     }
 
+    const permanentUrl = await promoteThumbnail(supabase, gameFields.thumbnail_url);
     const { error } = await supabase
       .from("games")
       .insert({
@@ -89,6 +92,7 @@ export async function POST(request: Request) {
         submitted_by: submission.submitter_name ?? null,
         submitted_by_email: submission.submitter_email ?? null,
         ...gameFields,
+        ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
       });
     gameError = error;
 
