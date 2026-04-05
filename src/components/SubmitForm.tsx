@@ -364,7 +364,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
         payload: {
           name: developerName,
           slug: slugify(developerName),
-          type: "studio",
+          type: "unspecified",
           description: null,
           country: countries,
           website_url: null,
