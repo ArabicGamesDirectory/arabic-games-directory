@@ -44,8 +44,9 @@ const PLATFORM_OPTIONS = [
 const GENRE_BASE_VALUES = [
   "Action", "Adventure", "Arcade", "Card / Board Game", "Casual",
   "Educational", "Endless Runner", "Fighting", "Horror", "Idle / Clicker",
-  "Platformer", "Puzzle", "Racing", "RPG", "Shooter FPS",
-  "Simulation", "Sports", "Strategy", "Tower Defense", "Visual Novel",
+  "Platformer", "Puzzle", "Racing", "Resource Management", "Rogue-lite",
+  "Roguelike", "RPG", "Shooter FPS", "Simulation", "Sports",
+  "Strategy", "Tower Defense", "Visual Novel",
 ];
 
 const ENGINE_OPTIONS = [
@@ -53,9 +54,11 @@ const ENGINE_OPTIONS = [
   "Unreal Engine",
   "Godot",
   "GameMaker",
+  "GameSalad",
+  "Construct",
   "Cocos2d",
-  "LibGDX",
   "Custom Engine",
+  "Others",
 ];
 
 const STORE_FIELDS = [
@@ -222,6 +225,9 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       { value: "Platformer", key: "platformer" },
       { value: "Puzzle", key: "puzzle" },
       { value: "Racing", key: "racing" },
+      { value: "Resource Management", key: "resourceManagement" },
+      { value: "Rogue-lite", key: "rogueLite" },
+      { value: "Roguelike", key: "roguelike" },
       { value: "RPG", key: "rpg" },
       { value: "Shooter FPS", key: "shooterFPS" },
       { value: "Simulation", key: "simulation" },

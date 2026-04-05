@@ -168,7 +168,10 @@
     "strategy": "إستراتيجية",
     "towerDefense": "الدفاع عن البرج",
     "visualNovel": "رواية مرئية",
-    "other": "أخرى"
+    "other": "أخرى",
+    "resourceManagement": "إدارة الموارد",
+    "rogueLite": "روغ-لايت",
+    "roguelike": "روغ-لايك"
   },
   "admin": {
     "loginTitle": "تسجيل الدخول للإدارة",

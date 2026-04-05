@@ -168,7 +168,10 @@
     "strategy": "Strategy",
     "towerDefense": "Tower Defense",
     "visualNovel": "Visual Novel",
-    "other": "Other"
+    "other": "Other",
+    "resourceManagement": "Resource Management",
+    "rogueLite": "Rogue-lite",
+    "roguelike": "Roguelike"
   },
   "admin": {
     "loginTitle": "Admin login",
