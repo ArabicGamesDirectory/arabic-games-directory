@@ -43,8 +43,8 @@ const PLATFORM_OPTIONS = [
 // Used for state initialization (no translations needed at this level)
 const GENRE_BASE_VALUES = [
   "Action", "Adventure", "Arcade", "Card / Board Game", "Casual",
-  "Educational", "Endless Runner", "Fighting", "Horror", "Idle / Clicker",
-  "Platformer", "Puzzle", "Racing", "Resource Management", "Rogue-lite",
+  "Educational", "Endless Runner", "Family", "Fighting", "Horror", "Idle / Clicker",
+  "Made for Kids", "Platformer", "Puzzle", "Racing", "Resource Management", "Rogue-lite",
   "Roguelike", "RPG", "Shooter FPS", "Simulation", "Sports",
   "Strategy", "Tower Defense", "Visual Novel",
 ];
@@ -213,9 +213,11 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       { value: "Casual", key: "casual" },
       { value: "Educational", key: "educational" },
       { value: "Endless Runner", key: "endlessRunner" },
+      { value: "Family", key: "family" },
       { value: "Fighting", key: "fighting" },
       { value: "Horror", key: "horror" },
       { value: "Idle / Clicker", key: "idleClicker" },
+      { value: "Made for Kids", key: "madeForKids" },
       { value: "Platformer", key: "platformer" },
       { value: "Puzzle", key: "puzzle" },
       { value: "Racing", key: "racing" },
