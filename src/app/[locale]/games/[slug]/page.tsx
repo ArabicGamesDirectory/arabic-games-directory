@@ -19,7 +19,6 @@ type Game = {
   release_date: string | null;
   website_url: string | null;
   store_links: Record<string, string | null>;
-  submitted_by: string | null;
   publishing_type: string | null;
   publisher_name: string | null;
   thumbnail_url: string | null;
@@ -245,12 +244,6 @@ export default async function GameDetails({
         </div>
       )}
 
-      {/* Submitted by — absolute last element */}
-      {game.submitted_by && (
-        <p className="mt-8 text-xs text-c-faint">
-          {t("submittedBy")}: {game.submitted_by}
-        </p>
-      )}
     </main>
   );
 }

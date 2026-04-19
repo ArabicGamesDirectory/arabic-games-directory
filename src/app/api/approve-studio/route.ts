@@ -88,7 +88,6 @@ export async function POST(request: Request) {
       .from("studios")
       .insert({
         slug,
-        submitted_by: submission.submitter_name ?? null,
         ...studioFields,
         ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
       })

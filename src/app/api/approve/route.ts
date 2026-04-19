@@ -89,8 +89,6 @@ export async function POST(request: Request) {
       .from("games")
       .insert({
         slug,
-        submitted_by: submission.submitter_name ?? null,
-        submitted_by_email: submission.submitter_email ?? null,
         ...gameFields,
         ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
       });

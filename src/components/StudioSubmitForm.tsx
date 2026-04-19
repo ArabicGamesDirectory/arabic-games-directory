@@ -35,12 +35,6 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitterName, setSubmitterName] = useState(() =>
-    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
-  );
-  const [submitterEmail, setSubmitterEmail] = useState(() =>
-    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
-  );
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initialData?.thumbnail_url ?? null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(initialData?.thumbnail_url ?? null);
   const [thumbnailStatus, setThumbnailStatus] = useState<"idle" | "uploading" | "done" | "error">(
@@ -119,8 +113,6 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
     const newErrors: Record<string, string> = {};
     if (!name) newErrors.name = t("errorRequired");
     if (countries.length === 0) newErrors.country = t("countryRequired");
-    if (!submitterName.trim()) newErrors.submitter_name = t("errorRequired");
-    if (!submitterEmail.trim()) newErrors.submitter_email = t("errorRequired");
 
     // URL validation — optional, only validate if non-empty
     const websiteUrl = String(form.get("website_url") || "").trim();
@@ -151,12 +143,7 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
       thumbnail_url: thumbnailUrl,
     };
 
-    const submitter_name = submitterName.trim() || null;
-    const submitter_email = submitterEmail.trim() || null;
-
     const { error } = await supabase.from("studio_submissions").insert({
-      submitter_name,
-      submitter_email,
       payload,
       moderation_status: "pending",
       ...(isUpdate && { studio_id: initialData!.id }),
@@ -169,8 +156,6 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
       return;
     }
 
-    localStorage.setItem("submitter_name", submitter_name ?? "");
-    localStorage.setItem("submitter_email", submitter_email ?? "");
     formEl.reset();
     setThumbnailUrl(null);
     setThumbnailPreview(null);
@@ -315,35 +300,6 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
                 <p className="text-xs text-c-faint mt-1">{t("thumbnailHint")}</p>
               </label>
             )}
-          </Field>
-        </div>
-
-        {/* Submitter info */}
-        <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
-            {t("sectionYourInfo")}
-          </h2>
-
-          <Field label={t("fieldSubmitterName")} required error={errors.submitter_name}>
-            <input
-              id="submitter_name"
-              name="submitter_name"
-              value={submitterName}
-              onChange={(e) => setSubmitterName(e.target.value)}
-              className={inputCls("submitter_name")}
-              placeholder={t("placeholderSubmitterName")}
-            />
-          </Field>
-
-          <Field label={t("fieldSubmitterEmail")} required error={errors.submitter_email}>
-            <input
-              id="submitter_email"
-              name="submitter_email"
-              value={submitterEmail}
-              onChange={(e) => setSubmitterEmail(e.target.value)}
-              className={inputCls("submitter_email")}
-              placeholder={t("placeholderSubmitterEmail")}
-            />
           </Field>
         </div>
 

@@ -102,12 +102,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
-  const [submitterName, setSubmitterName] = useState(() =>
-    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_name") ?? "" : ""
-  );
-  const [submitterEmail, setSubmitterEmail] = useState(() =>
-    !isUpdate && typeof window !== "undefined" ? localStorage.getItem("submitter_email") ?? "" : ""
-  );
   const [studioNames, setStudioNames] = useState<string[]>([]);
   const [developerValue, setDeveloperValue] = useState(initialData?.developer ?? "");
   const [showDeveloperSuggestions, setShowDeveloperSuggestions] = useState(false);
@@ -271,8 +265,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     if (!developerValue.trim()) newErrors.developer = t("errorRequired");
     if (gameplayModes.length === 0) newErrors.gameplay_modes = t("gameplayModesRequired");
     if (!gameEngine) newErrors.game_engine = t("errorRequired");
-    if (!submitterName.trim()) newErrors.submitter_name = t("errorRequired");
-    if (!submitterEmail.trim()) newErrors.submitter_email = t("errorRequired");
 
     // URL validation — optional fields, only validate if non-empty
     const urlFields: [string, string][] = [
@@ -334,12 +326,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       thumbnail_url: thumbnailUrl,
     };
 
-    const submitter_name = submitterName.trim() || null;
-    const submitter_email = submitterEmail.trim() || null;
-
     const { error } = await supabase.from("submissions").insert({
-      submitter_name,
-      submitter_email,
       payload,
       moderation_status: "pending",
       // Link to existing game when this is an update submission.
@@ -376,8 +363,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       }
     }
 
-    localStorage.setItem("submitter_name", submitter_name ?? "");
-    localStorage.setItem("submitter_email", submitter_email ?? "");
     formEl.reset();
     setDeveloperValue("");
     setGenreOtherChecked(false);
@@ -710,35 +695,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Submitter info */}
-        <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">
-            {t("sectionYourInfo")}
-          </h2>
-
-          <Field label={t("fieldName")} required error={errors.submitter_name}>
-            <input
-              id="submitter_name"
-              name="submitter_name"
-              value={submitterName}
-              onChange={(e) => setSubmitterName(e.target.value)}
-              className={inputCls("submitter_name")}
-              placeholder={t("placeholderName")}
-            />
-          </Field>
-
-          <Field label={t("fieldEmail")} required error={errors.submitter_email}>
-            <input
-              id="submitter_email"
-              name="submitter_email"
-              value={submitterEmail}
-              onChange={(e) => setSubmitterEmail(e.target.value)}
-              className={inputCls("submitter_email")}
-              placeholder={t("placeholderEmail")}
-            />
-          </Field>
         </div>
 
         {done && (

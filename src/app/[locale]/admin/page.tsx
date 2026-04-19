@@ -13,8 +13,6 @@ const supabase = createBrowserClient(
 type Submission = {
   id: string;
   game_id: string | null;
-  submitter_name: string | null;
-  submitter_email: string | null;
   moderation_status: string;
   payload: {
     name: string;
@@ -59,8 +57,6 @@ type Game = {
 type StudioSubmission = {
   id: string;
   studio_id: string | null;
-  submitter_name: string | null;
-  submitter_email: string | null;
   moderation_status: string;
   payload: {
     name: string;
@@ -87,8 +83,6 @@ type ApprovedGame = {
   slug: string;
   name: string;
   developer: string | null;
-  submitted_by: string | null;
-  submitted_by_email: string | null;
 };
 
 type ApprovedStudio = {
@@ -96,7 +90,6 @@ type ApprovedStudio = {
   slug: string;
   name: string;
   type: string;
-  submitted_by: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -246,13 +239,13 @@ export default function AdminPage() {
     // Fetch all approved games and studios for the Published tab
     const { data: approved } = await supabase
       .from("games")
-      .select("id, slug, name, developer, submitted_by, submitted_by_email")
+      .select("id, slug, name, developer")
       .order("created_at", { ascending: false });
     setApprovedGames((approved as ApprovedGame[]) ?? []);
 
     const { data: approvedStudiosData } = await supabase
       .from("studios")
-      .select("id, slug, name, type, submitted_by")
+      .select("id, slug, name, type")
       .order("created_at", { ascending: false });
     setApprovedStudios((approvedStudiosData as ApprovedStudio[]) ?? []);
   }
@@ -576,11 +569,6 @@ export default function AdminPage() {
                     {s.payload.short_description}
                   </p>
 
-                  <p className="text-xs text-c-faint mt-3">
-                    {t("submittedBy", { name: s.submitter_name || "—" })}
-                    {s.submitter_email ? ` (${s.submitter_email})` : ""}
-                  </p>
-
                   {/* Toggle details */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : s.id)}
@@ -750,24 +738,6 @@ export default function AdminPage() {
                       <span className="font-medium">Slug:</span> {s.payload.slug}
                     </div>
 
-                    <div className="border-t border-c-border pt-3 mt-1 space-y-2">
-                      <p className="text-xs font-medium text-c-faint uppercase tracking-wide">{t("submitterInfo")}</p>
-                      <DetailRow
-                        label="Name"
-                        value={s.submitter_name || "—"}
-                        changed={false}
-                        changedLabel=""
-                        wasLabel=""
-                      />
-                      <DetailRow
-                        label="Contact"
-                        value={s.submitter_email || "—"}
-                        changed={false}
-                        changedLabel=""
-                        wasLabel=""
-                        isUrl={false}
-                      />
-                    </div>
                   </div>
                 )}
 
@@ -838,11 +808,6 @@ export default function AdminPage() {
                       {s.payload.description}
                     </p>
                   )}
-
-                  <p className="text-xs text-c-faint mt-3">
-                    {t("submittedBy", { name: s.submitter_name || "—" })}
-                    {s.submitter_email ? ` (${s.submitter_email})` : ""}
-                  </p>
 
                   {/* Toggle details */}
                   <button
@@ -920,24 +885,6 @@ export default function AdminPage() {
                       <span className="font-medium">Slug:</span> {s.payload.slug}
                     </div>
 
-                    <div className="border-t border-c-border pt-3 mt-1 space-y-2">
-                      <p className="text-xs font-medium text-c-faint uppercase tracking-wide">{t("submitterInfo")}</p>
-                      <DetailRow
-                        label="Name"
-                        value={s.submitter_name || "—"}
-                        changed={false}
-                        changedLabel=""
-                        wasLabel=""
-                      />
-                      <DetailRow
-                        label="Contact"
-                        value={s.submitter_email || "—"}
-                        changed={false}
-                        changedLabel=""
-                        wasLabel=""
-                        isUrl={false}
-                      />
-                    </div>
                   </div>
                 )}
 
@@ -993,9 +940,6 @@ export default function AdminPage() {
                           <span className="text-xs text-c-faint">— {g.developer}</span>
                         )}
                       </div>
-                      <p className="text-xs text-c-faint mt-0.5">
-                        {[g.submitted_by, g.submitted_by_email].filter(Boolean).join(" · ") || "No submitter info"}
-                      </p>
                     </div>
                     <button
                       onClick={() => deleteGame(g.id, g.name)}
@@ -1036,9 +980,6 @@ export default function AdminPage() {
                           {s.type}
                         </span>
                       </div>
-                      <p className="text-xs text-c-faint mt-0.5">
-                        {s.submitted_by || "No submitter info"}
-                      </p>
                     </div>
                     <button
                       onClick={() => deleteStudio(s.id, s.name)}
