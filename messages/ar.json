@@ -6,6 +6,7 @@
   "common": {
     "backToDirectory": "العودة إلى الدليل →",
     "backToItem": "العودة إلى {name} →",
+    "submit": "إضافة",
     "submitGame": "أضف لعبة",
     "submitStudio": "أضف استوديو",
     "submitCommunity": "أضف مجتمع",
@@ -27,7 +28,7 @@
   "home": {
     "title": "دليل الألعاب العربية",
     "description": "ألعاب طوّرها مطوّرون من منطقة الشرق الأوسط وشمال أفريقيا.",
-    "searchPlaceholder": "ابحث بالاسم أو المطوّر أو النوع…",
+    "searchPlaceholder": "ابحث بالاسم أو الوصف…",
     "searchStudiosPlaceholder": "ابحث بالاسم أو الوصف…",
     "searchButton": "بحث",
     "clearSearch": "مسح",
@@ -38,6 +39,10 @@
     "filterInDev": "قيد التطوير",
     "filterAllCountries": "جميع الدول",
     "filterAllGenres": "جميع الأنواع",
+    "filterAllPlatforms": "جميع المنصات",
+    "filterAllStatuses": "جميع الحالات",
+    "filterAllTypes": "جميع الأصناف",
+    "filterAllTopics": "جميع المواضيع",
     "gameCountSingular": "لعبة واحدة",
     "gameCountPlural": "{count} لعبة",
     "noGames": "لا توجد ألعاب.",

@@ -6,6 +6,7 @@
   "common": {
     "backToDirectory": "← Back to directory",
     "backToItem": "← Back to {name}",
+    "submit": "Submit",
     "submitGame": "Submit a game",
     "submitStudio": "Submit a studio",
     "submitCommunity": "Submit a community",
@@ -27,7 +28,7 @@
   "home": {
     "title": "Arabic Games Directory",
     "description": "Games developed in the MENA region.",
-    "searchPlaceholder": "Search by name, developer, or genre…",
+    "searchPlaceholder": "Search by name or description…",
     "searchStudiosPlaceholder": "Search by name or description…",
     "searchButton": "Search",
     "clearSearch": "Clear",
@@ -38,6 +39,10 @@
     "filterInDev": "In Dev",
     "filterAllCountries": "All countries",
     "filterAllGenres": "All genres",
+    "filterAllPlatforms": "All platforms",
+    "filterAllStatuses": "All statuses",
+    "filterAllTypes": "All types",
+    "filterAllTopics": "All topics",
     "gameCountSingular": "{count} game",
     "gameCountPlural": "{count} games",
     "noGames": "No games found.",

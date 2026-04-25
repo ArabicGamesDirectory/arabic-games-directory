@@ -5,6 +5,7 @@ import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
 import SortSelect from "@/components/SortSelect";
 import FilterSelect from "@/components/FilterSelect";
+import SubmitMenu from "@/components/SubmitMenu";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { GENRE_VALUES, GENRE_I18N_KEYS } from "@/lib/genres";
 import { COMMUNITY_TOPIC_VALUES, COMMUNITY_TOPIC_I18N_KEYS } from "@/lib/communityTopics";
@@ -293,7 +294,7 @@ export default async function Home({
 
   if (q) {
     gamesQuery = gamesQuery.or(
-      `name.ilike.%${q}%,developer.ilike.%${q}%,genres.cs.{${q}}`
+      `name.ilike.%${q}%,short_description.ilike.%${q}%`
     );
   }
 
@@ -338,33 +339,6 @@ export default async function Home({
     return p.size > 0 ? `/?${p}` : "/";
   }
 
-  const filters = [
-    {
-      label: t("filterAll"),
-      href: buildGamesFilterHref({ platform: null, status: null }),
-      active: !sp.platform && !sp.status,
-    },
-    {
-      label: t("filterPC"),
-      href: buildGamesFilterHref({ platform: "PC" }),
-      active: sp.platform === "PC",
-    },
-    {
-      label: t("filterMobile"),
-      href: buildGamesFilterHref({ platform: "Mobile" }),
-      active: sp.platform === "Mobile",
-    },
-    {
-      label: t("filterReleased"),
-      href: buildGamesFilterHref({ status: "released" }),
-      active: sp.status === "released",
-    },
-    {
-      label: t("filterInDev"),
-      href: buildGamesFilterHref({ status: "in_dev" }),
-      active: sp.status === "in_dev",
-    },
-  ];
 
   // Clear-search resets q but keeps current filter + sort context for that tab
   const clearSearchHref = (() => {
@@ -480,37 +454,12 @@ export default async function Home({
     return `/?${p}`;
   }
 
-  const communityFilters = [
-    {
-      label: tCommunity("filterAll"),
-      href: buildCommunitiesFilterHref({ communityType: null }),
-      active: !communityType,
-    },
-    ...COMMUNITY_TYPES.map((type) => ({
-      label: COMMUNITY_TYPE_LABELS[type],
-      href: buildCommunitiesFilterHref({ communityType: type }),
-      active: communityType === type,
-    })),
-  ];
 
-  const STUDIO_TYPES = ["individual", "team", "studio"] as const;
   const STUDIO_TYPE_LABELS: Record<string, string> = {
     individual: tStudio("typeIndividual"),
     team: tStudio("typeTeam"),
     studio: tStudio("typeStudio"),
   };
-  const studioTypeFilters = [
-    {
-      label: tCommunity("filterAll"),
-      href: buildStudiosFilterHref({ studioType: null }),
-      active: !studiosType,
-    },
-    ...STUDIO_TYPES.map((type) => ({
-      label: STUDIO_TYPE_LABELS[type],
-      href: buildStudiosFilterHref({ studioType: type }),
-      active: studiosType === type,
-    })),
-  ];
 
   // Translated dropdown options
   const countryOptions = (COUNTRY_OPTIONS as readonly string[]).map((value) => ({
@@ -533,6 +482,30 @@ export default async function Home({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statusLabel = (s: string) => (tStatus(s as any) as string) ?? s;
 
+  // Dropdown option lists for pill→dropdown conversions
+  const platformOptions = [
+    { value: "PC", label: t("filterPC") },
+    { value: "Mobile", label: t("filterMobile") },
+  ];
+  const STATUS_VALUES = [
+    "announced", "in_dev", "prototype", "early_access", "released", "on_hold", "cancelled", "delisted",
+  ];
+  const statusOptions = STATUS_VALUES.map((s) => ({ value: s, label: statusLabel(s) }));
+  const studioTypeOptions = [
+    { value: "individual", label: tStudio("typeIndividual") },
+    { value: "team", label: tStudio("typeTeam") },
+    { value: "studio", label: tStudio("typeStudio") },
+  ];
+  const communityTypeOptions = (COMMUNITY_TYPES as readonly string[]).map((v) => ({
+    value: v,
+    label: COMMUNITY_TYPE_LABELS[v] ?? v,
+  }));
+  const communityTopicOptions = COMMUNITY_TOPIC_VALUES.map((v) => ({
+    value: v,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    label: (tCommunity(COMMUNITY_TOPIC_I18N_KEYS[v] as any) as string) ?? v,
+  }));
+
   // Active-filter chips per tab — { label, removeHref } each
   const gamesChips: { label: string; removeHref: string }[] = [];
   if (sp.platform) gamesChips.push({ label: sp.platform, removeHref: buildGamesFilterHref({ platform: null }) });
@@ -552,18 +525,6 @@ export default async function Home({
   }
   if (communitiesCountry) communitiesChips.push({ label: countryLabel(communitiesCountry), removeHref: buildCommunitiesFilterHref({ communityCountry: null }) });
 
-  const communityTopicFilters = [
-    {
-      label: tCommunity("filterAll"),
-      href: buildCommunitiesFilterHref({ communityTopic: null }),
-      active: !communitiesTopic,
-    },
-    ...COMMUNITY_TOPIC_VALUES.map((topic) => ({
-      label: tCommunity(COMMUNITY_TOPIC_I18N_KEYS[topic] as "topicGameDevelopment" | "topicGameProgramming" | "topicGameArt" | "topicGameDesign"),
-      href: buildCommunitiesFilterHref({ communityTopic: topic }),
-      active: communitiesTopic === topic,
-    })),
-  ];
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
@@ -575,25 +536,13 @@ export default async function Home({
             </h1>
             <p className="text-c-muted mt-1 text-sm">{t("description")}</p>
           </div>
-          <div className="flex gap-2 flex-wrap shrink-0">
-            <Link
-              href="/submit"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              {tCommon("submitGame")}
-            </Link>
-            <Link
-              href="/submit-studio"
-              className="bg-c-surface text-c-text border border-c-border px-4 py-2 rounded-lg text-sm font-medium hover:border-c-border-hover hover:bg-c-surface-hover transition-colors"
-            >
-              {tCommon("submitStudio")}
-            </Link>
-            <Link
-              href="/submit-community"
-              className="bg-c-surface text-c-text border border-c-border px-4 py-2 rounded-lg text-sm font-medium hover:border-c-border-hover hover:bg-c-surface-hover transition-colors"
-            >
-              {tCommon("submitCommunity")}
-            </Link>
+          <div className="shrink-0">
+            <SubmitMenu
+              buttonLabel={tCommon("submit")}
+              gameLabel={tCommon("submitGame")}
+              studioLabel={tCommon("submitStudio")}
+              communityLabel={tCommon("submitCommunity")}
+            />
           </div>
         </div>
       </header>
@@ -670,25 +619,15 @@ export default async function Home({
             </div>
           </form>
 
-          {/* Studios type pills */}
+          {/* Filter dropdowns */}
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            {studioTypeFilters.map((f) => (
-              <Link
-                key={f.label}
-                href={f.href}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  f.active
-                    ? "bg-c-text text-c-bg"
-                    : "bg-c-surface text-c-soft border border-c-border hover:border-c-border-hover hover:bg-c-surface-hover"
-                }`}
-              >
-                {f.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Country dropdown */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <FilterSelect
+              paramName="studioType"
+              pageParamName="studiosPage"
+              current={studiosType ?? ""}
+              defaultLabel={t("filterAllTypes")}
+              options={studioTypeOptions}
+            />
             <FilterSelect
               paramName="studioCountry"
               pageParamName="studiosPage"
@@ -863,42 +802,22 @@ export default async function Home({
             </div>
           </form>
 
-          {/* Type filter pills */}
+          {/* Filter dropdowns */}
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            {communityFilters.map((f) => (
-              <Link
-                key={f.label}
-                href={f.href}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  f.active
-                    ? "bg-c-text text-c-bg"
-                    : "bg-c-surface text-c-soft border border-c-border hover:border-c-border-hover hover:bg-c-surface-hover"
-                }`}
-              >
-                {f.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Topic filter pills */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            {communityTopicFilters.map((f) => (
-              <Link
-                key={f.label}
-                href={f.href}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  f.active
-                    ? "bg-c-text text-c-bg"
-                    : "bg-c-surface text-c-soft border border-c-border hover:border-c-border-hover hover:bg-c-surface-hover"
-                }`}
-              >
-                {f.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Country dropdown */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <FilterSelect
+              paramName="communityType"
+              pageParamName="communitiesPage"
+              current={communityType ?? ""}
+              defaultLabel={t("filterAllTypes")}
+              options={communityTypeOptions}
+            />
+            <FilterSelect
+              paramName="communityTopic"
+              pageParamName="communitiesPage"
+              current={communitiesTopic ?? ""}
+              defaultLabel={t("filterAllTopics")}
+              options={communityTopicOptions}
+            />
             <FilterSelect
               paramName="communityCountry"
               pageParamName="communitiesPage"
@@ -1067,25 +986,22 @@ export default async function Home({
         </div>
       </form>
 
-      {/* Filters */}
+      {/* Filter dropdowns */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
-        {filters.map((f) => (
-          <Link
-            key={f.label}
-            href={f.href}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              f.active
-                ? "bg-c-text text-c-bg"
-                : "bg-c-surface text-c-soft border border-c-border hover:border-c-border-hover hover:bg-c-surface-hover"
-            }`}
-          >
-            {f.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Dropdown filters */}
-      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <FilterSelect
+          paramName="platform"
+          pageParamName="page"
+          current={sp.platform ?? ""}
+          defaultLabel={t("filterAllPlatforms")}
+          options={platformOptions}
+        />
+        <FilterSelect
+          paramName="status"
+          pageParamName="page"
+          current={sp.status ?? ""}
+          defaultLabel={t("filterAllStatuses")}
+          options={statusOptions}
+        />
         <FilterSelect
           paramName="country"
           pageParamName="page"
