@@ -532,7 +532,9 @@ export default async function Home({
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-c-text">
-              {t("title")}
+              <Link href="/" className="hover:text-indigo-500 transition-colors">
+                {t("title")}
+              </Link>
             </h1>
             <p className="text-c-muted mt-1 text-sm">{t("description")}</p>
           </div>

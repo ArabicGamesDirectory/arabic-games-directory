@@ -83,7 +83,8 @@ arabic-games-directory/
 │   │   ├── TitleCover.tsx      # Fallback "cover art" — gradient tile with the title rendered as bold white text; gradient picked deterministically by hashing a seed (slug); used wherever a thumbnail is missing on game/studio cards
 │   │   ├── SortSelect.tsx      # "use client" — styled <select> for homepage sort; on change pushes a new URL preserving other params and resetting the matching page param
 │   │   ├── FilterSelect.tsx    # "use client" — generic <select> for filter dropdowns (country, genre, platform, status, type, topic, etc.); takes paramName + options + a "default" placeholder for the empty/All option; navigates on change, optionally resetting the matching pageParam
-│   │   └── SubmitMenu.tsx      # "use client" — single "Submit ▾" dropdown menu in the homepage header that links to /submit, /submit-studio, /submit-community; close on outside click + Escape
+│   │   ├── SubmitMenu.tsx      # "use client" — single "Submit ▾" dropdown menu in the homepage header that links to /submit, /submit-studio, /submit-community; close on outside click + Escape
+│   │   └── Disclaimer.tsx      # Server component — site-wide footer with the curation/volunteer disclaimer (i18n-driven via the `footer` namespace); rendered from `[locale]/layout.tsx` so it appears on every page
 │   ├── i18n/
 │   │   ├── routing.ts          # Defines locales: ['en', 'ar'], defaultLocale: 'en'
 │   │   ├── request.ts          # next-intl server config — loads messages per locale
