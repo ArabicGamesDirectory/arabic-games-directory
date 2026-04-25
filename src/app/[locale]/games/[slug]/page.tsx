@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
+import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 
 type Game = {
   id: string;
@@ -149,7 +150,7 @@ export default async function GameDetails({
               {p}
             </span>
           ))}
-          {game.release_date && (
+          {game.release_date && statusAllowsReleaseDate(game.status) && (
             <span className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
               {game.release_date}
             </span>

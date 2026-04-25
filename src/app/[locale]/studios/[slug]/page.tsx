@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
+import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 
 type Studio = {
   id: string;
@@ -213,7 +214,7 @@ export default async function StudioPage({
                     <p className="text-xs text-c-muted mt-1">
                       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                       {g.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")} · {g.platforms.join(", ")}
-                      {g.release_date ? ` · ${g.release_date}` : ""}
+                      {g.release_date && statusAllowsReleaseDate(g.status) ? ` · ${g.release_date}` : ""}
                     </p>
 
                     {(() => {

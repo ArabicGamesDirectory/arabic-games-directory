@@ -4,11 +4,14 @@ import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
 import SortSelect from "@/components/SortSelect";
+import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 
 const GAMES_SORT_VALUES = ["updated_desc", "updated_asc", "released_desc", "released_asc"] as const;
 type GamesSort = (typeof GAMES_SORT_VALUES)[number];
+const GAMES_DEFAULT_SORT: GamesSort = "released_desc";
 const STUDIOS_SORT_VALUES = ["updated_desc", "updated_asc"] as const;
 type StudiosSort = (typeof STUDIOS_SORT_VALUES)[number];
+const STUDIOS_DEFAULT_SORT: StudiosSort = "updated_desc";
 
 const PAGE_SIZE = 10;
 
@@ -91,10 +94,10 @@ export default async function Home({
 
   const gamesSort: GamesSort = (GAMES_SORT_VALUES as readonly string[]).includes(sp.sort ?? "")
     ? (sp.sort as GamesSort)
-    : "updated_desc";
+    : GAMES_DEFAULT_SORT;
   const studiosSort: StudiosSort = (STUDIOS_SORT_VALUES as readonly string[]).includes(sp.studiosSort ?? "")
     ? (sp.studiosSort as StudiosSort)
-    : "updated_desc";
+    : STUDIOS_DEFAULT_SORT;
 
   // Build tab URLs that preserve current filter/search state
   const gameParams = new URLSearchParams();
@@ -148,18 +151,18 @@ export default async function Home({
     );
 
   switch (gamesSort) {
+    case "updated_desc":
+      gamesQuery = gamesQuery.order("updated_at", { ascending: false });
+      break;
     case "updated_asc":
       gamesQuery = gamesQuery.order("updated_at", { ascending: true });
-      break;
-    case "released_desc":
-      gamesQuery = gamesQuery.order("release_date", { ascending: false, nullsFirst: false });
       break;
     case "released_asc":
       gamesQuery = gamesQuery.order("release_date", { ascending: true, nullsFirst: false });
       break;
-    case "updated_desc":
+    case "released_desc":
     default:
-      gamesQuery = gamesQuery.order("updated_at", { ascending: false });
+      gamesQuery = gamesQuery.order("release_date", { ascending: false, nullsFirst: false });
       break;
   }
 
@@ -196,7 +199,7 @@ export default async function Home({
   function buildGamesFilterHref(extra: Record<string, string>) {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
-    if (gamesSort !== "updated_desc") p.set("sort", gamesSort);
+    if (gamesSort !== GAMES_DEFAULT_SORT) p.set("sort", gamesSort);
     for (const [k, v] of Object.entries(extra)) p.set(k, v);
     return p.size > 0 ? `/?${p}` : "/";
   }
@@ -233,13 +236,13 @@ export default async function Home({
   const clearSearchHref = (() => {
     if (tab === "studios") {
       const p = new URLSearchParams({ tab: "studios" });
-      if (studiosSort !== "updated_desc") p.set("studiosSort", studiosSort);
+      if (studiosSort !== STUDIOS_DEFAULT_SORT) p.set("studiosSort", studiosSort);
       return `/?${p}`;
     }
     const p = new URLSearchParams();
     if (sp.platform) p.set("platform", sp.platform);
     if (sp.status) p.set("status", sp.status);
-    if (gamesSort !== "updated_desc") p.set("sort", gamesSort);
+    if (gamesSort !== GAMES_DEFAULT_SORT) p.set("sort", gamesSort);
     return p.size > 0 ? `/?${p}` : "/";
   })();
 
@@ -265,7 +268,7 @@ export default async function Home({
     if (sp.platform) p.set("platform", sp.platform);
     if (sp.status) p.set("status", sp.status);
     if (q) p.set("q", q);
-    if (gamesSort !== "updated_desc") p.set("sort", gamesSort);
+    if (gamesSort !== GAMES_DEFAULT_SORT) p.set("sort", gamesSort);
     if (page > 1) p.set("page", String(page));
     return p.size > 0 ? `/?${p}` : "/";
   }
@@ -273,7 +276,7 @@ export default async function Home({
   function studiosPaginationHref(page: number) {
     const p = new URLSearchParams({ tab: "studios" });
     if (q) p.set("q", q);
-    if (studiosSort !== "updated_desc") p.set("studiosSort", studiosSort);
+    if (studiosSort !== STUDIOS_DEFAULT_SORT) p.set("studiosSort", studiosSort);
     if (page > 1) p.set("studiosPage", String(page));
     return `/?${p}`;
   }
@@ -331,7 +334,7 @@ export default async function Home({
           {/* Studios search */}
           <form method="get" action="" className="relative mb-4">
             <input type="hidden" name="tab" value="studios" />
-            {studiosSort !== "updated_desc" && (
+            {studiosSort !== STUDIOS_DEFAULT_SORT && (
               <input type="hidden" name="studiosSort" value={studiosSort} />
             )}
             <input
@@ -487,7 +490,7 @@ export default async function Home({
           <input type="hidden" name="platform" value={sp.platform} />
         )}
         {sp.status && <input type="hidden" name="status" value={sp.status} />}
-        {gamesSort !== "updated_desc" && (
+        {gamesSort !== GAMES_DEFAULT_SORT && (
           <input type="hidden" name="sort" value={gamesSort} />
         )}
         <input
@@ -628,7 +631,7 @@ export default async function Home({
                   <p className="text-xs text-c-muted mt-1">
                     {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     {g.country.map((c) => tCountries(COUNTRY_KEY_MAP[c] as any) ?? c).join(", ")} · {g.platforms.join(", ")}
-                    {g.release_date ? ` · ${g.release_date}` : ""}
+                    {g.release_date && statusAllowsReleaseDate(g.status) ? ` · ${g.release_date}` : ""}
                   </p>
 
                   {(() => {

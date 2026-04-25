@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
 import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
+import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 
 export type GameData = {
   id: string;
@@ -115,6 +116,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     () => initialData?.genres?.find((g) => g !== "Other" && !GENRE_BASE_VALUES.includes(g)) ?? ""
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState(initialData?.status ?? "announced");
+  const [releaseDate, setReleaseDate] = useState(initialData?.release_date ?? "");
+  const showReleaseDate = statusAllowsReleaseDate(status);
+  useEffect(() => {
+    if (!showReleaseDate && releaseDate) setReleaseDate("");
+  }, [showReleaseDate, releaseDate]);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initialData?.thumbnail_url ?? null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(initialData?.thumbnail_url ?? null);
   const [thumbnailStatus, setThumbnailStatus] = useState<"idle" | "uploading" | "done" | "error">(
@@ -370,6 +377,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     setGenreOtherChecked(false);
     setGenreOtherText("");
     setStoreLinksOpen(false);
+    setStatus("announced");
+    setReleaseDate("");
     setThumbnailUrl(null);
     setThumbnailPreview(null);
     setThumbnailStatus("idle");
@@ -581,12 +590,13 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             </div>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={showReleaseDate ? "grid grid-cols-2 gap-4" : ""}>
             <Field label={t("fieldStatus")}>
               <select
                 id="status"
                 name="status"
-                defaultValue={initialData?.status ?? "announced"}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
                 className={inputCls()}
               >
                 <option value="announced">{t("statusAnnounced")}</option>
@@ -600,15 +610,18 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               </select>
             </Field>
 
-            <Field label={t("fieldReleaseDate")}>
-              <input
-                id="release_date"
-                name="release_date"
-                type="date"
-                defaultValue={isUpdate ? (initialData?.release_date ?? "") : ""}
-                className={inputCls()}
-              />
-            </Field>
+            {showReleaseDate && (
+              <Field label={t("fieldReleaseDate")}>
+                <input
+                  id="release_date"
+                  name="release_date"
+                  type="date"
+                  value={releaseDate}
+                  onChange={(e) => setReleaseDate(e.target.value)}
+                  className={inputCls()}
+                />
+              </Field>
+            )}
           </div>
 
           <Field label={t("fieldWebsiteUrl")} error={errors.website_url}>

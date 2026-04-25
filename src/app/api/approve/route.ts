@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { promoteThumbnail } from "@/lib/promoteThumbnail";
+import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -52,7 +53,9 @@ export async function POST(request: Request) {
     monetization: submission.payload.monetization ?? [],
     short_description: submission.payload.short_description,
     status: submission.payload.status,
-    release_date: submission.payload.release_date,
+    release_date: statusAllowsReleaseDate(submission.payload.status)
+      ? submission.payload.release_date
+      : null,
     website_url: submission.payload.website_url,
     store_links: submission.payload.store_links,
     publishing_type: submission.payload.publishing_type ?? null,
