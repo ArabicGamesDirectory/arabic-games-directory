@@ -78,6 +78,34 @@ type Studio = {
   website_url: string | null;
 };
 
+type CommunitySubmission = {
+  id: string;
+  community_id: string | null;
+  moderation_status: string;
+  payload: {
+    name: string;
+    slug: string;
+    type: string;
+    description: string | null;
+    country: string[] | string;
+    website_url: string | null;
+    social_links: Record<string, string | null> | null;
+    topics: string[] | null;
+  };
+};
+
+type Community = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  description: string | null;
+  country: string[];
+  website_url: string | null;
+  social_links: Record<string, string | null> | null;
+  topics: string[] | null;
+};
+
 type ApprovedGame = {
   id: string;
   slug: string;
@@ -86,6 +114,13 @@ type ApprovedGame = {
 };
 
 type ApprovedStudio = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+};
+
+type ApprovedCommunity = {
   id: string;
   slug: string;
   name: string;
@@ -142,9 +177,12 @@ export default function AdminPage() {
   const [originalGames, setOriginalGames] = useState<Record<string, Game>>({});
   const [studioSubmissions, setStudioSubmissions] = useState<StudioSubmission[]>([]);
   const [originalStudios, setOriginalStudios] = useState<Record<string, Studio>>({});
+  const [communitySubmissions, setCommunitySubmissions] = useState<CommunitySubmission[]>([]);
+  const [originalCommunities, setOriginalCommunities] = useState<Record<string, Community>>({});
   const [approvedGames, setApprovedGames] = useState<ApprovedGame[]>([]);
   const [approvedStudios, setApprovedStudios] = useState<ApprovedStudio[]>([]);
-  const [activeTab, setActiveTab] = useState<"games" | "studios" | "published">("games");
+  const [approvedCommunities, setApprovedCommunities] = useState<ApprovedCommunity[]>([]);
+  const [activeTab, setActiveTab] = useState<"games" | "studios" | "communities" | "published">("games");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
@@ -236,7 +274,37 @@ export default function AdminPage() {
       }
     }
 
-    // Fetch all approved games and studios for the Published tab
+    // Fetch pending community submissions
+    const { data: communityData } = await supabase
+      .from("community_submissions")
+      .select("*")
+      .eq("moderation_status", "pending")
+      .order("created_at", { ascending: true });
+
+    const communitySubs = (communityData as CommunitySubmission[]) ?? [];
+    setCommunitySubmissions(communitySubs);
+
+    // Batch-fetch original communities for update submissions
+    const communityIds = communitySubs
+      .map((s) => s.community_id)
+      .filter((id): id is string => !!id);
+
+    if (communityIds.length > 0) {
+      const { data: communities } = await supabase
+        .from("communities")
+        .select("*")
+        .in("id", communityIds);
+
+      if (communities) {
+        const map: Record<string, Community> = {};
+        for (const c of communities as Community[]) {
+          map[c.id] = c;
+        }
+        setOriginalCommunities(map);
+      }
+    }
+
+    // Fetch all approved games, studios, and communities for the Published tab
     const { data: approved } = await supabase
       .from("games")
       .select("id, slug, name, developer")
@@ -248,6 +316,12 @@ export default function AdminPage() {
       .select("id, slug, name, type")
       .order("created_at", { ascending: false });
     setApprovedStudios((approvedStudiosData as ApprovedStudio[]) ?? []);
+
+    const { data: approvedCommunitiesData } = await supabase
+      .from("communities")
+      .select("id, slug, name, type")
+      .order("created_at", { ascending: false });
+    setApprovedCommunities((approvedCommunitiesData as ApprovedCommunity[]) ?? []);
   }
 
   useEffect(() => {
@@ -274,8 +348,11 @@ export default function AdminPage() {
     setOriginalGames({});
     setStudioSubmissions([]);
     setOriginalStudios({});
+    setCommunitySubmissions([]);
+    setOriginalCommunities({});
     setApprovedGames([]);
     setApprovedStudios([]);
+    setApprovedCommunities([]);
     setMessage(null);
   }
 
@@ -386,6 +463,61 @@ export default function AdminPage() {
       return;
     }
     setApprovedStudios((prev) => prev.filter((s) => s.id !== id));
+    setMessage({ text: `"${name}" deleted.`, ok: true });
+  }
+
+  async function approveCommunity(submission: CommunitySubmission) {
+    setMessage(null);
+    setActionId(submission.id);
+    const res = await fetch("/api/approve-community", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ submission }),
+    });
+    const data = await res.json();
+    setActionId(null);
+    if (!res.ok) {
+      setMessage({ text: t("approveFailed", { error: data.error }), ok: false });
+      return;
+    }
+    setCommunitySubmissions((prev) => prev.filter((s) => s.id !== submission.id));
+    setMessage({ text: t("approvedCommunity", { name: submission.payload.name }), ok: true });
+  }
+
+  async function rejectCommunity(id: string) {
+    setMessage(null);
+    setActionId(id);
+    const res = await fetch("/api/reject-community", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    setActionId(null);
+    if (!res.ok) {
+      setMessage({ text: t("rejectFailed", { error: data.error }), ok: false });
+      return;
+    }
+    setCommunitySubmissions((prev) => prev.filter((s) => s.id !== id));
+    setMessage({ text: t("rejected"), ok: true });
+  }
+
+  async function deleteCommunity(id: string, name: string) {
+    if (!confirm(`Delete community "${name}" permanently? This cannot be undone.`)) return;
+    setMessage(null);
+    setDeletingId(id);
+    const res = await fetch("/api/delete-community", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    setDeletingId(null);
+    if (!res.ok) {
+      setMessage({ text: `Delete failed: ${data.error}`, ok: false });
+      return;
+    }
+    setApprovedCommunities((prev) => prev.filter((c) => c.id !== id));
     setMessage({ text: `"${name}" deleted.`, ok: true });
   }
 
@@ -505,6 +637,16 @@ export default function AdminPage() {
           }`}
         >
           {t("tabStudios")}{studioSubmissions.length > 0 ? ` (${studioSubmissions.length})` : ""}
+        </button>
+        <button
+          onClick={() => setActiveTab("communities")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "communities"
+              ? "bg-c-bg text-c-text shadow-sm"
+              : "text-c-muted hover:text-c-text"
+          }`}
+        >
+          {t("tabCommunities")}{communitySubmissions.length > 0 ? ` (${communitySubmissions.length})` : ""}
         </button>
         <button
           onClick={() => setActiveTab("published")}
@@ -910,7 +1052,168 @@ export default function AdminPage() {
         </div>
       ))}
 
-      {/* Published tab — Games + Studios */}
+      {/* Communities tab */}
+      {activeTab === "communities" && (communitySubmissions.length === 0 ? (
+        <div className="text-center py-16 text-c-muted">
+          <p>{t("noPendingCommunities")}</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {communitySubmissions.map((s) => {
+            const original = s.community_id ? originalCommunities[s.community_id] : null;
+            const isExpanded = expandedId === s.id;
+            const countries = [s.payload.country].flat();
+
+            return (
+              <article
+                key={s.id}
+                className="bg-c-surface border border-c-border rounded-xl overflow-hidden"
+              >
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
+                        {s.community_id && (
+                          <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
+                            {t("updateBadge")}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-c-faint mt-0.5">
+                        {t("communityType")}: {s.payload.type}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-c-muted">
+                    {countries.join(", ")}
+                  </p>
+
+                  {s.payload.description && (
+                    <p className="text-sm text-c-soft mt-3 leading-relaxed" dir="auto">
+                      {s.payload.description}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                    className="mt-3 text-xs text-indigo-500 hover:text-indigo-600 transition-colors"
+                  >
+                    {isExpanded ? t("hideDetails") : t("viewDetails")} {isExpanded ? "↑" : "↓"}
+                  </button>
+                </div>
+
+                {isExpanded && (
+                  <div className="border-t border-c-border px-5 py-4 space-y-4">
+                    {s.community_id && original && (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/communities/${original.slug}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-indigo-500 hover:underline"
+                        >
+                          {t("viewCurrentCommunity")}
+                        </a>
+                      </div>
+                    )}
+
+                    <DetailRow
+                      label="Name"
+                      value={s.payload.name}
+                      oldValue={original?.name}
+                      changed={!!original && fieldChanged(s.payload.name, original.name)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Type"
+                      value={s.payload.type}
+                      oldValue={original?.type}
+                      changed={!!original && fieldChanged(s.payload.type, original.type)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Country"
+                      value={arrayToDisplay(s.payload.country)}
+                      oldValue={original ? arrayToDisplay(original.country) : undefined}
+                      changed={!!original && fieldChanged(s.payload.country, original.country)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Description"
+                      value={s.payload.description || "—"}
+                      oldValue={original?.description}
+                      changed={!!original && fieldChanged(s.payload.description, original.description)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      multiline
+                    />
+
+                    <DetailRow
+                      label="Topics"
+                      value={arrayToDisplay(s.payload.topics)}
+                      oldValue={original ? arrayToDisplay(original.topics) : undefined}
+                      changed={!!original && fieldChanged(s.payload.topics, original.topics)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                    />
+
+                    <DetailRow
+                      label="Website URL"
+                      value={s.payload.website_url || "—"}
+                      oldValue={original?.website_url}
+                      changed={!!original && fieldChanged(s.payload.website_url, original.website_url)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      isUrl={!!s.payload.website_url}
+                    />
+
+                    <DetailRow
+                      label="Social links"
+                      value={storeLinksToDisplay(s.payload.social_links)}
+                      oldValue={original ? storeLinksToDisplay(original.social_links) : undefined}
+                      changed={!!original && storeLinksChanged(s.payload.social_links, original.social_links)}
+                      changedLabel={t("changed")}
+                      wasLabel={t("was")}
+                      multiline
+                    />
+
+                    <div className="text-xs text-c-faint pt-1">
+                      <span className="font-medium">Slug:</span> {s.payload.slug}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 px-5 py-4 border-t border-c-border">
+                  <button
+                    onClick={() => approveCommunity(s)}
+                    disabled={actionId === s.id}
+                    className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {actionId === s.id ? t("working") : t("approve")}
+                  </button>
+                  <button
+                    onClick={() => rejectCommunity(s.id)}
+                    disabled={actionId === s.id}
+                    className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                  >
+                    {actionId === s.id ? t("working") : t("reject")}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ))}
+
+      {/* Published tab — Games + Studios + Communities */}
       {activeTab === "published" && (
         <div className="space-y-8">
 
@@ -987,6 +1290,46 @@ export default function AdminPage() {
                       className="shrink-0 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-500/30 rounded-lg hover:bg-red-500/10 disabled:opacity-50 transition-colors"
                     >
                       {deletingId === s.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Communities section */}
+          <div>
+            <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider mb-3">
+              Communities ({approvedCommunities.length})
+            </h2>
+            {approvedCommunities.length === 0 ? (
+              <p className="text-sm text-c-muted py-4">No published communities yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {approvedCommunities.map((c) => (
+                  <div
+                    key={c.id}
+                    className="bg-c-surface border border-c-border rounded-xl px-5 py-4 flex items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                          href={`/communities/${c.slug}`}
+                          className="font-medium text-c-text hover:text-indigo-500 transition-colors text-sm"
+                        >
+                          {c.name}
+                        </Link>
+                        <span className="text-xs bg-c-bg border border-c-border text-c-faint px-2 py-0.5 rounded-full">
+                          {c.type}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteCommunity(c.id, c.name)}
+                      disabled={deletingId === c.id}
+                      className="shrink-0 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-500/30 rounded-lg hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                    >
+                      {deletingId === c.id ? "Deleting…" : "Delete"}
                     </button>
                   </div>
                 ))}

@@ -39,6 +39,14 @@ arabic-games-directory/
 │   │   │   ├── games/
 │   │   │   │   └── [slug]/
 │   │   │   │       └── page.tsx  # Game detail page — includes "Suggest an update" link
+│   │   │   ├── communities/
+│   │   │   │   └── [slug]/
+│   │   │   │       └── page.tsx  # Community detail page — name/type/country/topics/social links
+│   │   │   ├── submit-community/
+│   │   │   │   └── page.tsx    # Thin wrapper that renders <CommunitySubmitForm />
+│   │   │   ├── update-community/
+│   │   │   │   └── [slug]/
+│   │   │   │       └── page.tsx  # Fetches existing community, renders <CommunitySubmitForm initialData={community} />
 │   │   │   └── stats/
 │   │   │       └── page.tsx    # Statistics (by country, platform, genre, status)
 │   │   └── api/
@@ -50,10 +58,16 @@ arabic-games-directory/
 │   │       │   └── route.ts    # POST — approve studio submission
 │   │       ├── reject-studio/
 │   │       │   └── route.ts    # POST — reject studio submission
+│   │       ├── approve-community/
+│   │       │   └── route.ts    # POST — approve community submission
+│   │       ├── reject-community/
+│   │       │   └── route.ts    # POST — reject community submission
 │   │       ├── delete-game/
 │   │       │   └── route.ts    # POST — hard-delete an approved game by id (admin only)
 │   │       ├── delete-studio/
 │   │       │   └── route.ts    # POST — hard-delete an approved studio by id (admin only)
+│   │       ├── delete-community/
+│   │       │   └── route.ts    # POST — hard-delete an approved community by id (admin only)
 │   │       ├── upload-thumbnail/
 │   │       │   └── route.ts    # POST — validates magic bytes, converts to 460×215 WebP via sharp, uploads to thumbnails/temp/, returns public URL
 │   │       └── cron/
@@ -64,6 +78,7 @@ arabic-games-directory/
 │   │   ├── LanguageSwitcher.tsx  # Floating EN↔AR switcher (fixed bottom start-4)
 │   │   ├── SubmitForm.tsx      # Shared form for new game submissions and update suggestions (accepts initialData); developer field has datalist autocomplete from approved studios; includes optional thumbnail upload field
 │   │   ├── StudioSubmitForm.tsx  # Form for submitting a new studio/team/individual; includes optional thumbnail upload field
+│   │   ├── CommunitySubmitForm.tsx  # Form for submitting a new community (online/in_person/hybrid); fields: name, type, description, country (multi), topics (Game Dev/Programming/Art/Design + Other), social links (jsonb mirror of games.store_links), thumbnail; reused for updates via initialData
 │   │   ├── StatsCharts.tsx     # "use client" Recharts charts for the stats page; exports StatsCharts + ChartEntry type
 │   │   ├── TitleCover.tsx      # Fallback "cover art" — gradient tile with the title rendered as bold white text; gradient picked deterministically by hashing a seed (slug); used wherever a thumbnail is missing on game/studio cards
 │   │   └── SortSelect.tsx      # "use client" — styled <select> for homepage sort; on change pushes a new URL preserving other params and resetting the matching page param
@@ -155,6 +170,32 @@ Vercel has the same variables set in project settings.
 | created_at | timestamptz | |
 | reviewed_at | timestamptz | set on approve or reject |
 
+### `communities` table — approved, public
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK, gen_random_uuid() |
+| slug | text | unique, not null |
+| name | text | not null |
+| type | text | online / in_person / hybrid |
+| description | text | nullable |
+| country | text[] | not null — array of country names |
+| website_url | text | nullable |
+| social_links | jsonb | keys: Discord, Telegram, WhatsApp, Reddit, Facebook, "X (Twitter)", YouTube, Twitch, Instagram, Others (all url\|null) |
+| topics | text[] | nullable — Game Development / Game Programming / Game Art / Game Design + free-text "Other" |
+| thumbnail_url | text | nullable — public URL of the 460×215 WebP stored in Supabase Storage bucket "thumbnails" |
+| created_at | timestamptz | default now() |
+| updated_at | timestamptz | auto-updated via trigger |
+
+### `community_submissions` table — pending moderation queue, private
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| payload | jsonb | full community data (mirrors communities columns) |
+| moderation_status | text | pending / approved / rejected |
+| community_id | uuid | nullable — if set, this is an update to an existing community (references communities.id) |
+| created_at | timestamptz | |
+| reviewed_at | timestamptz | set on approve or reject |
+
 ### `submissions` table — pending moderation queue, private
 | Column | Type | Notes |
 |---|---|---|
@@ -171,6 +212,8 @@ Vercel has the same variables set in project settings.
 - `submissions`: anon + authenticated can INSERT. Authenticated can SELECT and UPDATE.
 - `studios`: anon + authenticated can SELECT. Authenticated can INSERT.
 - `studio_submissions`: anon + authenticated can INSERT. Authenticated can SELECT and UPDATE.
+- `communities`: anon + authenticated can SELECT. Authenticated can INSERT.
+- `community_submissions`: anon + authenticated can INSERT. Authenticated can SELECT and UPDATE.
 
 ### Supabase Storage
 - **Bucket:** `thumbnails` — public read, no RLS policies needed. All uploads go through `/api/upload-thumbnail` which uses `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). The bucket is public so stored URLs are directly accessible without auth.
@@ -213,6 +256,7 @@ Vercel has the same variables set in project settings.
 25. ~~Homepage sort options for games and studios~~ ✓ Done (new `<SortSelect>` client component on each tab; games support 4 sorts — recently updated newest/oldest, release date newest/oldest; studios support 2 sorts — recently updated newest/oldest; default is "Recently updated, newest first" for both; URL params `sort` and `studiosSort` are independent per tab; sort preserved across filter pills/search/clear-search/pagination within a tab; resets pagination on change; no DB schema changes needed)
 26. ~~Status-gated release date~~ ✓ Done (release_date only valid for statuses `prototype`, `early_access`, `released`, `delisted`; new `src/lib/gameStatus.ts` exports the set + `statusAllowsReleaseDate()` helper; `SubmitForm.tsx` hides the field when status is not in the allowed set, with controlled state that clears the value on transition; `/api/approve` coerces release_date to null when status disallows it; display gated on every render site; manual SQL backfill required for existing rows — see Key conventions section)
 27. ~~Homepage CTA — Submit a studio button~~ ✓ Done (homepage header now renders both `Submit a game` (primary indigo, links to `/submit`) and `Submit a studio` (secondary outline, links to `/submit-studio`) side by side in a `flex gap-2 flex-wrap shrink-0` wrapper; `tCommon("submitStudio")` i18n key already existed)
+28. ~~Communities directory~~ ✓ Done (full feature mirroring studios: new `communities` + `community_submissions` tables, `<CommunitySubmitForm>` component, `/submit-community` + `/communities/[slug]` + `/update-community/[slug]` pages, three new API routes (`approve-community`, `reject-community`, `delete-community`), Communities tab on homepage with Online/In Person/Hybrid type filter and updated/oldest sort, Communities pending queue + Published section in admin, third "Submit a community" button in homepage header, `community.*` i18n namespace in en/ar; topics are 4 base values + Other with free-text fallback, social links jsonb keyed by platform mirrors games' store_links; no relationship to games or studios; manual SQL migration required — see schema section)
 
 ---
 
@@ -227,6 +271,7 @@ Vercel has the same variables set in project settings.
 - **Slugs** are generated from the game name via `slugify()` in `src/lib/slug.ts` at submission time. Falls back to `game-{timestamp}` for Arabic-only names (which would otherwise produce an empty slug). They live in `payload.slug` and are copied to `games.slug` on approve.
 - **Store links** are stored as `{ Steam, "Google Play", "App Store", PlayStation, Xbox, Nintendo, Itch, Others }` (all `url|null`) in both submissions payload and the games table. Rendered dynamically via `Object.entries` so adding new keys only requires updating the submit form.
 - **Update submissions:** Game detail page has a "Suggest an update" link → `/update/[slug]` → server fetches game → renders `<SubmitForm initialData={game} />`. On submit, the slug is preserved (not regenerated) and `game_id` is stored in the submissions row. On admin approve, if `game_id` is set the existing `games` row is `UPDATE`d (not `INSERT`ed), preserving the slug and all URL references.
+- **Communities:** Stored in the `communities` table (approved, public). Modeled closely on studios. Fields: `name, slug, type, description, country[], website_url, social_links jsonb, topics[], thumbnail_url`. **Type values:** `online`, `in_person`, `hybrid` — defined in `COMMUNITY_TYPES` in `page.tsx` and the `community.typeOnline/typeInPerson/typeHybrid` i18n keys; storage uses snake_case lowercase. **Topics:** `Game Development`, `Game Programming`, `Game Art`, `Game Design` (defined in `TOPIC_BASE_VALUES` in `CommunitySubmitForm.tsx`) plus a free-text "Other" toggle (same pattern as game genres) that appends a custom topic on submit. **Social links:** stored in `social_links` jsonb with keys `Discord, Telegram, WhatsApp, Reddit, Facebook, "X (Twitter)", YouTube, Twitch, Instagram, Others` — all `url|null`. Mirrors games' `store_links` pattern; admin diff uses the same `storeLinksToDisplay` / `storeLinksChanged` helpers. Field names in the form are derived via `socialLinkFieldName(key)` which kebab-snake-cases the platform name (e.g. `"X (Twitter)"` → `"social_x_twitter"`). **Routing:** `/submit-community`, `/communities/[slug]`, `/update-community/[slug]`. **Homepage tab:** filters by type (Online/In Person/Hybrid pills), search by name/description, sort by recently updated newest/oldest. URL params `?tab=communities`, `?communitiesPage=N`, `?communitiesSort=`, `?communityType=`. Communities are fetched only when the tab is active (no equivalent of the studios cross-fetch needed for game-card linking). **Admin:** pending tab + Published section, mirroring studios. **No relationship** to games or studios — communities are a standalone entity (no FK linking).
 - **Studios:** Stored in the `studios` table (approved, public). Fields: name, slug, type (individual/team/studio), description, country[], website_url. The homepage has a Games/Studios tab switcher (`?tab=studios`); the Studios tab lists all approved studios linking to `/studios/[slug]`. The studio detail page shows all info and has a "Suggest an update" link → `/update-studio/[slug]` → pre-filled `StudioSubmitForm`. Update submissions store `studio_id`; `/api/approve-studio` does UPDATE when set, INSERT otherwise. The `developer` field in the game submit form fetches approved studio names and surfaces them via custom dropdown autocomplete. When a game is submitted with a developer name that doesn't match any approved studio, a `studio_submissions` entry is auto-inserted (fire-and-forget) with `type: "unspecified"` so the admin can assign the correct type on review. `games.studio_id` is a nullable FK to `studios.id` (set at approve time) — developer names on game cards and game detail page link to `/studios/[slug]` via this FK; plain text if `studio_id` is null. The `developer` text column remains the display name; `studio_id` is the machine reference.
 - **Admin flow:** Admin signs in with Supabase email/password auth → page loads both pending game and studio submissions → a three-tab switcher: "Games" (pending game queue), "Studios" (pending studio queue), "Published" (all approved games + studios). Both game and studio queue cards use the same expandable pattern: compact header always visible, "View details ↓" toggle reveals a `DetailRow`-based detail section. Update submissions (those with `game_id` / `studio_id` set) highlight changed fields in amber with a "changed" badge and "was: [old value]" annotation. The admin page batch-fetches original games and original studios at load time (stored in `originalGames` and `originalStudios` maps keyed by id) so diffs are available immediately. Studio update cards include a "View current studio ↗" link. The "Published" tab has two sections — **Games** and **Studios** — each listing all approved entries. Every game row shows: name (linked to public detail page) and developer. Every studio row shows: name (linked to public detail page) and type badge. Each row has a Delete button — games call `/api/delete-game`, studios call `/api/delete-studio` — both POST `{ id }`, verify admin session, and hard-delete the row. The list updates optimistically on delete. Approve/Reject/Delete all call server-side API routes that verify the session cookie + admin email, then use the service-role client for DB writes. If `getUser()` returns an auth error (e.g. stale refresh token), the page calls `signOut()` to clear bad cookies and shows the login form cleanly.
 - **Admin auth:** `[locale]/admin/page.tsx` uses `createBrowserClient` from `@supabase/auth-helpers-nextjs` (stores session in cookies, not localStorage) so the session is readable by the server-side API routes. The shared `supabase` client in `lib/supabase.ts` is only used by non-admin pages.

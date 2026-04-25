@@ -11,8 +11,8 @@ export default function SortSelect({
   options,
   label,
 }: {
-  paramName: "sort" | "studiosSort";
-  pageParamName: "page" | "studiosPage";
+  paramName: "sort" | "studiosSort" | "communitiesSort";
+  pageParamName: "page" | "studiosPage" | "communitiesPage";
   current: string;
   options: { value: string; label: string }[];
   label: string;

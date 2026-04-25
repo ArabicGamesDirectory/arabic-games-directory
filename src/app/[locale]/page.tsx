@@ -17,6 +17,11 @@ const GAMES_DEFAULT_SORT: GamesSort = "released_desc";
 const STUDIOS_SORT_VALUES = ["updated_desc", "updated_asc"] as const;
 type StudiosSort = (typeof STUDIOS_SORT_VALUES)[number];
 const STUDIOS_DEFAULT_SORT: StudiosSort = "updated_desc";
+const COMMUNITIES_SORT_VALUES = ["updated_desc", "updated_asc"] as const;
+type CommunitiesSort = (typeof COMMUNITIES_SORT_VALUES)[number];
+const COMMUNITIES_DEFAULT_SORT: CommunitiesSort = "updated_desc";
+const COMMUNITY_TYPES = ["online", "in_person", "hybrid"] as const;
+type CommunityType = (typeof COMMUNITY_TYPES)[number];
 
 const PAGE_SIZE = 10;
 
@@ -63,6 +68,21 @@ type Studio = {
   updated_at: string;
 };
 
+type Community = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  description: string | null;
+  country: string[];
+  website_url: string | null;
+  social_links: Record<string, string | null> | null;
+  topics: string[] | null;
+  thumbnail_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export default async function Home({
   params,
   searchParams,
@@ -76,8 +96,11 @@ export default async function Home({
     tab?: string;
     page?: string;
     studiosPage?: string;
+    communitiesPage?: string;
     sort?: string;
     studiosSort?: string;
+    communitiesSort?: string;
+    communityType?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -88,14 +111,17 @@ export default async function Home({
   const tStatus = await getTranslations("status");
   const tCountries = await getTranslations("countries");
   const tStudio = await getTranslations("studio");
+  const tCommunity = await getTranslations("community");
 
   const sp = await searchParams;
-  const tab = sp.tab === "studios" ? "studios" : "games";
+  const tab: "games" | "studios" | "communities" =
+    sp.tab === "studios" ? "studios" : sp.tab === "communities" ? "communities" : "games";
   const q = sp.q?.trim() ?? "";
 
   // Reset to page 1 when filters/search are active
   const gamesPage = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const studiosPage = Math.max(1, parseInt(sp.studiosPage ?? "1", 10) || 1);
+  const communitiesPage = Math.max(1, parseInt(sp.communitiesPage ?? "1", 10) || 1);
 
   const gamesSort: GamesSort = (GAMES_SORT_VALUES as readonly string[]).includes(sp.sort ?? "")
     ? (sp.sort as GamesSort)
@@ -103,6 +129,12 @@ export default async function Home({
   const studiosSort: StudiosSort = (STUDIOS_SORT_VALUES as readonly string[]).includes(sp.studiosSort ?? "")
     ? (sp.studiosSort as StudiosSort)
     : STUDIOS_DEFAULT_SORT;
+  const communitiesSort: CommunitiesSort = (COMMUNITIES_SORT_VALUES as readonly string[]).includes(sp.communitiesSort ?? "")
+    ? (sp.communitiesSort as CommunitiesSort)
+    : COMMUNITIES_DEFAULT_SORT;
+  const communityType: CommunityType | null = (COMMUNITY_TYPES as readonly string[]).includes(sp.communityType ?? "")
+    ? (sp.communityType as CommunityType)
+    : null;
 
   // Build tab URLs that preserve current filter/search state
   const gameParams = new URLSearchParams();
@@ -116,6 +148,10 @@ export default async function Home({
   if (sp.status) studioParams.set("status", sp.status);
   if (q) studioParams.set("q", q);
   const studiosTabHref = `/?${studioParams}`;
+
+  const communityParams = new URLSearchParams({ tab: "communities" });
+  if (q) communityParams.set("q", q);
+  const communitiesTabHref = `/?${communityParams}`;
 
   // Always fetch all studios for the studioSlugMap (needed for developer name linking on game cards)
   const { data: allStudioData } = await supabase
@@ -146,6 +182,45 @@ export default async function Home({
     (studiosPageClamped - 1) * PAGE_SIZE,
     studiosPageClamped * PAGE_SIZE
   );
+
+  // --- Communities tab: only fetched when needed ---
+  let allCommunities: Community[] = [];
+  let filteredCommunities: Community[] = [];
+  let communitiesTotalCount = 0;
+  let communitiesTotalPages = 1;
+  let communitiesPageClamped = 1;
+  let communitiesSlice: Community[] = [];
+  if (tab === "communities") {
+    const { data: communityData } = await supabase
+      .from("communities")
+      .select("id, slug, name, type, description, country, website_url, social_links, topics, thumbnail_url, created_at, updated_at")
+      .order("name");
+    allCommunities = (communityData as Community[]) ?? [];
+
+    filteredCommunities = allCommunities;
+    if (q) {
+      const ql = q.toLowerCase();
+      filteredCommunities = filteredCommunities.filter(
+        (c) =>
+          c.name.toLowerCase().includes(ql) ||
+          (c.description ?? "").toLowerCase().includes(ql)
+      );
+    }
+    if (communityType) {
+      filteredCommunities = filteredCommunities.filter((c) => c.type === communityType);
+    }
+    filteredCommunities = [...filteredCommunities].sort((a, b) => {
+      const cmp = a.updated_at.localeCompare(b.updated_at);
+      return communitiesSort === "updated_asc" ? cmp : -cmp;
+    });
+    communitiesTotalCount = filteredCommunities.length;
+    communitiesTotalPages = Math.max(1, Math.ceil(communitiesTotalCount / PAGE_SIZE));
+    communitiesPageClamped = Math.min(communitiesPage, communitiesTotalPages);
+    communitiesSlice = filteredCommunities.slice(
+      (communitiesPageClamped - 1) * PAGE_SIZE,
+      communitiesPageClamped * PAGE_SIZE
+    );
+  }
 
   // --- Games tab: server-side filtered + paginated ---
   let gamesQuery = supabase
@@ -206,7 +281,12 @@ export default async function Home({
   const gamesTotalPages = Math.max(1, Math.ceil((gamesTotalCount ?? 0) / PAGE_SIZE));
   const gamesPageClamped = Math.min(gamesPage, gamesTotalPages);
 
-  const count = tab === "studios" ? studiosTotalCount : (gamesTotalCount ?? 0);
+  const count =
+    tab === "studios"
+      ? studiosTotalCount
+      : tab === "communities"
+      ? communitiesTotalCount
+      : (gamesTotalCount ?? 0);
 
   function buildGamesFilterHref(extra: Record<string, string>) {
     const p = new URLSearchParams();
@@ -251,6 +331,12 @@ export default async function Home({
       if (studiosSort !== STUDIOS_DEFAULT_SORT) p.set("studiosSort", studiosSort);
       return `/?${p}`;
     }
+    if (tab === "communities") {
+      const p = new URLSearchParams({ tab: "communities" });
+      if (communityType) p.set("communityType", communityType);
+      if (communitiesSort !== COMMUNITIES_DEFAULT_SORT) p.set("communitiesSort", communitiesSort);
+      return `/?${p}`;
+    }
     const p = new URLSearchParams();
     if (sp.platform) p.set("platform", sp.platform);
     if (sp.status) p.set("status", sp.status);
@@ -268,10 +354,21 @@ export default async function Home({
       ? t("studioCountSingular", { count })
       : t("studioCountPlural", { count });
 
+  const communityCountText =
+    count === 1
+      ? t("communityCountSingular", { count })
+      : t("communityCountPlural", { count });
+
   const TYPE_LABELS: Record<string, string> = {
     individual: tStudio("typeIndividual"),
     team: tStudio("typeTeam"),
     studio: tStudio("typeStudio"),
+  };
+
+  const COMMUNITY_TYPE_LABELS: Record<string, string> = {
+    online: tCommunity("typeOnline"),
+    in_person: tCommunity("typeInPerson"),
+    hybrid: tCommunity("typeHybrid"),
   };
 
   // Build pagination href helpers
@@ -292,6 +389,36 @@ export default async function Home({
     if (page > 1) p.set("studiosPage", String(page));
     return `/?${p}`;
   }
+
+  function communitiesPaginationHref(page: number) {
+    const p = new URLSearchParams({ tab: "communities" });
+    if (q) p.set("q", q);
+    if (communityType) p.set("communityType", communityType);
+    if (communitiesSort !== COMMUNITIES_DEFAULT_SORT) p.set("communitiesSort", communitiesSort);
+    if (page > 1) p.set("communitiesPage", String(page));
+    return `/?${p}`;
+  }
+
+  function buildCommunitiesFilterHref(extra: Record<string, string>) {
+    const p = new URLSearchParams({ tab: "communities" });
+    if (q) p.set("q", q);
+    if (communitiesSort !== COMMUNITIES_DEFAULT_SORT) p.set("communitiesSort", communitiesSort);
+    for (const [k, v] of Object.entries(extra)) p.set(k, v);
+    return `/?${p}`;
+  }
+
+  const communityFilters = [
+    {
+      label: tCommunity("filterAll"),
+      href: buildCommunitiesFilterHref({}),
+      active: !communityType,
+    },
+    ...COMMUNITY_TYPES.map((type) => ({
+      label: COMMUNITY_TYPE_LABELS[type],
+      href: buildCommunitiesFilterHref({ communityType: type }),
+      active: communityType === type,
+    })),
+  ];
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
@@ -316,6 +443,12 @@ export default async function Home({
             >
               {tCommon("submitStudio")}
             </Link>
+            <Link
+              href="/submit-community"
+              className="bg-c-surface text-c-text border border-c-border px-4 py-2 rounded-lg text-sm font-medium hover:border-c-border-hover hover:bg-c-surface-hover transition-colors"
+            >
+              {tCommon("submitCommunity")}
+            </Link>
           </div>
         </div>
       </header>
@@ -338,6 +471,14 @@ export default async function Home({
             }`}
           >
             {t("tabStudios")}
+          </Link>
+          <Link
+            href={communitiesTabHref}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === "communities" ? "bg-c-bg text-c-text shadow-sm" : "text-c-muted hover:text-c-text"
+            }`}
+          >
+            {t("tabCommunities")}
           </Link>
         </div>
         <Link
@@ -499,6 +640,179 @@ export default async function Home({
           <p className="text-xs text-c-faint text-center mt-6 px-4">
             {t("studiosCta")}
           </p>
+        </>
+      )}
+
+      {/* Communities tab */}
+      {tab === "communities" && (
+        <>
+          {/* Communities search */}
+          <form method="get" action="" className="relative mb-4">
+            <input type="hidden" name="tab" value="communities" />
+            {communityType && (
+              <input type="hidden" name="communityType" value={communityType} />
+            )}
+            {communitiesSort !== COMMUNITIES_DEFAULT_SORT && (
+              <input type="hidden" name="communitiesSort" value={communitiesSort} />
+            )}
+            <input
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder={tCommunity("searchPlaceholder")}
+              className="w-full bg-c-surface border border-c-border rounded-xl px-4 py-2.5 text-sm text-c-text placeholder:text-c-faint focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors pe-20"
+            />
+            <div className="absolute end-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {q && (
+                <Link
+                  href={clearSearchHref}
+                  className="text-xs text-c-faint hover:text-c-muted px-2 py-1 transition-colors"
+                >
+                  {t("clearSearch")}
+                </Link>
+              )}
+              <button
+                type="submit"
+                className="text-xs bg-c-tag text-c-soft px-3 py-1 rounded-lg hover:bg-c-border transition-colors"
+              >
+                {t("searchButton")}
+              </button>
+            </div>
+          </form>
+
+          {/* Type filter pills */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {communityFilters.map((f) => (
+              <Link
+                key={f.label}
+                href={f.href}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  f.active
+                    ? "bg-c-text text-c-bg"
+                    : "bg-c-surface text-c-soft border border-c-border hover:border-c-border-hover hover:bg-c-surface-hover"
+                }`}
+              >
+                {f.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Sort + count */}
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-6">
+            <SortSelect
+              paramName="communitiesSort"
+              pageParamName="communitiesPage"
+              current={communitiesSort}
+              label={t("sortLabel")}
+              options={[
+                { value: "updated_desc", label: t("sortRecentlyUpdated") },
+                { value: "updated_asc", label: t("sortLeastRecentlyUpdated") },
+              ]}
+            />
+            <p className="text-sm text-c-faint">{communityCountText}</p>
+          </div>
+
+          <div className="grid gap-3">
+            {allCommunities.length === 0 && !communityType && !q ? (
+              <div className="text-center py-16">
+                <p className="text-4xl mb-3">👥</p>
+                <p className="text-c-muted font-medium">{tCommunity("noCommunities")}</p>
+                <p className="text-c-faint text-sm mt-1">{tCommunity("noCommunitiesHint")}</p>
+                <Link
+                  href="/submit-community"
+                  className="text-indigo-500 text-sm mt-3 inline-block hover:underline"
+                >
+                  {tCommon("submitCommunity")}
+                </Link>
+              </div>
+            ) : filteredCommunities.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-4xl mb-3">🔍</p>
+                <p className="text-c-muted font-medium">{tCommunity("noCommunitiesFound")}</p>
+                <p className="text-c-faint text-sm mt-1">{t("noGamesHint")}</p>
+                <Link
+                  href="/?tab=communities"
+                  className="text-indigo-500 text-sm mt-3 inline-block hover:underline"
+                >
+                  {t("clearFilters")}
+                </Link>
+              </div>
+            ) : (
+              communitiesSlice.map((c, i) => (
+                <Link
+                  key={c.slug}
+                  href={`/communities/${c.slug}`}
+                  className="block bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
+                >
+                  <div className="flex flex-col sm:flex-row items-start">
+                    {c.thumbnail_url ? (
+                      <img
+                        src={c.thumbnail_url}
+                        alt={t("thumbnailAlt", { name: c.name })}
+                        width={230}
+                        height={108}
+                        loading={i === 0 && communitiesPageClamped === 1 ? "eager" : "lazy"}
+                        decoding="async"
+                        className="w-full sm:w-[230px] shrink-0 object-cover rounded-s-lg self-stretch"
+                      />
+                    ) : (
+                      <TitleCover
+                        name={c.name}
+                        seed={c.slug}
+                        className="w-full sm:w-[230px] shrink-0 self-stretch aspect-[460/215] sm:aspect-auto rounded-s-lg"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <h2 className="text-base font-semibold text-c-text leading-snug">
+                          {c.name}
+                        </h2>
+                        <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                          {COMMUNITY_TYPE_LABELS[c.type] ?? c.type}
+                        </span>
+                      </div>
+                      <p className="text-xs text-c-muted mt-1">
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {c.country.map((co) => tCountries(COUNTRY_KEY_MAP[co] as any) ?? co).join(", ")}
+                      </p>
+                      {c.description && (
+                        <p className="text-sm text-c-soft mt-2 leading-relaxed line-clamp-2" dir="auto">{c.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+
+          {/* Communities pagination */}
+          {communitiesTotalPages > 1 && (
+            <nav className="flex items-center justify-center gap-4 mt-8">
+              {communitiesPageClamped > 1 ? (
+                <Link
+                  href={communitiesPaginationHref(communitiesPageClamped - 1)}
+                  className="text-sm text-indigo-500 hover:underline"
+                >
+                  {t("paginationPrev")}
+                </Link>
+              ) : (
+                <span className="text-sm text-c-faint">{t("paginationPrev")}</span>
+              )}
+              <span className="text-sm text-c-muted">
+                {t("paginationPage", { current: communitiesPageClamped, total: communitiesTotalPages })}
+              </span>
+              {communitiesPageClamped < communitiesTotalPages ? (
+                <Link
+                  href={communitiesPaginationHref(communitiesPageClamped + 1)}
+                  className="text-sm text-indigo-500 hover:underline"
+                >
+                  {t("paginationNext")}
+                </Link>
+              ) : (
+                <span className="text-sm text-c-faint">{t("paginationNext")}</span>
+              )}
+            </nav>
+          )}
         </>
       )}
 
