@@ -6,6 +6,11 @@ import TitleCover from "@/components/TitleCover";
 import SortSelect from "@/components/SortSelect";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 
+const PLATFORM_GROUPS: Record<string, string[]> = {
+  PC: ["Windows", "macOS", "Linux"],
+  Mobile: ["iOS", "Android"],
+};
+
 const GAMES_SORT_VALUES = ["updated_desc", "updated_asc", "released_desc", "released_asc"] as const;
 type GamesSort = (typeof GAMES_SORT_VALUES)[number];
 const GAMES_DEFAULT_SORT: GamesSort = "released_desc";
@@ -167,7 +172,14 @@ export default async function Home({
   }
 
   if (sp.country) gamesQuery = gamesQuery.contains("country", [sp.country]);
-  if (sp.platform) gamesQuery = gamesQuery.contains("platforms", [sp.platform]);
+  if (sp.platform) {
+    const group = PLATFORM_GROUPS[sp.platform];
+    if (group) {
+      gamesQuery = gamesQuery.overlaps("platforms", group);
+    } else {
+      gamesQuery = gamesQuery.contains("platforms", [sp.platform]);
+    }
+  }
   if (sp.status) gamesQuery = gamesQuery.eq("status", sp.status);
 
   if (q) {
