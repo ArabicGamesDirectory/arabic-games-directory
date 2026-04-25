@@ -10,6 +10,13 @@ export function LanguageSwitcher() {
 
   function switchLocale() {
     const nextLocale = locale === "en" ? "ar" : "en";
+    // Next.js App Router does NOT re-render the root layout on client-side
+    // navigation, so `<html dir>` would stay stale until a manual refresh.
+    // Update it imperatively here so the RTL/LTR flip happens immediately.
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = nextLocale;
+      document.documentElement.dir = nextLocale === "ar" ? "rtl" : "ltr";
+    }
     router.replace(pathname, { locale: nextLocale });
   }
 
