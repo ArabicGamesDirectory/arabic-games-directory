@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
+import TitleCover from "@/components/TitleCover";
 
 const PAGE_SIZE = 10;
 
@@ -344,9 +345,11 @@ export default async function Home({
                         className="w-full sm:w-[230px] shrink-0 object-cover rounded-s-lg self-stretch"
                       />
                     ) : (
-                      <div className="w-full sm:w-[230px] shrink-0 bg-c-surface flex items-center justify-center rounded-s-lg self-stretch">
-                        <span className="text-3xl text-c-faint">🏢</span>
-                      </div>
+                      <TitleCover
+                        name={s.name}
+                        seed={s.slug}
+                        className="w-full sm:w-[230px] shrink-0 self-stretch aspect-[460/215] sm:aspect-auto rounded-s-lg"
+                      />
                     )}
 
                     {/* Content */}
@@ -494,9 +497,11 @@ export default async function Home({
                     className="w-full sm:w-[230px] shrink-0 object-cover self-stretch"
                   />
                 ) : (
-                  <div className="w-full sm:w-[230px] shrink-0 bg-c-surface flex items-center justify-center self-stretch">
-                    <span className="text-3xl text-c-faint">🎮</span>
-                  </div>
+                  <TitleCover
+                    name={g.name}
+                    seed={g.slug}
+                    className="w-full sm:w-[230px] shrink-0 self-stretch aspect-[460/215] sm:aspect-auto"
+                  />
                 )}
 
                 {/* Content */}
