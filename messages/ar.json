@@ -36,6 +36,8 @@
     "filterMobile": "الجوال",
     "filterReleased": "مُصدَر",
     "filterInDev": "قيد التطوير",
+    "filterAllCountries": "جميع الدول",
+    "filterAllGenres": "جميع الأنواع",
     "gameCountSingular": "لعبة واحدة",
     "gameCountPlural": "{count} لعبة",
     "noGames": "لا توجد ألعاب.",

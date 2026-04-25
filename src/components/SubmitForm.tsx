@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
 import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+import { GENRE_VALUES } from "@/lib/genres";
 
 export type GameData = {
   id: string;
@@ -41,14 +42,8 @@ const PLATFORM_OPTIONS = [
   "Nintendo Switch",
 ];
 
-// Used for state initialization (no translations needed at this level)
-const GENRE_BASE_VALUES = [
-  "Action", "Adventure", "Arcade", "Card / Board Game", "Casual",
-  "Educational", "Endless Runner", "Family", "Fighting", "Horror", "Idle / Clicker",
-  "Made for Kids", "Platformer", "Puzzle", "Racing", "Resource Management", "Rogue-lite",
-  "Roguelike", "RPG", "Shooter FPS", "Simulation", "Sports",
-  "Strategy", "Tower Defense", "Visual Novel",
-];
+// Pulled from @/lib/genres so the homepage filter dropdown shares the same source.
+const GENRE_BASE_VALUES: readonly string[] = GENRE_VALUES;
 
 const ENGINE_OPTIONS = [
   "Unity",
@@ -95,7 +90,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const t = useTranslations("submit");
   const tCommon = useTranslations("common");
   const tCountries = useTranslations("countries");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tGenres = useTranslations("genres");
   const tValidation = useTranslations("validation");
 
@@ -242,9 +236,9 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ).map(({ value, key }) => ({ value, label: tGenres(key as any) }));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const countryOptions = COUNTRY_OPTIONS.map((c) => ({
     value: c,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     label: tCountries(COUNTRY_KEY_MAP[c] as any),
   }));
 

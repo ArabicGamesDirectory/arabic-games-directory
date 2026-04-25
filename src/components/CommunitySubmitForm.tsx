@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
 import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
+import { COMMUNITY_TOPIC_VALUES } from "@/lib/communityTopics";
 
 export type CommunityData = {
   id: string;
@@ -20,12 +21,8 @@ export type CommunityData = {
   thumbnail_url: string | null;
 };
 
-const TOPIC_BASE_VALUES = [
-  "Game Development",
-  "Game Programming",
-  "Game Art",
-  "Game Design",
-];
+// Pulled from @/lib/communityTopics so the homepage filter shares the same source.
+const TOPIC_BASE_VALUES: readonly string[] = COMMUNITY_TOPIC_VALUES;
 
 const SOCIAL_LINK_KEYS = [
   "Discord",

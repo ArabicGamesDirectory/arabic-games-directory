@@ -36,6 +36,8 @@
     "filterMobile": "Mobile",
     "filterReleased": "Released",
     "filterInDev": "In Dev",
+    "filterAllCountries": "All countries",
+    "filterAllGenres": "All genres",
     "gameCountSingular": "{count} game",
     "gameCountPlural": "{count} games",
     "noGames": "No games found.",

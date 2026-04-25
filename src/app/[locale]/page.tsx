@@ -1,10 +1,13 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
-import { COUNTRY_KEY_MAP } from "@/lib/countries";
+import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
 import SortSelect from "@/components/SortSelect";
+import FilterSelect from "@/components/FilterSelect";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+import { GENRE_VALUES, GENRE_I18N_KEYS } from "@/lib/genres";
+import { COMMUNITY_TOPIC_VALUES, COMMUNITY_TOPIC_I18N_KEYS } from "@/lib/communityTopics";
 
 const PLATFORM_GROUPS: Record<string, string[]> = {
   PC: ["Windows", "macOS", "Linux"],
@@ -92,6 +95,7 @@ export default async function Home({
     country?: string;
     platform?: string;
     status?: string;
+    genre?: string;
     q?: string;
     tab?: string;
     page?: string;
@@ -100,7 +104,11 @@ export default async function Home({
     sort?: string;
     studiosSort?: string;
     communitiesSort?: string;
+    studioType?: string;
+    studioCountry?: string;
     communityType?: string;
+    communityTopic?: string;
+    communityCountry?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -112,6 +120,7 @@ export default async function Home({
   const tCountries = await getTranslations("countries");
   const tStudio = await getTranslations("studio");
   const tCommunity = await getTranslations("community");
+  const tGenres = await getTranslations("genres");
 
   const sp = await searchParams;
   const tab: "games" | "studios" | "communities" =
@@ -136,16 +145,26 @@ export default async function Home({
     ? (sp.communityType as CommunityType)
     : null;
 
-  // Build tab URLs that preserve current filter/search state
+  // Validated filter selections (null = "All")
+  const COUNTRY_VALUE_SET = new Set<string>(COUNTRY_OPTIONS as readonly string[]);
+  const GENRE_VALUE_SET = new Set<string>(GENRE_VALUES as readonly string[]);
+  const TOPIC_VALUE_SET = new Set<string>(COMMUNITY_TOPIC_VALUES as readonly string[]);
+  const STUDIO_TYPE_SET = new Set(["individual", "team", "studio"]);
+
+  const gamesCountry = sp.country && COUNTRY_VALUE_SET.has(sp.country) ? sp.country : null;
+  const gamesGenre = sp.genre && GENRE_VALUE_SET.has(sp.genre) ? sp.genre : null;
+  const studiosType = sp.studioType && STUDIO_TYPE_SET.has(sp.studioType) ? sp.studioType : null;
+  const studiosCountry = sp.studioCountry && COUNTRY_VALUE_SET.has(sp.studioCountry) ? sp.studioCountry : null;
+  const communitiesCountry = sp.communityCountry && COUNTRY_VALUE_SET.has(sp.communityCountry) ? sp.communityCountry : null;
+  const communitiesTopic = sp.communityTopic && TOPIC_VALUE_SET.has(sp.communityTopic) ? sp.communityTopic : null;
+
+  // Build tab URLs that preserve search across tab switches.
+  // Per-tab filters (country, genre, type, topic) stay tab-scoped — not carried.
   const gameParams = new URLSearchParams();
-  if (sp.platform) gameParams.set("platform", sp.platform);
-  if (sp.status) gameParams.set("status", sp.status);
   if (q) gameParams.set("q", q);
   const gamesTabHref = gameParams.size > 0 ? `/?${gameParams}` : "/";
 
   const studioParams = new URLSearchParams({ tab: "studios" });
-  if (sp.platform) studioParams.set("platform", sp.platform);
-  if (sp.status) studioParams.set("status", sp.status);
   if (q) studioParams.set("q", q);
   const studiosTabHref = `/?${studioParams}`;
 
@@ -162,13 +181,21 @@ export default async function Home({
 
   // --- Studios tab: server-side filtered + paginated ---
   let filteredStudios: Studio[] = allStudios;
-  if (q && tab === "studios") {
-    const ql = q.toLowerCase();
-    filteredStudios = allStudios.filter(
-      (s) =>
-        s.name.toLowerCase().includes(ql) ||
-        (s.description ?? "").toLowerCase().includes(ql)
-    );
+  if (tab === "studios") {
+    if (q) {
+      const ql = q.toLowerCase();
+      filteredStudios = filteredStudios.filter(
+        (s) =>
+          s.name.toLowerCase().includes(ql) ||
+          (s.description ?? "").toLowerCase().includes(ql)
+      );
+    }
+    if (studiosType) {
+      filteredStudios = filteredStudios.filter((s) => s.type === studiosType);
+    }
+    if (studiosCountry) {
+      filteredStudios = filteredStudios.filter((s) => s.country.includes(studiosCountry));
+    }
   }
   // Apply studios sort (in-memory since the studios list is filtered + paginated client-side)
   filteredStudios = [...filteredStudios].sort((a, b) => {
@@ -209,6 +236,12 @@ export default async function Home({
     if (communityType) {
       filteredCommunities = filteredCommunities.filter((c) => c.type === communityType);
     }
+    if (communitiesTopic) {
+      filteredCommunities = filteredCommunities.filter((c) => (c.topics ?? []).includes(communitiesTopic));
+    }
+    if (communitiesCountry) {
+      filteredCommunities = filteredCommunities.filter((c) => c.country.includes(communitiesCountry));
+    }
     filteredCommunities = [...filteredCommunities].sort((a, b) => {
       const cmp = a.updated_at.localeCompare(b.updated_at);
       return communitiesSort === "updated_asc" ? cmp : -cmp;
@@ -246,7 +279,7 @@ export default async function Home({
       break;
   }
 
-  if (sp.country) gamesQuery = gamesQuery.contains("country", [sp.country]);
+  if (gamesCountry) gamesQuery = gamesQuery.contains("country", [gamesCountry]);
   if (sp.platform) {
     const group = PLATFORM_GROUPS[sp.platform];
     if (group) {
@@ -256,6 +289,7 @@ export default async function Home({
     }
   }
   if (sp.status) gamesQuery = gamesQuery.eq("status", sp.status);
+  if (gamesGenre) gamesQuery = gamesQuery.contains("genres", [gamesGenre]);
 
   if (q) {
     gamesQuery = gamesQuery.or(
@@ -288,18 +322,26 @@ export default async function Home({
       ? communitiesTotalCount
       : (gamesTotalCount ?? 0);
 
-  function buildGamesFilterHref(extra: Record<string, string>) {
+  function buildGamesFilterHref(extra: Record<string, string | null>) {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (gamesSort !== GAMES_DEFAULT_SORT) p.set("sort", gamesSort);
-    for (const [k, v] of Object.entries(extra)) p.set(k, v);
+    if (gamesCountry) p.set("country", gamesCountry);
+    if (gamesGenre) p.set("genre", gamesGenre);
+    if (sp.platform) p.set("platform", sp.platform);
+    if (sp.status) p.set("status", sp.status);
+    // `extra` overrides preserved values (null removes a key)
+    for (const [k, v] of Object.entries(extra)) {
+      if (v === null) p.delete(k);
+      else p.set(k, v);
+    }
     return p.size > 0 ? `/?${p}` : "/";
   }
 
   const filters = [
     {
       label: t("filterAll"),
-      href: buildGamesFilterHref({}),
+      href: buildGamesFilterHref({ platform: null, status: null }),
       active: !sp.platform && !sp.status,
     },
     {
@@ -328,18 +370,24 @@ export default async function Home({
   const clearSearchHref = (() => {
     if (tab === "studios") {
       const p = new URLSearchParams({ tab: "studios" });
+      if (studiosType) p.set("studioType", studiosType);
+      if (studiosCountry) p.set("studioCountry", studiosCountry);
       if (studiosSort !== STUDIOS_DEFAULT_SORT) p.set("studiosSort", studiosSort);
       return `/?${p}`;
     }
     if (tab === "communities") {
       const p = new URLSearchParams({ tab: "communities" });
       if (communityType) p.set("communityType", communityType);
+      if (communitiesTopic) p.set("communityTopic", communitiesTopic);
+      if (communitiesCountry) p.set("communityCountry", communitiesCountry);
       if (communitiesSort !== COMMUNITIES_DEFAULT_SORT) p.set("communitiesSort", communitiesSort);
       return `/?${p}`;
     }
     const p = new URLSearchParams();
     if (sp.platform) p.set("platform", sp.platform);
     if (sp.status) p.set("status", sp.status);
+    if (gamesCountry) p.set("country", gamesCountry);
+    if (gamesGenre) p.set("genre", gamesGenre);
     if (gamesSort !== GAMES_DEFAULT_SORT) p.set("sort", gamesSort);
     return p.size > 0 ? `/?${p}` : "/";
   })();
@@ -376,6 +424,8 @@ export default async function Home({
     const p = new URLSearchParams();
     if (sp.platform) p.set("platform", sp.platform);
     if (sp.status) p.set("status", sp.status);
+    if (gamesCountry) p.set("country", gamesCountry);
+    if (gamesGenre) p.set("genre", gamesGenre);
     if (q) p.set("q", q);
     if (gamesSort !== GAMES_DEFAULT_SORT) p.set("sort", gamesSort);
     if (page > 1) p.set("page", String(page));
@@ -385,6 +435,8 @@ export default async function Home({
   function studiosPaginationHref(page: number) {
     const p = new URLSearchParams({ tab: "studios" });
     if (q) p.set("q", q);
+    if (studiosType) p.set("studioType", studiosType);
+    if (studiosCountry) p.set("studioCountry", studiosCountry);
     if (studiosSort !== STUDIOS_DEFAULT_SORT) p.set("studiosSort", studiosSort);
     if (page > 1) p.set("studiosPage", String(page));
     return `/?${p}`;
@@ -394,29 +446,122 @@ export default async function Home({
     const p = new URLSearchParams({ tab: "communities" });
     if (q) p.set("q", q);
     if (communityType) p.set("communityType", communityType);
+    if (communitiesTopic) p.set("communityTopic", communitiesTopic);
+    if (communitiesCountry) p.set("communityCountry", communitiesCountry);
     if (communitiesSort !== COMMUNITIES_DEFAULT_SORT) p.set("communitiesSort", communitiesSort);
     if (page > 1) p.set("communitiesPage", String(page));
     return `/?${p}`;
   }
 
-  function buildCommunitiesFilterHref(extra: Record<string, string>) {
+  function buildCommunitiesFilterHref(extra: Record<string, string | null>) {
     const p = new URLSearchParams({ tab: "communities" });
     if (q) p.set("q", q);
     if (communitiesSort !== COMMUNITIES_DEFAULT_SORT) p.set("communitiesSort", communitiesSort);
-    for (const [k, v] of Object.entries(extra)) p.set(k, v);
+    if (communityType) p.set("communityType", communityType);
+    if (communitiesTopic) p.set("communityTopic", communitiesTopic);
+    if (communitiesCountry) p.set("communityCountry", communitiesCountry);
+    for (const [k, v] of Object.entries(extra)) {
+      if (v === null) p.delete(k);
+      else p.set(k, v);
+    }
+    return `/?${p}`;
+  }
+
+  function buildStudiosFilterHref(extra: Record<string, string | null>) {
+    const p = new URLSearchParams({ tab: "studios" });
+    if (q) p.set("q", q);
+    if (studiosSort !== STUDIOS_DEFAULT_SORT) p.set("studiosSort", studiosSort);
+    if (studiosType) p.set("studioType", studiosType);
+    if (studiosCountry) p.set("studioCountry", studiosCountry);
+    for (const [k, v] of Object.entries(extra)) {
+      if (v === null) p.delete(k);
+      else p.set(k, v);
+    }
     return `/?${p}`;
   }
 
   const communityFilters = [
     {
       label: tCommunity("filterAll"),
-      href: buildCommunitiesFilterHref({}),
+      href: buildCommunitiesFilterHref({ communityType: null }),
       active: !communityType,
     },
     ...COMMUNITY_TYPES.map((type) => ({
       label: COMMUNITY_TYPE_LABELS[type],
       href: buildCommunitiesFilterHref({ communityType: type }),
       active: communityType === type,
+    })),
+  ];
+
+  const STUDIO_TYPES = ["individual", "team", "studio"] as const;
+  const STUDIO_TYPE_LABELS: Record<string, string> = {
+    individual: tStudio("typeIndividual"),
+    team: tStudio("typeTeam"),
+    studio: tStudio("typeStudio"),
+  };
+  const studioTypeFilters = [
+    {
+      label: tCommunity("filterAll"),
+      href: buildStudiosFilterHref({ studioType: null }),
+      active: !studiosType,
+    },
+    ...STUDIO_TYPES.map((type) => ({
+      label: STUDIO_TYPE_LABELS[type],
+      href: buildStudiosFilterHref({ studioType: type }),
+      active: studiosType === type,
+    })),
+  ];
+
+  // Translated dropdown options
+  const countryOptions = (COUNTRY_OPTIONS as readonly string[]).map((value) => ({
+    value,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    label: (tCountries(COUNTRY_KEY_MAP[value] as any) as string) ?? value,
+  }));
+
+  const genreOptions = GENRE_VALUES.map((value) => ({
+    value,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    label: (tGenres(GENRE_I18N_KEYS[value] as any) as string) ?? value,
+  }));
+
+  // Translated label helpers for active-filter chips
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const countryLabel = (c: string) => (tCountries(COUNTRY_KEY_MAP[c] as any) as string) ?? c;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const genreLabel = (g: string) => (tGenres(GENRE_I18N_KEYS[g] as any) as string) ?? g;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statusLabel = (s: string) => (tStatus(s as any) as string) ?? s;
+
+  // Active-filter chips per tab — { label, removeHref } each
+  const gamesChips: { label: string; removeHref: string }[] = [];
+  if (sp.platform) gamesChips.push({ label: sp.platform, removeHref: buildGamesFilterHref({ platform: null }) });
+  if (sp.status) gamesChips.push({ label: statusLabel(sp.status), removeHref: buildGamesFilterHref({ status: null }) });
+  if (gamesCountry) gamesChips.push({ label: countryLabel(gamesCountry), removeHref: buildGamesFilterHref({ country: null }) });
+  if (gamesGenre) gamesChips.push({ label: genreLabel(gamesGenre), removeHref: buildGamesFilterHref({ genre: null }) });
+
+  const studiosChips: { label: string; removeHref: string }[] = [];
+  if (studiosType) studiosChips.push({ label: STUDIO_TYPE_LABELS[studiosType] ?? studiosType, removeHref: buildStudiosFilterHref({ studioType: null }) });
+  if (studiosCountry) studiosChips.push({ label: countryLabel(studiosCountry), removeHref: buildStudiosFilterHref({ studioCountry: null }) });
+
+  const communitiesChips: { label: string; removeHref: string }[] = [];
+  if (communityType) communitiesChips.push({ label: COMMUNITY_TYPE_LABELS[communityType] ?? communityType, removeHref: buildCommunitiesFilterHref({ communityType: null }) });
+  if (communitiesTopic) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    communitiesChips.push({ label: (tCommunity(COMMUNITY_TOPIC_I18N_KEYS[communitiesTopic] as any) as string) ?? communitiesTopic, removeHref: buildCommunitiesFilterHref({ communityTopic: null }) });
+  }
+  if (communitiesCountry) communitiesChips.push({ label: countryLabel(communitiesCountry), removeHref: buildCommunitiesFilterHref({ communityCountry: null }) });
+
+  const communityTopicFilters = [
+    {
+      label: tCommunity("filterAll"),
+      href: buildCommunitiesFilterHref({ communityTopic: null }),
+      active: !communitiesTopic,
+    },
+    ...COMMUNITY_TOPIC_VALUES.map((topic) => ({
+      label: tCommunity(COMMUNITY_TOPIC_I18N_KEYS[topic] as "topicGameDevelopment" | "topicGameProgramming" | "topicGameArt" | "topicGameDesign"),
+      href: buildCommunitiesFilterHref({ communityTopic: topic }),
+      active: communitiesTopic === topic,
     })),
   ];
 
@@ -495,6 +640,8 @@ export default async function Home({
           {/* Studios search */}
           <form method="get" action="" className="relative mb-4">
             <input type="hidden" name="tab" value="studios" />
+            {studiosType && <input type="hidden" name="studioType" value={studiosType} />}
+            {studiosCountry && <input type="hidden" name="studioCountry" value={studiosCountry} />}
             {studiosSort !== STUDIOS_DEFAULT_SORT && (
               <input type="hidden" name="studiosSort" value={studiosSort} />
             )}
@@ -522,6 +669,36 @@ export default async function Home({
               </button>
             </div>
           </form>
+
+          {/* Studios type pills */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {studioTypeFilters.map((f) => (
+              <Link
+                key={f.label}
+                href={f.href}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  f.active
+                    ? "bg-c-text text-c-bg"
+                    : "bg-c-surface text-c-soft border border-c-border hover:border-c-border-hover hover:bg-c-surface-hover"
+                }`}
+              >
+                {f.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Country dropdown */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <FilterSelect
+              paramName="studioCountry"
+              pageParamName="studiosPage"
+              current={studiosCountry ?? ""}
+              defaultLabel={t("filterAllCountries")}
+              options={countryOptions}
+            />
+          </div>
+
+          {studiosChips.length > 0 && <ActiveFilterChips chips={studiosChips} />}
 
           <div className="flex items-center justify-between gap-2 flex-wrap mb-6">
             <SortSelect
@@ -652,6 +829,12 @@ export default async function Home({
             {communityType && (
               <input type="hidden" name="communityType" value={communityType} />
             )}
+            {communitiesTopic && (
+              <input type="hidden" name="communityTopic" value={communitiesTopic} />
+            )}
+            {communitiesCountry && (
+              <input type="hidden" name="communityCountry" value={communitiesCountry} />
+            )}
             {communitiesSort !== COMMUNITIES_DEFAULT_SORT && (
               <input type="hidden" name="communitiesSort" value={communitiesSort} />
             )}
@@ -696,6 +879,36 @@ export default async function Home({
               </Link>
             ))}
           </div>
+
+          {/* Topic filter pills */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {communityTopicFilters.map((f) => (
+              <Link
+                key={f.label}
+                href={f.href}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  f.active
+                    ? "bg-c-text text-c-bg"
+                    : "bg-c-surface text-c-soft border border-c-border hover:border-c-border-hover hover:bg-c-surface-hover"
+                }`}
+              >
+                {f.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Country dropdown */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <FilterSelect
+              paramName="communityCountry"
+              pageParamName="communitiesPage"
+              current={communitiesCountry ?? ""}
+              defaultLabel={t("filterAllCountries")}
+              options={countryOptions}
+            />
+          </div>
+
+          {communitiesChips.length > 0 && <ActiveFilterChips chips={communitiesChips} />}
 
           {/* Sort + count */}
           <div className="flex items-center justify-between gap-2 flex-wrap mb-6">
@@ -824,6 +1037,8 @@ export default async function Home({
           <input type="hidden" name="platform" value={sp.platform} />
         )}
         {sp.status && <input type="hidden" name="status" value={sp.status} />}
+        {gamesCountry && <input type="hidden" name="country" value={gamesCountry} />}
+        {gamesGenre && <input type="hidden" name="genre" value={gamesGenre} />}
         {gamesSort !== GAMES_DEFAULT_SORT && (
           <input type="hidden" name="sort" value={gamesSort} />
         )}
@@ -868,6 +1083,27 @@ export default async function Home({
           </Link>
         ))}
       </div>
+
+      {/* Dropdown filters */}
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <FilterSelect
+          paramName="country"
+          pageParamName="page"
+          current={gamesCountry ?? ""}
+          defaultLabel={t("filterAllCountries")}
+          options={countryOptions}
+        />
+        <FilterSelect
+          paramName="genre"
+          pageParamName="page"
+          current={gamesGenre ?? ""}
+          defaultLabel={t("filterAllGenres")}
+          options={genreOptions}
+        />
+      </div>
+
+      {/* Active filter chips */}
+      {gamesChips.length > 0 && <ActiveFilterChips chips={gamesChips} />}
 
       {/* Sort + count */}
       <div className="flex items-center justify-between gap-2 flex-wrap mb-6">
@@ -1029,5 +1265,22 @@ export default async function Home({
       </>)}
 
     </main>
+  );
+}
+
+function ActiveFilterChips({ chips }: { chips: { label: string; removeHref: string }[] }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mb-3">
+      {chips.map((c) => (
+        <Link
+          key={c.label + c.removeHref}
+          href={c.removeHref}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 hover:bg-indigo-500/15 transition-colors"
+        >
+          <span>{c.label}</span>
+          <span aria-hidden className="text-sm leading-none">×</span>
+        </Link>
+      ))}
+    </div>
   );
 }
