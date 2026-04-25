@@ -303,12 +303,20 @@ export default async function Home({
             </h1>
             <p className="text-c-muted mt-1 text-sm">{t("description")}</p>
           </div>
-          <Link
-            href="/submit"
-            className="shrink-0 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-          >
-            {tCommon("submitGame")}
-          </Link>
+          <div className="flex gap-2 flex-wrap shrink-0">
+            <Link
+              href="/submit"
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              {tCommon("submitGame")}
+            </Link>
+            <Link
+              href="/submit-studio"
+              className="bg-c-surface text-c-text border border-c-border px-4 py-2 rounded-lg text-sm font-medium hover:border-c-border-hover hover:bg-c-surface-hover transition-colors"
+            >
+              {tCommon("submitStudio")}
+            </Link>
+          </div>
         </div>
       </header>
 
