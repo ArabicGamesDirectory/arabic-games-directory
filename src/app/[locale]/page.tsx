@@ -3,6 +3,12 @@ import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
+import SortSelect from "@/components/SortSelect";
+
+const GAMES_SORT_VALUES = ["updated_desc", "updated_asc", "released_desc", "released_asc"] as const;
+type GamesSort = (typeof GAMES_SORT_VALUES)[number];
+const STUDIOS_SORT_VALUES = ["updated_desc", "updated_asc"] as const;
+type StudiosSort = (typeof STUDIOS_SORT_VALUES)[number];
 
 const PAGE_SIZE = 10;
 
@@ -45,6 +51,8 @@ type Studio = {
   country: string[];
   website_url: string | null;
   thumbnail_url: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export default async function Home({
@@ -60,6 +68,8 @@ export default async function Home({
     tab?: string;
     page?: string;
     studiosPage?: string;
+    sort?: string;
+    studiosSort?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -79,6 +89,13 @@ export default async function Home({
   const gamesPage = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const studiosPage = Math.max(1, parseInt(sp.studiosPage ?? "1", 10) || 1);
 
+  const gamesSort: GamesSort = (GAMES_SORT_VALUES as readonly string[]).includes(sp.sort ?? "")
+    ? (sp.sort as GamesSort)
+    : "updated_desc";
+  const studiosSort: StudiosSort = (STUDIOS_SORT_VALUES as readonly string[]).includes(sp.studiosSort ?? "")
+    ? (sp.studiosSort as StudiosSort)
+    : "updated_desc";
+
   // Build tab URLs that preserve current filter/search state
   const gameParams = new URLSearchParams();
   if (sp.platform) gameParams.set("platform", sp.platform);
@@ -95,7 +112,7 @@ export default async function Home({
   // Always fetch all studios for the studioSlugMap (needed for developer name linking on game cards)
   const { data: allStudioData } = await supabase
     .from("studios")
-    .select("id, slug, name, type, description, country, website_url, thumbnail_url")
+    .select("id, slug, name, type, description, country, website_url, thumbnail_url, created_at, updated_at")
     .order("name");
   const allStudios: Studio[] = (allStudioData as Studio[]) ?? [];
 
@@ -109,6 +126,11 @@ export default async function Home({
         (s.description ?? "").toLowerCase().includes(ql)
     );
   }
+  // Apply studios sort (in-memory since the studios list is filtered + paginated client-side)
+  filteredStudios = [...filteredStudios].sort((a, b) => {
+    const cmp = a.updated_at.localeCompare(b.updated_at);
+    return studiosSort === "updated_asc" ? cmp : -cmp;
+  });
   const studiosTotalCount = filteredStudios.length;
   const studiosTotalPages = Math.max(1, Math.ceil(studiosTotalCount / PAGE_SIZE));
   const studiosPageClamped = Math.min(studiosPage, studiosTotalPages);
@@ -123,8 +145,23 @@ export default async function Home({
     .select(
       "name, developer, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url, studios(slug)",
       { count: "exact" }
-    )
-    .order("created_at", { ascending: false });
+    );
+
+  switch (gamesSort) {
+    case "updated_asc":
+      gamesQuery = gamesQuery.order("updated_at", { ascending: true });
+      break;
+    case "released_desc":
+      gamesQuery = gamesQuery.order("release_date", { ascending: false, nullsFirst: false });
+      break;
+    case "released_asc":
+      gamesQuery = gamesQuery.order("release_date", { ascending: true, nullsFirst: false });
+      break;
+    case "updated_desc":
+    default:
+      gamesQuery = gamesQuery.order("updated_at", { ascending: false });
+      break;
+  }
 
   if (sp.country) gamesQuery = gamesQuery.contains("country", [sp.country]);
   if (sp.platform) gamesQuery = gamesQuery.contains("platforms", [sp.platform]);
@@ -156,43 +193,55 @@ export default async function Home({
 
   const count = tab === "studios" ? studiosTotalCount : (gamesTotalCount ?? 0);
 
-  const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
+  function buildGamesFilterHref(extra: Record<string, string>) {
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (gamesSort !== "updated_desc") p.set("sort", gamesSort);
+    for (const [k, v] of Object.entries(extra)) p.set(k, v);
+    return p.size > 0 ? `/?${p}` : "/";
+  }
+
   const filters = [
     {
       label: t("filterAll"),
-      href: q ? `/?q=${encodeURIComponent(q)}` : "/",
+      href: buildGamesFilterHref({}),
       active: !sp.platform && !sp.status,
     },
     {
       label: t("filterPC"),
-      href: `/?platform=PC${qParam}`,
+      href: buildGamesFilterHref({ platform: "PC" }),
       active: sp.platform === "PC",
     },
     {
       label: t("filterMobile"),
-      href: `/?platform=Mobile${qParam}`,
+      href: buildGamesFilterHref({ platform: "Mobile" }),
       active: sp.platform === "Mobile",
     },
     {
       label: t("filterReleased"),
-      href: `/?status=released${qParam}`,
+      href: buildGamesFilterHref({ status: "released" }),
       active: sp.status === "released",
     },
     {
       label: t("filterInDev"),
-      href: `/?status=in_dev${qParam}`,
+      href: buildGamesFilterHref({ status: "in_dev" }),
       active: sp.status === "in_dev",
     },
   ];
 
-  const clearSearchHref =
-    tab === "studios"
-      ? "/?tab=studios"
-      : sp.platform
-      ? `/?platform=${sp.platform}`
-      : sp.status
-      ? `/?status=${sp.status}`
-      : "/";
+  // Clear-search resets q but keeps current filter + sort context for that tab
+  const clearSearchHref = (() => {
+    if (tab === "studios") {
+      const p = new URLSearchParams({ tab: "studios" });
+      if (studiosSort !== "updated_desc") p.set("studiosSort", studiosSort);
+      return `/?${p}`;
+    }
+    const p = new URLSearchParams();
+    if (sp.platform) p.set("platform", sp.platform);
+    if (sp.status) p.set("status", sp.status);
+    if (gamesSort !== "updated_desc") p.set("sort", gamesSort);
+    return p.size > 0 ? `/?${p}` : "/";
+  })();
 
   const gameCountText =
     count === 1
@@ -216,6 +265,7 @@ export default async function Home({
     if (sp.platform) p.set("platform", sp.platform);
     if (sp.status) p.set("status", sp.status);
     if (q) p.set("q", q);
+    if (gamesSort !== "updated_desc") p.set("sort", gamesSort);
     if (page > 1) p.set("page", String(page));
     return p.size > 0 ? `/?${p}` : "/";
   }
@@ -223,6 +273,7 @@ export default async function Home({
   function studiosPaginationHref(page: number) {
     const p = new URLSearchParams({ tab: "studios" });
     if (q) p.set("q", q);
+    if (studiosSort !== "updated_desc") p.set("studiosSort", studiosSort);
     if (page > 1) p.set("studiosPage", String(page));
     return `/?${p}`;
   }
@@ -280,6 +331,9 @@ export default async function Home({
           {/* Studios search */}
           <form method="get" action="" className="relative mb-4">
             <input type="hidden" name="tab" value="studios" />
+            {studiosSort !== "updated_desc" && (
+              <input type="hidden" name="studiosSort" value={studiosSort} />
+            )}
             <input
               type="search"
               name="q"
@@ -305,7 +359,19 @@ export default async function Home({
             </div>
           </form>
 
-          <p className="text-sm text-c-faint mb-6">{studioCountText}</p>
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-6">
+            <SortSelect
+              paramName="studiosSort"
+              pageParamName="studiosPage"
+              current={studiosSort}
+              label={t("sortLabel")}
+              options={[
+                { value: "updated_desc", label: t("sortRecentlyUpdated") },
+                { value: "updated_asc", label: t("sortLeastRecentlyUpdated") },
+              ]}
+            />
+            <p className="text-sm text-c-faint">{studioCountText}</p>
+          </div>
           <div className="grid gap-3">
             {allStudios.length === 0 ? (
               <div className="text-center py-16">
@@ -421,6 +487,9 @@ export default async function Home({
           <input type="hidden" name="platform" value={sp.platform} />
         )}
         {sp.status && <input type="hidden" name="status" value={sp.status} />}
+        {gamesSort !== "updated_desc" && (
+          <input type="hidden" name="sort" value={gamesSort} />
+        )}
         <input
           type="search"
           name="q"
@@ -446,8 +515,8 @@ export default async function Home({
         </div>
       </form>
 
-      {/* Filters + count */}
-      <div className="flex items-center gap-2 flex-wrap mb-6">
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap mb-3">
         {filters.map((f) => (
           <Link
             key={f.label}
@@ -461,7 +530,23 @@ export default async function Home({
             {f.label}
           </Link>
         ))}
-        <span className="ms-auto text-sm text-c-faint">{gameCountText}</span>
+      </div>
+
+      {/* Sort + count */}
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-6">
+        <SortSelect
+          paramName="sort"
+          pageParamName="page"
+          current={gamesSort}
+          label={t("sortLabel")}
+          options={[
+            { value: "updated_desc", label: t("sortRecentlyUpdated") },
+            { value: "updated_asc", label: t("sortLeastRecentlyUpdated") },
+            { value: "released_desc", label: t("sortReleaseDateNewest") },
+            { value: "released_asc", label: t("sortReleaseDateOldest") },
+          ]}
+        />
+        <span className="text-sm text-c-faint">{gameCountText}</span>
       </div>
 
       {/* Game list */}

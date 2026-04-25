@@ -51,7 +51,12 @@
     "thumbnailAlt": "{name} thumbnail",
     "paginationPrev": "Previous",
     "paginationNext": "Next",
-    "paginationPage": "Page {current} of {total}"
+    "paginationPage": "Page {current} of {total}",
+    "sortLabel": "Sort:",
+    "sortRecentlyUpdated": "Recently updated",
+    "sortLeastRecentlyUpdated": "Least recently updated",
+    "sortReleaseDateNewest": "Release date — newest first",
+    "sortReleaseDateOldest": "Release date — oldest first"
   },
   "gameDetail": {
     "genres": "Genres",
