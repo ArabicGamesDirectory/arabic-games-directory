@@ -343,6 +343,18 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       return;
     }
 
+    // Fire-and-forget Discord webhook ping for the admin.
+    fetch("/api/notify-submission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entityType: "game",
+        name,
+        country: countries,
+        isUpdate,
+      }),
+    }).catch(() => {});
+
     // Auto-submit a studio entry if the developer name isn't already in the directory.
     const developerName = payload.developer;
     if (

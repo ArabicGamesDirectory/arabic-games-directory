@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 
 export default async function Disclaimer() {
   const t = await getTranslations("footer");
@@ -11,6 +12,14 @@ export default async function Disclaimer() {
         <p className="text-sm text-c-muted leading-relaxed" dir="auto">
           {t("disclaimerBody")}
         </p>
+        <div className="mt-4 text-sm">
+          <Link
+            href="/contact"
+            className="text-c-muted hover:text-indigo-500 transition-colors"
+          >
+            {t("contact")} →
+          </Link>
+        </div>
       </div>
     </footer>
   );
