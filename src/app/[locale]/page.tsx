@@ -542,7 +542,6 @@ export default async function Home({
             <SubmitMenu
               buttonLabel={tCommon("submit")}
               gameLabel={tCommon("submitGame")}
-              studioLabel={tCommon("submitStudio")}
               communityLabel={tCommon("submitCommunity")}
             />
           </div>

@@ -6,12 +6,10 @@ import { Link } from "@/i18n/navigation";
 export default function SubmitMenu({
   buttonLabel,
   gameLabel,
-  studioLabel,
   communityLabel,
 }: {
   buttonLabel: string;
   gameLabel: string;
-  studioLabel: string;
   communityLabel: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -60,14 +58,6 @@ export default function SubmitMenu({
             className="block px-4 py-2 text-sm text-c-text hover:bg-c-bg transition-colors"
           >
             {gameLabel}
-          </Link>
-          <Link
-            href="/submit-studio"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm text-c-text hover:bg-c-bg transition-colors"
-          >
-            {studioLabel}
           </Link>
           <Link
             href="/submit-community"
