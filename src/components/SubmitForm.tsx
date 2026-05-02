@@ -8,12 +8,13 @@ import { slugify } from "@/lib/slug";
 import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { GENRE_VALUES } from "@/lib/genres";
+import DeveloperTagsInput from "@/components/DeveloperTagsInput";
 
 export type GameData = {
   id: string;
   slug: string;
   name: string;
-  developer: string | null;
+  developers: string[];
   country: string[];
   platforms: string[];
   genres: string[];
@@ -102,8 +103,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
   const [studioNames, setStudioNames] = useState<string[]>([]);
-  const [developerValue, setDeveloperValue] = useState(initialData?.developer ?? "");
-  const [showDeveloperSuggestions, setShowDeveloperSuggestions] = useState(false);
   // Open store links by default when updating a game that already has some
   const [storeLinksOpen, setStoreLinksOpen] = useState(true);
   const [publishingType, setPublishingType] = useState(initialData?.publishing_type ?? "");
@@ -262,6 +261,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     const platforms = form.getAll("platforms") as string[];
     const gameplayModes = form.getAll("gameplay_modes") as string[];
     const gameEngine = String(form.get("game_engine") || "").trim();
+    const developers = (form.getAll("developers") as string[]).map((s) => s.trim()).filter(Boolean);
     // Validate required fields
     const newErrors: Record<string, string> = {};
     if (!name) newErrors.name = t("errorRequired");
@@ -269,7 +269,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     if (countries.length === 0) newErrors.country = t("countryRequired");
     if (allGenres.length === 0) newErrors.genres = t("genreRequired");
     if (platforms.length === 0) newErrors.platforms = t("platformRequired");
-    if (!developerValue.trim()) newErrors.developer = t("errorRequired");
+    if (developers.length === 0) newErrors.developers = t("developersRequired");
     if (gameplayModes.length === 0) newErrors.gameplay_modes = t("gameplayModesRequired");
     if (!gameEngine) newErrors.game_engine = t("errorRequired");
 
@@ -307,7 +307,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       name,
       // For updates, preserve the existing slug so URLs don't break.
       slug: isUpdate ? initialData!.slug : slugify(name),
-      developer: String(form.get("developer") || "").trim() || null,
+      developers,
       country: countries,
       platforms,
       genres: allGenres,
@@ -359,31 +359,29 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       }),
     }).catch(() => {});
 
-    // Auto-submit a studio entry if the developer name isn't already in the directory.
-    const developerName = payload.developer;
-    if (
-      !isUpdate &&
-      developerName &&
-      !studioNames.some((n) => n.toLowerCase() === developerName.toLowerCase())
-    ) {
-      const { error: studioError } = await supabase.from("studio_submissions").insert({
-        payload: {
-          name: developerName,
-          slug: slugify(developerName),
-          type: "unspecified",
-          description: null,
-          country: countries,
-          website_url: null,
-        },
-        moderation_status: "pending",
-      });
-      if (studioError) {
-        console.error("Studio auto-submit failed:", studioError.message);
+    // Auto-submit a studio entry for each developer name not already in the directory.
+    if (!isUpdate) {
+      const knownNames = new Set(studioNames.map((n) => n.toLowerCase()));
+      for (const developerName of payload.developers) {
+        if (knownNames.has(developerName.toLowerCase())) continue;
+        const { error: studioError } = await supabase.from("studio_submissions").insert({
+          payload: {
+            name: developerName,
+            slug: slugify(developerName),
+            type: "unspecified",
+            description: null,
+            country: countries,
+            website_url: null,
+          },
+          moderation_status: "pending",
+        });
+        if (studioError) {
+          console.error("Studio auto-submit failed:", studioError.message);
+        }
       }
     }
 
     formEl.reset();
-    setDeveloperValue("");
     setGenreOtherChecked(false);
     setGenreOtherText("");
     setStoreLinksOpen(false);
@@ -490,41 +488,20 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             />
           </Field>
 
-          <Field label={t("fieldDeveloper")} required error={errors.developer}>
-            <div className="relative">
-              <input
-                id="developer"
-                name="developer"
-                value={developerValue}
-                onChange={(e) => setDeveloperValue(e.target.value)}
-                onFocus={() => setShowDeveloperSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowDeveloperSuggestions(false), 150)}
-                autoComplete="off"
-                className={inputCls("developer")}
-                placeholder={t("placeholderDeveloper")}
-              />
-              {showDeveloperSuggestions && studioNames.filter((n) =>
-                n.toLowerCase().includes(developerValue.toLowerCase())
-              ).length > 0 && (
-                <ul className="absolute z-10 w-full mt-1 bg-c-surface border border-c-border rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                  {studioNames
-                    .filter((n) => n.toLowerCase().includes(developerValue.toLowerCase()))
-                    .slice(0, 8)
-                    .map((name) => (
-                      <li
-                        key={name}
-                        onMouseDown={() => {
-                          setDeveloperValue(name);
-                          setShowDeveloperSuggestions(false);
-                        }}
-                        className="px-3 py-2 text-sm text-c-text hover:bg-c-bg cursor-pointer"
-                      >
-                        {name}
-                      </li>
-                    ))}
-                </ul>
-              )}
-            </div>
+          <Field
+            label={t("fieldDeveloper")}
+            required
+            hint={t("developersHint")}
+            error={errors.developers}
+          >
+            <DeveloperTagsInput
+              name="developers"
+              initialValues={initialData?.developers}
+              suggestions={studioNames}
+              placeholder={t("placeholderDeveloper")}
+              removeAriaLabel={t("removeDeveloper")}
+              hasError={!!errors.developers}
+            />
           </Field>
 
           <Field label={t("fieldPublishing")}>

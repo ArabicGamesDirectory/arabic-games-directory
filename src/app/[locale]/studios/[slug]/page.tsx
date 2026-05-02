@@ -19,7 +19,7 @@ type Studio = {
 type Game = {
   slug: string;
   name: string;
-  developer: string | null;
+  developers: string[];
   status: string;
   country: string[];
   platforms: string[];
@@ -74,13 +74,13 @@ export default async function StudioPage({
 
   const studio = data as Studio;
 
-  // Fetch games linked to this studio via FK
+  // Fetch games linked to this studio via the game_studios join table.
   const { data: gamesData } = await supabase
     .from("games")
-    .select("slug, name, developer, status, country, platforms, genres, gameplay_modes, monetization, game_engine, release_date, thumbnail_url")
-    .eq("studio_id", studio.id)
+    .select("slug, name, developers, status, country, platforms, genres, gameplay_modes, monetization, game_engine, release_date, thumbnail_url, game_studios!inner(studio_id)")
+    .eq("game_studios.studio_id", studio.id)
     .order("created_at", { ascending: false });
-  const studioGames: Game[] = (gamesData as Game[]) ?? [];
+  const studioGames: Game[] = (gamesData as unknown as Game[]) ?? [];
 
   const TYPE_LABELS: Record<string, string> = {
     individual: t("typeIndividual"),
@@ -198,8 +198,8 @@ export default async function StudioPage({
                             {g.name}
                           </Link>
                         </h3>
-                        {g.developer && (
-                          <p className="text-xs text-c-faint mt-0.5">{g.developer}</p>
+                        {g.developers.length > 0 && (
+                          <p className="text-xs text-c-faint mt-0.5">{g.developers.join(", ")}</p>
                         )}
                       </div>
                       <span

@@ -1,8 +1,45 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { promoteThumbnail } from "@/lib/promoteThumbnail";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+
+// Read developers list from a submission payload, tolerating legacy single-value
+// `developer` strings on rows queued before the multi-developer migration.
+function readDevelopers(payload: { developers?: unknown; developer?: unknown }): string[] {
+  if (Array.isArray(payload.developers)) {
+    return payload.developers.filter((d): d is string => typeof d === "string" && d.trim().length > 0);
+  }
+  if (typeof payload.developer === "string" && payload.developer.trim()) {
+    return [payload.developer.trim()];
+  }
+  return [];
+}
+
+async function syncGameStudios(
+  supabase: SupabaseClient,
+  gameId: string,
+  developers: string[]
+): Promise<void> {
+  // Look up matching approved studios for each developer name (case-insensitive).
+  const matchedStudioIds = new Set<string>();
+  for (const devName of developers) {
+    const { data: studio } = await supabase
+      .from("studios")
+      .select("id")
+      .ilike("name", devName)
+      .maybeSingle();
+    if (studio?.id) matchedStudioIds.add(studio.id);
+  }
+
+  // Replace the join rows for this game.
+  await supabase.from("game_studios").delete().eq("game_id", gameId);
+  if (matchedStudioIds.size > 0) {
+    await supabase.from("game_studios").insert(
+      Array.from(matchedStudioIds).map((sid) => ({ game_id: gameId, studio_id: sid }))
+    );
+  }
+}
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -42,9 +79,11 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { submission } = body;
 
+  const developers = readDevelopers(submission.payload);
+
   const gameFields = {
     name: submission.payload.name,
-    developer: submission.payload.developer ?? null,
+    developers,
     country: submission.payload.country,
     platforms: submission.payload.platforms,
     genres: submission.payload.genres,
@@ -63,7 +102,7 @@ export async function POST(request: Request) {
     thumbnail_url: submission.payload.thumbnail_url ?? null,
   };
 
-  let gameError: { message: string } | null = null;
+  let gameId: string;
 
   if (submission.game_id) {
     // Update submission — patch the existing game row (slug is preserved).
@@ -72,7 +111,10 @@ export async function POST(request: Request) {
       .from("games")
       .update({ ...gameFields, ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}) })
       .eq("id", submission.game_id);
-    gameError = error;
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+    gameId = submission.game_id;
   } else {
     // New game submission — resolve slug collisions, then insert.
     const baseSlug = submission.payload.slug as string;
@@ -88,44 +130,23 @@ export async function POST(request: Request) {
     }
 
     const permanentUrl = await promoteThumbnail(supabase, gameFields.thumbnail_url);
-    const { error } = await supabase
+    const { data: insertedGame, error } = await supabase
       .from("games")
       .insert({
         slug,
         ...gameFields,
         ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
-      });
-    gameError = error;
-
-    // Link to studio via FK if a matching studio name exists.
-    if (!error && submission.payload.developer) {
-      const { data: studioMatch } = await supabase
-        .from("studios")
-        .select("id")
-        .ilike("name", submission.payload.developer)
-        .single();
-      if (studioMatch) {
-        await supabase.from("games").update({ studio_id: studioMatch.id }).eq("slug", slug);
-      }
-    }
-  }
-
-  if (gameError) {
-    return Response.json({ error: gameError.message }, { status: 500 });
-  }
-
-  // For update submissions, re-link studio in case developer name changed.
-  if (submission.game_id && submission.payload.developer) {
-    const { data: studioMatch } = await supabase
-      .from("studios")
+      })
       .select("id")
-      .ilike("name", submission.payload.developer)
       .single();
-    await supabase
-      .from("games")
-      .update({ studio_id: studioMatch?.id ?? null })
-      .eq("id", submission.game_id);
+    if (error || !insertedGame) {
+      return Response.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
+    }
+    gameId = insertedGame.id;
   }
+
+  // Sync the game_studios join table from the developers list.
+  await syncGameStudios(supabase, gameId, developers);
 
   const { error: updateError } = await supabase
     .from("submissions")

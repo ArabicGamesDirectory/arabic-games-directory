@@ -1,7 +1,29 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { promoteThumbnail } from "@/lib/promoteThumbnail";
+
+// Walk every game's developers[] and insert a join row for any name that
+// matches this studio (case-insensitive) but isn't already linked. Postgres
+// doesn't have an indexed case-insensitive array containment operator, so we
+// scan in JS — fine at directory scale.
+async function retroLinkGames(
+  supabase: SupabaseClient,
+  studioId: string,
+  studioName: string
+): Promise<void> {
+  const { data: games } = await supabase.from("games").select("id, developers");
+  if (!games) return;
+  const target = studioName.toLowerCase();
+  const matchingIds = (games as { id: string; developers: string[] | null }[])
+    .filter((g) => (g.developers ?? []).some((d) => d.toLowerCase() === target))
+    .map((g) => g.id);
+  if (matchingIds.length === 0) return;
+  await supabase.from("game_studios").upsert(
+    matchingIds.map((gid) => ({ game_id: gid, studio_id: studioId })),
+    { onConflict: "game_id,studio_id", ignoreDuplicates: true }
+  );
+}
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -61,13 +83,9 @@ export async function POST(request: Request) {
       .eq("id", submission.studio_id);
     studioError = error;
 
-    // Retroactively link any games that matched by name but had no studio_id yet.
+    // Retroactively link any games whose developers[] mentions this studio name.
     if (!error) {
-      await supabase
-        .from("games")
-        .update({ studio_id: submission.studio_id })
-        .is("studio_id", null)
-        .ilike("developer", studioFields.name);
+      await retroLinkGames(supabase, submission.studio_id, studioFields.name);
     }
   } else {
     // New studio submission — resolve slug collisions, then insert.
@@ -95,13 +113,9 @@ export async function POST(request: Request) {
       .single();
     studioError = error;
 
-    // Retroactively link any games that matched by name but had no studio_id yet.
+    // Retroactively link any games whose developers[] mentions this studio name.
     if (!error && insertedStudio) {
-      await supabase
-        .from("games")
-        .update({ studio_id: insertedStudio.id })
-        .is("studio_id", null)
-        .ilike("developer", studioFields.name);
+      await retroLinkGames(supabase, insertedStudio.id, studioFields.name);
     }
   }
 

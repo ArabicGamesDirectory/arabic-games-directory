@@ -31,7 +31,7 @@ const PAGE_SIZE = 10;
 
 type Game = {
   name: string;
-  developer: string | null;
+  developers: string[];
   country: string[];
   platforms: string[];
   genres: string[];
@@ -45,7 +45,7 @@ type Game = {
   slug: string;
   short_description: string;
   thumbnail_url: string | null;
-  studios: { slug: string } | null;
+  game_studios: { studios: { slug: string; name: string } | null }[] | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -173,7 +173,7 @@ export default async function Home({
   if (q) communityParams.set("q", q);
   const communitiesTabHref = `/?${communityParams}`;
 
-  // Always fetch all studios for the studioSlugMap (needed for developer name linking on game cards)
+  // Fetch all studios — used by the Studios tab listing.
   const { data: allStudioData } = await supabase
     .from("studios")
     .select("id, slug, name, type, description, country, website_url, thumbnail_url, created_at, updated_at")
@@ -260,7 +260,7 @@ export default async function Home({
   let gamesQuery = supabase
     .from("games")
     .select(
-      "name, developer, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url, studios(slug)",
+      "name, developers, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url, game_studios(studios(slug, name))",
       { count: "exact" }
     );
 
@@ -1091,18 +1091,28 @@ export default async function Home({
                           {g.name}
                         </Link>
                       </h2>
-                      {g.developer && (
+                      {g.developers.length > 0 && (
                         <p className="text-xs text-c-faint mt-0.5">
-                          {g.studios?.slug ? (
-                            <Link
-                              href={`/studios/${g.studios.slug}`}
-                              className="hover:text-indigo-500 transition-colors"
-                            >
-                              {g.developer}
-                            </Link>
-                          ) : (
-                            g.developer
-                          )}
+                          {g.developers.map((dev, i) => {
+                            const link = (g.game_studios ?? []).find(
+                              (gs) => gs.studios?.name?.toLowerCase() === dev.toLowerCase()
+                            );
+                            return (
+                              <span key={dev}>
+                                {i > 0 && ", "}
+                                {link?.studios?.slug ? (
+                                  <Link
+                                    href={`/studios/${link.studios.slug}`}
+                                    className="hover:text-indigo-500 transition-colors"
+                                  >
+                                    {dev}
+                                  </Link>
+                                ) : (
+                                  dev
+                                )}
+                              </span>
+                            );
+                          })}
                         </p>
                       )}
                     </div>

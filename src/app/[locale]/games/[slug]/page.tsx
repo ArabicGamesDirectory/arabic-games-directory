@@ -8,7 +8,7 @@ type Game = {
   id: string;
   slug: string;
   name: string;
-  developer: string | null;
+  developers: string[];
   country: string[];
   platforms: string[];
   genres: string[];
@@ -23,7 +23,7 @@ type Game = {
   publishing_type: string | null;
   publisher_name: string | null;
   thumbnail_url: string | null;
-  studios: { slug: string } | null;
+  game_studios: { studios: { slug: string; name: string } | null }[] | null;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -52,7 +52,7 @@ export default async function GameDetails({
 
   const { data, error } = await supabase
     .from("games")
-    .select("*, studios(slug)")
+    .select("*, game_studios(studios(slug, name))")
     .eq("slug", slug)
     .single();
 
@@ -115,18 +115,28 @@ export default async function GameDetails({
           {game.name}
         </h1>
 
-        {game.developer && (
+        {game.developers.length > 0 && (
           <p className="text-sm text-c-muted mt-1">
-            {game.studios?.slug ? (
-              <Link
-                href={`/studios/${game.studios.slug}`}
-                className="hover:text-indigo-500 transition-colors"
-              >
-                {game.developer}
-              </Link>
-            ) : (
-              game.developer
-            )}
+            {game.developers.map((dev, i) => {
+              const link = (game.game_studios ?? []).find(
+                (gs) => gs.studios?.name?.toLowerCase() === dev.toLowerCase()
+              );
+              return (
+                <span key={dev}>
+                  {i > 0 && ", "}
+                  {link?.studios?.slug ? (
+                    <Link
+                      href={`/studios/${link.studios.slug}`}
+                      className="hover:text-indigo-500 transition-colors"
+                    >
+                      {dev}
+                    </Link>
+                  ) : (
+                    dev
+                  )}
+                </span>
+              );
+            })}
           </p>
         )}
 

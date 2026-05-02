@@ -17,7 +17,10 @@ type Submission = {
   payload: {
     name: string;
     slug: string;
-    developer: string | null;
+    // New rows store `developers: string[]`. Legacy rows queued before the
+    // multi-developer migration may have a single `developer: string` instead.
+    developers?: string[];
+    developer?: string | null;
     country: string[] | string;
     platforms: string[];
     genres: string[];
@@ -38,7 +41,7 @@ type Game = {
   id: string;
   slug: string;
   name: string;
-  developer: string | null;
+  developers: string[];
   country: string[];
   platforms: string[];
   genres: string[];
@@ -110,7 +113,7 @@ type ApprovedGame = {
   id: string;
   slug: string;
   name: string;
-  developer: string | null;
+  developers: string[];
 };
 
 type ApprovedStudio = {
@@ -151,6 +154,14 @@ function fieldChanged(newVal: unknown, oldVal: unknown): boolean {
 function arrayToDisplay(v: string[] | string | null | undefined): string {
   if (!v) return "—";
   return [v].flat().join(", ") || "—";
+}
+
+// Tolerantly read the developers list from a payload that may use the new
+// `developers: string[]` shape or the legacy `developer: string` shape.
+function payloadDevelopers(p: { developers?: string[]; developer?: string | null }): string[] {
+  if (Array.isArray(p.developers)) return p.developers.filter(Boolean);
+  if (p.developer) return [p.developer];
+  return [];
 }
 
 function storeLinksToDisplay(links: Record<string, string | null> | null | undefined): string {
@@ -307,7 +318,7 @@ export default function AdminPage() {
     // Fetch all approved games, studios, and communities for the Published tab
     const { data: approved } = await supabase
       .from("games")
-      .select("id, slug, name, developer")
+      .select("id, slug, name, developers")
       .order("created_at", { ascending: false });
     setApprovedGames((approved as ApprovedGame[]) ?? []);
 
@@ -691,9 +702,9 @@ export default function AdminPage() {
                           </span>
                         )}
                       </div>
-                      {s.payload.developer && (
+                      {payloadDevelopers(s.payload).length > 0 && (
                         <p className="text-xs text-c-faint mt-0.5">
-                          {s.payload.developer}
+                          {payloadDevelopers(s.payload).join(", ")}
                         </p>
                       )}
                     </div>
@@ -746,10 +757,10 @@ export default function AdminPage() {
                     />
 
                     <DetailRow
-                      label="Developer"
-                      value={s.payload.developer || "—"}
-                      oldValue={original?.developer}
-                      changed={!!original && fieldChanged(s.payload.developer, original.developer)}
+                      label="Developers"
+                      value={arrayToDisplay(payloadDevelopers(s.payload))}
+                      oldValue={original ? arrayToDisplay(original.developers) : undefined}
+                      changed={!!original && fieldChanged(payloadDevelopers(s.payload), original.developers)}
                       changedLabel={t("changed")}
                       wasLabel={t("was")}
                     />
@@ -1239,8 +1250,8 @@ export default function AdminPage() {
                         >
                           {g.name}
                         </Link>
-                        {g.developer && (
-                          <span className="text-xs text-c-faint">— {g.developer}</span>
+                        {g.developers.length > 0 && (
+                          <span className="text-xs text-c-faint">— {g.developers.join(", ")}</span>
                         )}
                       </div>
                     </div>
