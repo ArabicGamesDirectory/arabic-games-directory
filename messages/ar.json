@@ -319,11 +319,17 @@
     "title": "إحصائيات",
     "subtitleSingular": "لعبة واحدة في الدليل",
     "subtitlePlural": "{count} لعبة في الدليل",
+    "totalGames": "ألعاب",
+    "totalStudios": "استوديوهات",
+    "totalCommunities": "مجتمعات",
+    "topStudios": "الاستوديوهات الأكثر إنتاجاً",
     "byCountry": "حسب الدولة",
     "byStatus": "حسب الحالة",
     "byPlatform": "حسب المنصة",
     "byGenre": "حسب النوع",
-    "noData": "لا توجد بيانات بعد."
+    "byReleaseYear": "حسب سنة الإصدار",
+    "noData": "لا توجد بيانات بعد.",
+    "noStudios": "لا توجد استوديوهات مرتبطة بألعاب بعد."
   },
   "community": {
     "submitTitle": "أضف مجتمع",

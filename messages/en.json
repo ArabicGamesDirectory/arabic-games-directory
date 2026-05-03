@@ -319,11 +319,17 @@
     "title": "Statistics",
     "subtitleSingular": "{count} game in the directory",
     "subtitlePlural": "{count} games in the directory",
+    "totalGames": "Games",
+    "totalStudios": "Studios",
+    "totalCommunities": "Communities",
+    "topStudios": "Top studios",
     "byCountry": "By country",
     "byStatus": "By status",
     "byPlatform": "By platform",
     "byGenre": "By genre",
-    "noData": "No data yet."
+    "byReleaseYear": "By release year",
+    "noData": "No data yet.",
+    "noStudios": "No studios linked to games yet."
   },
   "community": {
     "submitTitle": "Submit a community",
