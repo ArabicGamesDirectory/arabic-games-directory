@@ -34,6 +34,8 @@ export type GameData = {
 const PLATFORM_OPTIONS = [
   "iOS",
   "Android",
+  "Pocket PC",
+  "Nokia Symbian",
   "Windows",
   "macOS",
   "Linux",
@@ -41,10 +43,17 @@ const PLATFORM_OPTIONS = [
   "MSX",
   "Amstrad CPC",
   "Amiga",
+  "Commodore 64",
   "Web",
   "PlayStation",
   "Xbox",
   "Nintendo Switch",
+  "Nintendo 64",
+  "Nintendo DS",
+  "Nintendo 3DS",
+  "GameBoy Advance",
+  "PSP",
+  "PSVITA",
 ];
 
 // Pulled from @/lib/genres so the homepage filter dropdown shares the same source.

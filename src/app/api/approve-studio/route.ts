@@ -25,6 +25,47 @@ async function retroLinkGames(
   );
 }
 
+// When a studio is renamed, every game linked to it via game_studios still has
+// the OLD name as a string in its developers[] array. Display lookups match
+// developers[] entries against studios.name case-insensitively, so a rename
+// breaks the link visually even though the FK row is intact. This walks every
+// linked game and rewrites the matching developers[] entry in-place.
+async function propagateStudioRename(
+  supabase: SupabaseClient,
+  studioId: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  const { data: links } = await supabase
+    .from("game_studios")
+    .select("game_id")
+    .eq("studio_id", studioId);
+  if (!links || links.length === 0) return;
+  const gameIds = (links as { game_id: string }[]).map((l) => l.game_id);
+
+  const { data: games } = await supabase
+    .from("games")
+    .select("id, developers")
+    .in("id", gameIds);
+  if (!games) return;
+
+  const oldLower = oldName.toLowerCase();
+  for (const g of games as { id: string; developers: string[] | null }[]) {
+    const current = g.developers ?? [];
+    let changed = false;
+    const next = current.map((d) => {
+      if (d.toLowerCase() === oldLower && d !== newName) {
+        changed = true;
+        return newName;
+      }
+      return d;
+    });
+    if (changed) {
+      await supabase.from("games").update({ developers: next }).eq("id", g.id);
+    }
+  }
+}
+
 export async function POST(request: Request) {
   const cookieStore = await cookies();
 
@@ -75,6 +116,15 @@ export async function POST(request: Request) {
   let studioError: { message: string } | null = null;
 
   if (submission.studio_id) {
+    // Capture the old name BEFORE the update so we can rewrite linked games'
+    // developers[] entries if the rename changes display matching.
+    const { data: oldStudio } = await supabase
+      .from("studios")
+      .select("name")
+      .eq("id", submission.studio_id)
+      .maybeSingle();
+    const oldName = (oldStudio as { name: string } | null)?.name ?? null;
+
     // Update submission — patch the existing studio row (slug preserved).
     const permanentUrl = await promoteThumbnail(supabase, studioFields.thumbnail_url);
     const { error } = await supabase
@@ -83,8 +133,17 @@ export async function POST(request: Request) {
       .eq("id", submission.studio_id);
     studioError = error;
 
-    // Retroactively link any games whose developers[] mentions this studio name.
     if (!error) {
+      // If the name effectively changed, rewrite linked games' developers[].
+      if (oldName && oldName.toLowerCase() !== studioFields.name.toLowerCase()) {
+        await propagateStudioRename(
+          supabase,
+          submission.studio_id,
+          oldName,
+          studioFields.name
+        );
+      }
+      // Retroactively link any games whose developers[] mentions this studio name.
       await retroLinkGames(supabase, submission.studio_id, studioFields.name);
     }
   } else {
