@@ -108,6 +108,11 @@ function DonutChart({ data }: { data: ChartEntry[] }) {
             iconType="circle"
             iconSize={8}
             wrapperStyle={{ fontSize: 12, color: "var(--c-soft)" }}
+            formatter={(value, entry) => {
+              const count = (entry as unknown as { payload?: { value?: number } })
+                ?.payload?.value;
+              return count !== undefined ? `${value} (${count})` : String(value);
+            }}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -188,7 +193,7 @@ export function StatsCharts({
         <DonutChart data={byStatus} />
       </StatCard>
       <StatCard title={labels.byPlatform} data={byPlatform} noData={labels.noData}>
-        <DonutChart data={byPlatform} />
+        <HBarChart data={byPlatform} />
       </StatCard>
       <StatCard title={labels.byGenre} data={byGenre} noData={labels.noData}>
         <HBarChart data={byGenre} />

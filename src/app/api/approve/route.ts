@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { promoteThumbnail } from "@/lib/promoteThumbnail";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+import { normalizeGenres } from "@/lib/genres";
 
 // Read developers list from a submission payload, tolerating legacy single-value
 // `developer` strings on rows queued before the multi-developer migration.
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
     developers,
     country: submission.payload.country,
     platforms: submission.payload.platforms,
-    genres: submission.payload.genres,
+    genres: normalizeGenres(submission.payload.genres ?? []),
     gameplay_modes: submission.payload.gameplay_modes ?? [],
     game_engine: submission.payload.game_engine ?? null,
     monetization: submission.payload.monetization ?? [],

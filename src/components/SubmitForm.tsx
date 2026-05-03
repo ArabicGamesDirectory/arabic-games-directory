@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
 import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
-import { GENRE_VALUES } from "@/lib/genres";
+import { GENRE_VALUES, normalizeGenres } from "@/lib/genres";
 import DeveloperTagsInput from "@/components/DeveloperTagsInput";
 
 export type GameData = {
@@ -264,9 +264,9 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     const description = String(form.get("short_description") || "").trim();
     const countries = form.getAll("country") as string[];
     const baseGenres = form.getAll("genres") as string[];
-    const allGenres = genreOtherChecked
-      ? [...baseGenres, genreOtherText.trim() || "Other"]
-      : baseGenres;
+    const allGenres = normalizeGenres(
+      genreOtherChecked ? [...baseGenres, genreOtherText] : baseGenres
+    );
     const platforms = form.getAll("platforms") as string[];
     const gameplayModes = form.getAll("gameplay_modes") as string[];
     const gameEngine = String(form.get("game_engine") || "").trim();

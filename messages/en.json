@@ -186,7 +186,8 @@
     "other": "Other",
     "resourceManagement": "Resource Management",
     "rogueLite": "Rogue-lite",
-    "roguelike": "Roguelike"
+    "roguelike": "Roguelike",
+    "dressUp": "Dress up"
   },
   "admin": {
     "loginTitle": "Admin login",

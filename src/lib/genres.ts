@@ -6,6 +6,7 @@ export const GENRE_VALUES = [
   "Arcade",
   "Card / Board Game",
   "Casual",
+  "Dress up",
   "Educational",
   "Endless Runner",
   "Family",
@@ -30,12 +31,40 @@ export const GENRE_VALUES = [
 
 export type GenreValue = (typeof GENRE_VALUES)[number];
 
+// Case-insensitive lookup table: lowercase variant → canonical value.
+// Used by normalizeGenres() to fold freetext "Other" entries that match a
+// canonical genre (e.g. "card game" → "Card / Board Game") and to dedup.
+const CANONICAL_GENRE_BY_LOWER: Record<string, string> = Object.fromEntries(
+  GENRE_VALUES.map((g) => [g.toLowerCase(), g])
+);
+
+// Normalizes a genres array:
+// - trims each entry, drops empty strings and the literal "Other"
+// - case-insensitive maps to canonical when matched (e.g. "PUZZLE" → "Puzzle")
+// - dedups case-insensitively (preserves first occurrence)
+export function normalizeGenres(input: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of input) {
+    const trimmed = (raw ?? "").trim();
+    if (!trimmed) continue;
+    if (trimmed.toLowerCase() === "other") continue;
+    const canonical = CANONICAL_GENRE_BY_LOWER[trimmed.toLowerCase()] ?? trimmed;
+    const key = canonical.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(canonical);
+  }
+  return out;
+}
+
 export const GENRE_I18N_KEYS: Record<string, string> = {
   "Action": "action",
   "Adventure": "adventure",
   "Arcade": "arcade",
   "Card / Board Game": "cardBoardGame",
   "Casual": "casual",
+  "Dress up": "dressUp",
   "Educational": "educational",
   "Endless Runner": "endlessRunner",
   "Family": "family",
