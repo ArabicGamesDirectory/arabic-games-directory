@@ -286,7 +286,10 @@ export function StatsCharts({
   byStatus,
   byPlatform,
   byGenre,
+  byEngine,
+  byMonetization,
   byReleaseYear,
+  submissionsOverTime,
   labels,
 }: {
   counters: { games: number; studios: number; communities: number };
@@ -295,7 +298,10 @@ export function StatsCharts({
   byStatus: ChartEntry[];
   byPlatform: ChartEntry[];
   byGenre: ChartEntry[];
+  byEngine: ChartEntry[];
+  byMonetization: ChartEntry[];
   byReleaseYear: ChartEntry[];
+  submissionsOverTime: ChartEntry[];
   labels: {
     totalGames: string;
     totalStudios: string;
@@ -305,7 +311,10 @@ export function StatsCharts({
     byStatus: string;
     byPlatform: string;
     byGenre: string;
+    byEngine: string;
+    byMonetization: string;
     byReleaseYear: string;
+    submissionsOverTime: string;
     noData: string;
     noStudios: string;
   };
@@ -333,6 +342,16 @@ export function StatsCharts({
         <StatCard title={labels.byGenre} data={byGenre} noData={labels.noData}>
           <HBarChart data={byGenre} />
         </StatCard>
+        <StatCard title={labels.byEngine} data={byEngine} noData={labels.noData}>
+          <HBarChart data={byEngine} />
+        </StatCard>
+        <StatCard
+          title={labels.byMonetization}
+          data={byMonetization}
+          noData={labels.noData}
+        >
+          <HBarChart data={byMonetization} />
+        </StatCard>
         <Card title={labels.topStudios}>
           <TopStudiosList studios={topStudios} emptyLabel={labels.noStudios} />
         </Card>
@@ -342,6 +361,17 @@ export function StatsCharts({
           noData={labels.noData}
         >
           <VBarChart data={byReleaseYear} />
+        </StatCard>
+      </div>
+      {/* Submissions over time — full-width row beneath the 2-col grid since
+          a wider canvas suits the time-series chart better than a half-card. */}
+      <div className="mt-4">
+        <StatCard
+          title={labels.submissionsOverTime}
+          data={submissionsOverTime}
+          noData={labels.noData}
+        >
+          <VBarChart data={submissionsOverTime} />
         </StatCard>
       </div>
     </>

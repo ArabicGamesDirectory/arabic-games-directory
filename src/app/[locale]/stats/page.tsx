@@ -33,6 +33,9 @@ type Game = {
   genres: string[];
   status: string;
   release_date: string | null;
+  game_engine: string | null;
+  monetization: string[] | null;
+  created_at: string | null;
 };
 
 export default async function StatsPage({
@@ -56,7 +59,7 @@ export default async function StatsPage({
   ] = await Promise.all([
     supabase
       .from("games")
-      .select("country, platforms, genres, status, release_date"),
+      .select("country, platforms, genres, status, release_date, game_engine, monetization, created_at"),
     supabase.from("communities").select("*", { count: "exact", head: true }),
     supabase.from("studios").select("id, slug, name"),
     supabase.from("game_studios").select("studio_id"),
@@ -79,6 +82,11 @@ export default async function StatsPage({
   const rawGenre: Record<string, number> = {};
   const rawStatus: Record<string, number> = {};
   const rawYear: Record<number, number> = {};
+  const rawEngine: Record<string, number> = {};
+  const rawMonetization: Record<string, number> = {};
+  // Submissions over time — bucket created_at by `YYYY-MM` so the chart can
+  // gap-fill empty months later. Sortable lexicographically thanks to padding.
+  const rawMonth: Record<string, number> = {};
 
   const currentYear = new Date().getFullYear();
   for (const game of games) {
@@ -91,6 +99,24 @@ export default async function StatsPage({
       // Sanity-bound: drop obvious data errors (no real game in this directory pre-1970, no future dates beyond +5y).
       if (year >= 1970 && year <= currentYear + 5) {
         rawYear[year] = (rawYear[year] || 0) + 1;
+      }
+    }
+    // Engine: trim + dedupe minor whitespace; skip empty so the chart isn't
+    // dominated by a "no engine specified" bucket. Free-text values land here
+    // verbatim — the form has a datalist but submitters can type anything.
+    if (game.game_engine) {
+      const engine = game.game_engine.trim();
+      if (engine) rawEngine[engine] = (rawEngine[engine] || 0) + 1;
+    }
+    for (const m of game.monetization ?? []) {
+      const trimmed = m?.trim();
+      if (trimmed) rawMonetization[trimmed] = (rawMonetization[trimmed] || 0) + 1;
+    }
+    if (game.created_at) {
+      const d = new Date(game.created_at);
+      if (!Number.isNaN(d.getTime())) {
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+        rawMonth[key] = (rawMonth[key] || 0) + 1;
       }
     }
   }
@@ -131,6 +157,8 @@ export default async function StatsPage({
   );
   const byPlatform = toSortedEntries(rawPlatform);
   const byGenre = toSortedEntries(rawGenre);
+  const byEngine = toSortedEntries(rawEngine);
+  const byMonetization = toSortedEntries(rawMonetization);
 
   // Build release-year histogram, gap-filled across the min→max year range so
   // empty years still render as zero-bars (otherwise a quiet year disappears).
@@ -141,6 +169,33 @@ export default async function StatsPage({
     const max = Math.max(...yearKeys);
     for (let y = min; y <= max; y++) {
       byReleaseYear.push({ name: String(y), value: rawYear[y] || 0 });
+    }
+  }
+
+  // Submissions-over-time — gap-fill across the min→max month range so silent
+  // months render as zero-bars, otherwise the line would compress visually.
+  // Labels are locale-aware short month + year ("May 2026" / "مايو 2026").
+  const monthKeys = Object.keys(rawMonth).sort();
+  const monthFmt = new Intl.DateTimeFormat(locale, { month: "short", year: "numeric" });
+  const submissionsOverTime: ChartEntry[] = [];
+  if (monthKeys.length > 0) {
+    const [minY, minM] = monthKeys[0].split("-").map(Number);
+    const [maxY, maxM] = monthKeys[monthKeys.length - 1].split("-").map(Number);
+    let y = minY;
+    let m = minM;
+    while (y < maxY || (y === maxY && m <= maxM)) {
+      const key = `${y}-${String(m).padStart(2, "0")}`;
+      // Construct UTC date pinned to day 1 to avoid TZ-induced drift.
+      const date = new Date(Date.UTC(y, m - 1, 1));
+      submissionsOverTime.push({
+        name: monthFmt.format(date),
+        value: rawMonth[key] || 0,
+      });
+      m += 1;
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
     }
   }
 
@@ -183,7 +238,10 @@ export default async function StatsPage({
         byStatus={byStatus}
         byPlatform={byPlatform}
         byGenre={byGenre}
+        byEngine={byEngine}
+        byMonetization={byMonetization}
         byReleaseYear={byReleaseYear}
+        submissionsOverTime={submissionsOverTime}
         labels={{
           totalGames: t("totalGames"),
           totalStudios: t("totalStudios"),
@@ -193,7 +251,10 @@ export default async function StatsPage({
           byStatus: t("byStatus"),
           byPlatform: t("byPlatform"),
           byGenre: t("byGenre"),
+          byEngine: t("byEngine"),
+          byMonetization: t("byMonetization"),
           byReleaseYear: t("byReleaseYear"),
+          submissionsOverTime: t("submissionsOverTime"),
           noData: t("noData"),
           noStudios: t("noStudios"),
         }}

@@ -367,7 +367,10 @@
     "byStatus": "By status",
     "byPlatform": "By platform",
     "byGenre": "By genre",
+    "byEngine": "By engine",
+    "byMonetization": "By monetization",
     "byReleaseYear": "By release year",
+    "submissionsOverTime": "Submissions over time",
     "noData": "No data yet.",
     "noStudios": "No studios linked to games yet."
   },

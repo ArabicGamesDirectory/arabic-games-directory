@@ -367,7 +367,10 @@
     "byStatus": "حسب الحالة",
     "byPlatform": "حسب المنصة",
     "byGenre": "حسب النوع",
+    "byEngine": "حسب المحرك",
+    "byMonetization": "حسب التحقيق المالي",
     "byReleaseYear": "حسب سنة الإصدار",
+    "submissionsOverTime": "الإضافات عبر الزمن",
     "noData": "لا توجد بيانات بعد.",
     "noStudios": "لا توجد استوديوهات مرتبطة بألعاب بعد."
   },
