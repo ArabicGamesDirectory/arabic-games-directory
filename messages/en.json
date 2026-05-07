@@ -13,7 +13,14 @@
     "stats": "Stats",
     "admin": "Admin",
     "website": "Website ↗",
-    "officialWebsite": "Official Website ↗"
+    "officialWebsite": "Official Website ↗",
+    "lastUpdated": "Last updated",
+    "addedOn": "Added"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist or may have been moved.",
+    "cta": "Back to the directory"
   },
   "status": {
     "announced": "Announced",
@@ -32,6 +39,7 @@
     "searchStudiosPlaceholder": "Search by name or description…",
     "searchButton": "Search",
     "clearSearch": "Clear",
+    "recentlyAdded": "Recently added",
     "filterAll": "All",
     "filterPC": "PC",
     "filterMobile": "Mobile",

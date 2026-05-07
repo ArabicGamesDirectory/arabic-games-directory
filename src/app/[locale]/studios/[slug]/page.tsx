@@ -6,6 +6,7 @@ import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import FilterPill from "@/components/FilterPill";
+import { formatDate } from "@/lib/formatDate";
 
 export async function generateMetadata({
   params,
@@ -49,6 +50,8 @@ type Studio = {
   country: string[];
   website_url: string | null;
   thumbnail_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 type Game = {
@@ -297,6 +300,23 @@ export default async function StudioPage({
           </div>
         )}
       </section>
+
+      {/* Provenance footer — same pattern as game detail. */}
+      {(studio.updated_at || studio.created_at) && (
+        <p className="mt-10 text-xs text-c-faint">
+          {studio.updated_at && (
+            <>
+              {tCommon("lastUpdated")}: {formatDate(studio.updated_at, locale)}
+            </>
+          )}
+          {studio.created_at && studio.updated_at && " · "}
+          {studio.created_at && (
+            <>
+              {tCommon("addedOn")}: {formatDate(studio.created_at, locale)}
+            </>
+          )}
+        </p>
+      )}
     </main>
   );
 }

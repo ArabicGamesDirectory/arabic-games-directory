@@ -13,7 +13,14 @@
     "stats": "إحصائيات",
     "admin": "الإدارة",
     "website": "الموقع ↗",
-    "officialWebsite": "الموقع الرسمي ↗"
+    "officialWebsite": "الموقع الرسمي ↗",
+    "lastUpdated": "آخر تحديث",
+    "addedOn": "أُضيف في"
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "body": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
+    "cta": "العودة إلى الدليل"
   },
   "status": {
     "announced": "مُعلَن عنه",
@@ -32,6 +39,7 @@
     "searchStudiosPlaceholder": "ابحث بالاسم أو الوصف…",
     "searchButton": "بحث",
     "clearSearch": "مسح",
+    "recentlyAdded": "أُضيف حديثاً",
     "filterAll": "الكل",
     "filterPC": "PC",
     "filterMobile": "الجوال",

@@ -317,6 +317,25 @@ export default async function Home({
   const gamesTotalPages = Math.max(1, Math.ceil((gamesTotalCount ?? 0) / PAGE_SIZE));
   const gamesPageClamped = Math.min(gamesPage, gamesTotalPages);
 
+  // "Recently added" strip — only shown on the unfiltered games tab as a
+  // discovery hook for repeat visitors. Sorted by created_at desc, capped at 5.
+  // Skipped (no fetch) when any filter or search is active to avoid burning
+  // a query nobody will see.
+  const noGameFilters =
+    !q && !gamesCountry && !gamesGenre && !sp.platform && !sp.status;
+  const showRecentStrip = tab === "games" && noGameFilters && gamesPageClamped === 1;
+  let recentGames: Game[] = [];
+  if (showRecentStrip) {
+    const { data: recent } = await supabase
+      .from("games")
+      .select(
+        "name, developers, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url, game_studios(studios(slug, name))"
+      )
+      .order("created_at", { ascending: false })
+      .limit(5);
+    recentGames = (recent as unknown as Game[]) ?? [];
+  }
+
   const count =
     tab === "studios"
       ? studiosTotalCount
@@ -952,6 +971,55 @@ export default async function Home({
 
       {/* Games tab */}
       {tab === "games" && (<>
+      {/* Recently added strip — only on unfiltered first page; horizontally
+          scrollable on mobile, 5-up flex on desktop. */}
+      {showRecentStrip && recentGames.length >= 3 && (
+        <section className="mb-6">
+          <h2 className="text-xs font-semibold tracking-wider text-c-faint uppercase mb-2">
+            {t("recentlyAdded")}
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+            {recentGames.map((g) => (
+              <Link
+                key={g.slug}
+                href={`/games/${g.slug}`}
+                className="group block shrink-0 w-[180px] bg-c-surface border border-c-border rounded-lg overflow-hidden hover:border-indigo-500/50 transition-colors"
+              >
+                {g.thumbnail_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={g.thumbnail_url}
+                    alt={g.name}
+                    width={180}
+                    height={84}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full aspect-[460/215] object-cover"
+                  />
+                ) : (
+                  <TitleCover
+                    name={g.name}
+                    seed={g.slug}
+                    className="w-full aspect-[460/215]"
+                  />
+                )}
+                <div className="p-2.5">
+                  <p className="text-sm font-medium text-c-text truncate group-hover:text-indigo-500 transition-colors" dir="auto">
+                    {g.name}
+                  </p>
+                  <span
+                    className={`inline-block mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                      STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
+                    }`}
+                  >
+                    {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       {/* Search */}
       <form method="get" action="" className="relative mb-4">
         {sp.platform && (

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import FilterPill from "@/components/FilterPill";
+import { formatDate } from "@/lib/formatDate";
 
 export async function generateMetadata({
   params,
@@ -58,6 +59,8 @@ type Game = {
   publishing_type: string | null;
   publisher_name: string | null;
   thumbnail_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
   game_studios: { studios: { slug: string; name: string } | null }[] | null;
 };
 
@@ -310,6 +313,23 @@ export default async function GameDetails({
         </div>
       )}
 
+      {/* Provenance footer — small, subtle, builds trust by showing the entry
+          is actively maintained. Hidden if the row predates these columns. */}
+      {(game.updated_at || game.created_at) && (
+        <p className="mt-10 text-xs text-c-faint">
+          {game.updated_at && (
+            <>
+              {tCommon("lastUpdated")}: {formatDate(game.updated_at, locale)}
+            </>
+          )}
+          {game.created_at && game.updated_at && " · "}
+          {game.created_at && (
+            <>
+              {tCommon("addedOn")}: {formatDate(game.created_at, locale)}
+            </>
+          )}
+        </p>
+      )}
     </main>
   );
 }

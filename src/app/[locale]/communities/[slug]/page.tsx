@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
+import { formatDate } from "@/lib/formatDate";
 
 export async function generateMetadata({
   params,
@@ -48,6 +49,8 @@ type Community = {
   social_links: Record<string, string | null> | null;
   topics: string[] | null;
   thumbnail_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 export default async function CommunityPage({
@@ -198,6 +201,23 @@ export default async function CommunityPage({
           </div>
         )}
       </div>
+
+      {/* Provenance footer — same pattern as game/studio detail. */}
+      {(community.updated_at || community.created_at) && (
+        <p className="mt-10 text-xs text-c-faint">
+          {community.updated_at && (
+            <>
+              {tCommon("lastUpdated")}: {formatDate(community.updated_at, locale)}
+            </>
+          )}
+          {community.created_at && community.updated_at && " · "}
+          {community.created_at && (
+            <>
+              {tCommon("addedOn")}: {formatDate(community.created_at, locale)}
+            </>
+          )}
+        </p>
+      )}
     </main>
   );
 }
