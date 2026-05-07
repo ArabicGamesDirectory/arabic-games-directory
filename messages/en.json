@@ -305,7 +305,8 @@
     "disclaimerTitle": "Disclaimer",
     "disclaimerBody": "This site does not own any of the games or information shown. All games and information are submitted by a community of volunteers from the game-development industry. We do our best to verify the data, but unintentional errors and missing information may occur, since this is a community-driven volunteer effort to help build an archive of every game developed in the Arab region.",
     "contact": "Contact us",
-    "about": "About"
+    "about": "About",
+    "rss": "RSS feed"
   },
   "about": {
     "title": "About the directory",

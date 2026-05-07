@@ -7,6 +7,7 @@ import TitleCover from "@/components/TitleCover";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import FilterPill from "@/components/FilterPill";
 import { formatDate } from "@/lib/formatDate";
+import { languageAlternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -26,6 +27,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: languageAlternates(`/studios/${slug}`),
     openGraph: {
       title,
       description,
@@ -126,8 +128,25 @@ export default async function StudioPage({
     studio: t("typeStudio"),
   };
 
+  // JSON-LD structured data — schema.org/Organization. Helps Google render
+  // a "knowledge panel" style result for studios that get searched directly.
+  const siteUrl = process.env.SITE_URL || "https://arabicgames.directory";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: studio.name,
+    url: `${siteUrl}/${locale}/studios/${studio.slug}`,
+    ...(studio.description ? { description: studio.description } : {}),
+    ...(studio.thumbnail_url ? { logo: studio.thumbnail_url, image: studio.thumbnail_url } : {}),
+    ...(studio.website_url ? { sameAs: [studio.website_url] } : {}),
+  };
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="flex items-center justify-between gap-4">
         <Link
           href="/?tab=studios"

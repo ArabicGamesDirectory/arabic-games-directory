@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import { formatDate } from "@/lib/formatDate";
+import { languageAlternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -23,6 +24,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: languageAlternates(`/communities/${slug}`),
     openGraph: {
       title,
       description,
@@ -101,8 +103,31 @@ export default async function CommunityPage({
     ([, url]) => !!url
   ) as [string, string][];
 
+  // JSON-LD structured data — schema.org/Organization (no dedicated
+  // "Community" type exists). `sameAs` carries social links so Google can
+  // surface them in entity panels.
+  const siteUrl = process.env.SITE_URL || "https://arabicgames.directory";
+  const sameAs = [community.website_url, ...socialLinkEntries.map(([, url]) => url)].filter(
+    (u): u is string => !!u
+  );
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: community.name,
+    url: `${siteUrl}/${locale}/communities/${community.slug}`,
+    ...(community.description ? { description: community.description } : {}),
+    ...(community.thumbnail_url
+      ? { logo: community.thumbnail_url, image: community.thumbnail_url }
+      : {}),
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+  };
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="flex items-center justify-between gap-4">
         <Link
           href="/?tab=communities"

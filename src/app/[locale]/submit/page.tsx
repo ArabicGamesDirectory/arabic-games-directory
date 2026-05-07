@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { SubmitForm } from "@/components/SubmitForm";
+import { languageAlternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -9,7 +10,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "submit" });
-  return { title: t("title"), description: t("subtitle") };
+  return {
+    title: t("title"),
+    description: t("subtitle"),
+    alternates: languageAlternates("/submit"),
+  };
 }
 
 export default async function SubmitPage({

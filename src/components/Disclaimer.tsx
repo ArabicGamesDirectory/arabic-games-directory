@@ -25,6 +25,14 @@ export default async function Disclaimer() {
           >
             {t("contact")} →
           </Link>
+          {/* RSS feed link — locale-prefix-free since /feed.xml is a single
+              English feed served from the app root, not a localized route. */}
+          <a
+            href="/feed.xml"
+            className="text-c-muted hover:text-indigo-500 transition-colors"
+          >
+            {t("rss")} →
+          </a>
         </div>
       </div>
     </footer>

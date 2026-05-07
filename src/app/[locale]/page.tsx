@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
@@ -9,6 +10,21 @@ import FilterPill from "@/components/FilterPill";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { GENRE_VALUES, GENRE_I18N_KEYS } from "@/lib/genres";
 import { COMMUNITY_TOPIC_VALUES, COMMUNITY_TOPIC_I18N_KEYS } from "@/lib/communityTopics";
+import { languageAlternates } from "@/lib/alternates";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "home" });
+  return {
+    title: { absolute: t("title") },
+    description: t("description"),
+    alternates: languageAlternates("/"),
+  };
+}
 
 const PLATFORM_GROUPS: Record<string, string[]> = {
   PC: ["Windows", "macOS", "Linux"],

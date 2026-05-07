@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { StatsCharts, type ChartEntry, type StudioRank } from "@/components/StatsCharts";
+import { languageAlternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -13,7 +14,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "stats" });
-  return { title: t("title") };
+  return { title: t("title"), alternates: languageAlternates("/stats") };
 }
 
 const STATUS_COLORS: Record<string, string> = {

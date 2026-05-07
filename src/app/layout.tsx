@@ -56,6 +56,14 @@ export default async function RootLayout({
             __html: `try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}`,
           }}
         />
+        {/* RSS auto-discovery — browsers and feed readers (NetNewsWire, Reeder,
+            etc.) advertise this as a subscribable feed. */}
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title={`${SITE_NAME} — newest games`}
+          href="/feed.xml"
+        />
       </head>
       <body className="bg-c-bg text-c-text antialiased">{children}</body>
     </html>

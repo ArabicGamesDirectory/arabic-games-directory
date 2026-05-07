@@ -7,6 +7,7 @@ import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import FilterPill from "@/components/FilterPill";
 import TitleCover from "@/components/TitleCover";
 import { formatDate } from "@/lib/formatDate";
+import { languageAlternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -26,6 +27,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: languageAlternates(`/games/${slug}`),
     openGraph: {
       title,
       description,
@@ -154,8 +156,54 @@ export default async function GameDetails({
       )
     : [];
 
+  // JSON-LD structured data — schema.org/VideoGame. Embedded as a `<script>`
+  // so Google can extract rich-result fields (rating, dev, platform). Each
+  // `Organization` author corresponds to a developer entry; we skip the
+  // `sameAs` URL on free-text developers (no studio match → no detail page).
+  const siteUrl = process.env.SITE_URL || "https://arabicgames.directory";
+  const studioBySlug = new Map<string, string>();
+  for (const link of game.game_studios ?? []) {
+    if (link.studios?.name && link.studios?.slug) {
+      studioBySlug.set(link.studios.name.toLowerCase(), link.studios.slug);
+    }
+  }
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    name: game.name,
+    description: game.short_description,
+    url: `${siteUrl}/${locale}/games/${game.slug}`,
+    inLanguage: locale,
+    ...(game.thumbnail_url ? { image: game.thumbnail_url } : {}),
+    ...(game.release_date && statusAllowsReleaseDate(game.status)
+      ? { datePublished: game.release_date }
+      : {}),
+    ...(game.platforms.length > 0 ? { gamePlatform: game.platforms } : {}),
+    ...(game.genres.length > 0 ? { genre: game.genres } : {}),
+    ...(game.developers.length > 0
+      ? {
+          author: game.developers.map((dev) => {
+            const slug = studioBySlug.get(dev.toLowerCase());
+            return {
+              "@type": "Organization",
+              name: dev,
+              ...(slug ? { url: `${siteUrl}/${locale}/studios/${slug}` } : {}),
+            };
+          }),
+        }
+      : {}),
+    ...(game.publishing_type === "with_publisher" && game.publisher_name
+      ? { publisher: { "@type": "Organization", name: game.publisher_name } }
+      : {}),
+  };
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
+      <script
+        type="application/ld+json"
+        // Stringify safely — schema.org payloads can include any text content.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Top nav row */}
       <div className="flex items-center justify-between gap-4">
         <Link
