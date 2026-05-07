@@ -12,7 +12,13 @@ export default async function Disclaimer() {
         <p className="text-sm text-c-muted leading-relaxed" dir="auto">
           {t("disclaimerBody")}
         </p>
-        <div className="mt-4 text-sm">
+        <div className="mt-4 text-sm flex gap-4 flex-wrap">
+          <Link
+            href="/about"
+            className="text-c-muted hover:text-indigo-500 transition-colors"
+          >
+            {t("about")} →
+          </Link>
           <Link
             href="/contact"
             className="text-c-muted hover:text-indigo-500 transition-colors"

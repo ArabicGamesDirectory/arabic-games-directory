@@ -1,7 +1,41 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const { data } = await supabase
+    .from("communities")
+    .select("name, description, thumbnail_url")
+    .eq("slug", slug)
+    .single();
+  if (!data) return { title: "Community not found" };
+  const title = data.name as string;
+  const description = (data.description as string | null) ?? undefined;
+  const image = (data.thumbnail_url as string | null) ?? undefined;
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+      ...(image ? { images: [image] } : {}),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+  };
+}
 
 type Community = {
   id: string;

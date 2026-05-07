@@ -10,9 +10,28 @@ const cairo = Cairo({
   display: "swap",
 });
 
+const SITE_URL = process.env.SITE_URL || "https://arabicgames.directory";
+const SITE_NAME = "Arabic Games Directory";
+const SITE_DESCRIPTION =
+  "A community-curated archive of games developed in the MENA region.";
+
 export const metadata: Metadata = {
-  title: "Arabic Games Directory",
-  description: "A directory of games developed in the MENA region.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s — ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default async function RootLayout({

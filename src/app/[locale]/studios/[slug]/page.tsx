@@ -1,9 +1,44 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+import FilterPill from "@/components/FilterPill";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const { data } = await supabase
+    .from("studios")
+    .select("name, description, thumbnail_url")
+    .eq("slug", slug)
+    .single();
+  if (!data) return { title: "Studio not found" };
+  const title = data.name as string;
+  const description = (data.description as string | null) ?? undefined;
+  const image = (data.thumbnail_url as string | null) ?? undefined;
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+      ...(image ? { images: [image] } : {}),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+  };
+}
 
 type Studio = {
   id: string;
@@ -202,13 +237,15 @@ export default async function StudioPage({
                           <p className="text-xs text-c-faint mt-0.5">{g.developers.join(", ")}</p>
                         )}
                       </div>
-                      <span
+                      <FilterPill
+                        param="status"
+                        value={g.status}
                         className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
                           STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
                         }`}
                       >
                         {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
-                      </span>
+                      </FilterPill>
                     </div>
 
                     <p className="text-xs text-c-muted mt-1">
@@ -218,19 +255,33 @@ export default async function StudioPage({
                     </p>
 
                     {(() => {
-                      const allTags = [
-                        ...g.genres.map((v) => ({ v, cls: "bg-c-tag text-c-tag-text" })),
-                        ...(g.gameplay_modes ?? []).map((v) => ({ v, cls: "bg-blue-500/10 text-blue-500" })),
-                        ...(g.monetization ?? []).map((v) => ({ v, cls: "bg-amber-500/10 text-amber-500" })),
-                        ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint" }] : []),
+                      // Genre tags become FilterPill links to the homepage
+                      // genre filter; everything else stays as plain text.
+                      type TagItem = { v: string; cls: string; kind: "genre" | "plain" };
+                      const allTags: TagItem[] = [
+                        ...g.genres.map((v): TagItem => ({ v, cls: "bg-c-tag text-c-tag-text", kind: "genre" })),
+                        ...(g.gameplay_modes ?? []).map((v): TagItem => ({ v, cls: "bg-blue-500/10 text-blue-500", kind: "plain" })),
+                        ...(g.monetization ?? []).map((v): TagItem => ({ v, cls: "bg-amber-500/10 text-amber-500", kind: "plain" })),
+                        ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint", kind: "plain" as const }] : []),
                       ];
                       const visible = allTags.slice(0, 5);
                       const extra = allTags.length - visible.length;
                       return (
                         <div className="flex gap-1.5 flex-wrap mt-2">
-                          {visible.map(({ v, cls }) => (
-                            <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
-                          ))}
+                          {visible.map(({ v, cls, kind }) =>
+                            kind === "genre" ? (
+                              <FilterPill
+                                key={v}
+                                param="genre"
+                                value={v}
+                                className={`text-xs px-2 py-0.5 rounded-full ${cls}`}
+                              >
+                                {v}
+                              </FilterPill>
+                            ) : (
+                              <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
+                            )
+                          )}
                           {extra > 0 && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-faint">
                               +{extra}

@@ -6,6 +6,7 @@ import TitleCover from "@/components/TitleCover";
 import SortSelect from "@/components/SortSelect";
 import FilterSelect from "@/components/FilterSelect";
 import SubmitMenu from "@/components/SubmitMenu";
+import FilterPill from "@/components/FilterPill";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { GENRE_VALUES, GENRE_I18N_KEYS } from "@/lib/genres";
 import { COMMUNITY_TOPIC_VALUES, COMMUNITY_TOPIC_I18N_KEYS } from "@/lib/communityTopics";
@@ -549,7 +550,7 @@ export default async function Home({
       </header>
 
       {/* Tab switcher + Stats link */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-6">
         <div className="flex gap-1 bg-c-surface border border-c-border rounded-lg p-1">
           <Link
             href={gamesTabHref}
@@ -1116,13 +1117,15 @@ export default async function Home({
                         </p>
                       )}
                     </div>
-                    <span
+                    <FilterPill
+                      param="status"
+                      value={g.status}
                       className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
                         STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
                       }`}
                     >
                       {tStatus(g.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? g.status}
-                    </span>
+                    </FilterPill>
                   </div>
 
                   <p className="text-xs text-c-muted mt-1">
@@ -1132,19 +1135,34 @@ export default async function Home({
                   </p>
 
                   {(() => {
-                    const allTags = [
-                      ...g.genres.map((v) => ({ v, cls: "bg-c-tag text-c-tag-text" })),
-                      ...(g.gameplay_modes ?? []).map((v) => ({ v, cls: "bg-blue-500/10 text-blue-500" })),
-                      ...(g.monetization ?? []).map((v) => ({ v, cls: "bg-amber-500/10 text-amber-500" })),
-                      ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint" }] : []),
+                    // `kind: "genre"` tags become FilterPill links (clicking
+                    // filters the homepage); the rest are plain visual spans
+                    // since there's no equivalent homepage filter for them.
+                    type TagItem = { v: string; cls: string; kind: "genre" | "plain" };
+                    const allTags: TagItem[] = [
+                      ...g.genres.map((v): TagItem => ({ v, cls: "bg-c-tag text-c-tag-text", kind: "genre" })),
+                      ...(g.gameplay_modes ?? []).map((v): TagItem => ({ v, cls: "bg-blue-500/10 text-blue-500", kind: "plain" })),
+                      ...(g.monetization ?? []).map((v): TagItem => ({ v, cls: "bg-amber-500/10 text-amber-500", kind: "plain" })),
+                      ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint", kind: "plain" as const }] : []),
                     ];
                     const visible = allTags.slice(0, 5);
                     const extra = allTags.length - visible.length;
                     return (
                       <div className="flex gap-1.5 flex-wrap mt-2">
-                        {visible.map(({ v, cls }) => (
-                          <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
-                        ))}
+                        {visible.map(({ v, cls, kind }) =>
+                          kind === "genre" ? (
+                            <FilterPill
+                              key={v}
+                              param="genre"
+                              value={v}
+                              className={`text-xs px-2 py-0.5 rounded-full ${cls}`}
+                            >
+                              {v}
+                            </FilterPill>
+                          ) : (
+                            <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
+                          )
+                        )}
                         {extra > 0 && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-faint">
                             +{extra}

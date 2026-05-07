@@ -1,8 +1,43 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+import FilterPill from "@/components/FilterPill";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const { data } = await supabase
+    .from("games")
+    .select("name, short_description, thumbnail_url")
+    .eq("slug", slug)
+    .single();
+  if (!data) return { title: "Game not found" };
+  const title = data.name as string;
+  const description = (data.short_description as string | null) ?? undefined;
+  const image = (data.thumbnail_url as string | null) ?? undefined;
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      ...(image ? { images: [image] } : {}),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+  };
+}
 
 type Game = {
   id: string;
@@ -140,25 +175,38 @@ export default async function GameDetails({
           </p>
         )}
 
-        {/* Status + meta pills */}
+        {/* Status + meta pills — each one (except release date) links to the
+            homepage filtered by that dimension. */}
         <div className="flex gap-2 flex-wrap mt-3">
-          <span
+          <FilterPill
+            param="status"
+            value={game.status}
             className={`text-xs font-medium px-2.5 py-1 rounded-full ${
               STATUS_CLASSES[game.status] ?? "bg-c-tag text-c-muted"
             }`}
           >
             {tStatus(game.status as "announced" | "in_dev" | "prototype" | "early_access" | "released" | "on_hold" | "cancelled" | "delisted") ?? game.status}
-          </span>
+          </FilterPill>
           {game.country.map((c) => (
-            <span key={c} className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
+            <FilterPill
+              key={c}
+              param="country"
+              value={c}
+              className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full"
+            >
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {tCountries(COUNTRY_KEY_MAP[c] as any) ?? c}
-            </span>
+            </FilterPill>
           ))}
           {game.platforms.map((p) => (
-            <span key={p} className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
+            <FilterPill
+              key={p}
+              param="platform"
+              value={p}
+              className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full"
+            >
               {p}
-            </span>
+            </FilterPill>
           ))}
           {game.release_date && statusAllowsReleaseDate(game.status) && (
             <span className="text-xs bg-c-tag text-c-tag-text px-2.5 py-1 rounded-full">
@@ -180,7 +228,14 @@ export default async function GameDetails({
           <DetailCell label={t("genres")}>
             <div className="flex gap-1.5 flex-wrap">
               {game.genres.map((g) => (
-                <Tag key={g}>{g}</Tag>
+                <FilterPill
+                  key={g}
+                  param="genre"
+                  value={g}
+                  className="text-sm px-2.5 py-1 rounded-full bg-c-tag text-c-tag-text"
+                >
+                  {g}
+                </FilterPill>
               ))}
             </div>
           </DetailCell>
