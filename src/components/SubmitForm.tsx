@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useDraftState, clearDraft } from "@/components/useDraftState";
+
+// Drafts persist under this prefix; `clearDraft(DRAFT_PREFIX)` after a
+// successful submit wipes every key in one shot.
+const DRAFT_PREFIX = "submit-game:";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
@@ -108,22 +113,65 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
   const tValidation = useTranslations("validation");
 
   const isUpdate = !!initialData;
+  // Autosave is enabled only for new submissions — during the update flow we
+  // want initialData to drive the form, not a leftover draft from a past
+  // submission of a different entry.
+  const draftEnabled = !isUpdate;
 
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ ok: boolean; message: string } | null>(null);
   const [studioNames, setStudioNames] = useState<string[]>([]);
   // Open store links by default when updating a game that already has some
   const [storeLinksOpen, setStoreLinksOpen] = useState(true);
-  const [publishingType, setPublishingType] = useState(initialData?.publishing_type ?? "");
-  const [genreOtherChecked, setGenreOtherChecked] = useState(
-    () => initialData?.genres?.some((g) => g === "Other" || !GENRE_BASE_VALUES.includes(g)) ?? false
+  // Controlled text fields — switched from uncontrolled defaultValue inputs so
+  // autosave can persist & restore them across refreshes.
+  const [name, setName] = useDraftState(`${DRAFT_PREFIX}name`, initialData?.name ?? "", draftEnabled);
+  const [shortDescription, setShortDescription] = useDraftState(
+    `${DRAFT_PREFIX}short_description`,
+    initialData?.short_description ?? "",
+    draftEnabled
   );
-  const [genreOtherText, setGenreOtherText] = useState(
-    () => initialData?.genres?.find((g) => g !== "Other" && !GENRE_BASE_VALUES.includes(g)) ?? ""
+  const [websiteUrl, setWebsiteUrl] = useDraftState(
+    `${DRAFT_PREFIX}website_url`,
+    initialData?.website_url ?? "",
+    draftEnabled
+  );
+  const [gameEngine, setGameEngine] = useDraftState(
+    `${DRAFT_PREFIX}game_engine`,
+    initialData?.game_engine ?? "",
+    draftEnabled
+  );
+  const [publisherName, setPublisherName] = useDraftState(
+    `${DRAFT_PREFIX}publisher_name`,
+    initialData?.publisher_name ?? "",
+    draftEnabled
+  );
+  const [publishingType, setPublishingType] = useDraftState(
+    `${DRAFT_PREFIX}publishing_type`,
+    initialData?.publishing_type ?? "",
+    draftEnabled
+  );
+  const [genreOtherChecked, setGenreOtherChecked] = useDraftState<boolean>(
+    `${DRAFT_PREFIX}genre_other_checked`,
+    initialData?.genres?.some((g) => g === "Other" || !GENRE_BASE_VALUES.includes(g)) ?? false,
+    draftEnabled
+  );
+  const [genreOtherText, setGenreOtherText] = useDraftState(
+    `${DRAFT_PREFIX}genre_other_text`,
+    initialData?.genres?.find((g) => g !== "Other" && !GENRE_BASE_VALUES.includes(g)) ?? "",
+    draftEnabled
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState(initialData?.status ?? "announced");
-  const [releaseDate, setReleaseDate] = useState(initialData?.release_date ?? "");
+  const [status, setStatus] = useDraftState(
+    `${DRAFT_PREFIX}status`,
+    initialData?.status ?? "announced",
+    draftEnabled
+  );
+  const [releaseDate, setReleaseDate] = useDraftState(
+    `${DRAFT_PREFIX}release_date`,
+    initialData?.release_date ?? "",
+    draftEnabled
+  );
   const showReleaseDate = statusAllowsReleaseDate(status);
   useEffect(() => {
     if (!showReleaseDate && releaseDate) setReleaseDate("");
@@ -391,6 +439,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     }
 
     formEl.reset();
+    setName("");
+    setShortDescription("");
+    setWebsiteUrl("");
+    setGameEngine("");
+    setPublisherName("");
+    setPublishingType("");
     setGenreOtherChecked(false);
     setGenreOtherText("");
     setStoreLinksOpen(false);
@@ -399,6 +453,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     setThumbnailUrl(null);
     setThumbnailPreview(null);
     setThumbnailStatus("idle");
+    // Wipe every persisted draft key in one shot — next visit starts blank.
+    clearDraft(DRAFT_PREFIX);
     setDone({
       ok: true,
       message: isUpdate ? t("updateSuccessMessage") : t("successMessage"),
@@ -491,7 +547,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <input
               id="name"
               name="name"
-              defaultValue={initialData?.name}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className={inputCls("name")}
               placeholder={t("placeholderGameName")}
             />
@@ -530,7 +587,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <Field label={t("fieldPublisherName")}>
               <input
                 name="publisher_name"
-                defaultValue={initialData?.publisher_name ?? ""}
+                value={publisherName}
+                onChange={(e) => setPublisherName(e.target.value)}
                 className={inputCls()}
                 placeholder={t("placeholderPublisherName")}
               />
@@ -552,7 +610,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
               name="short_description"
               rows={4}
               dir="auto"
-              defaultValue={initialData?.short_description}
+              value={shortDescription}
+              onChange={(e) => setShortDescription(e.target.value)}
               className={inputCls("short_description") + " resize-none"}
               placeholder={t("placeholderDescription")}
             />
@@ -624,7 +683,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <input
               id="website_url"
               name="website_url"
-              defaultValue={initialData?.website_url ?? ""}
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
               className={inputCls("website_url")}
               placeholder={t("placeholderWebsiteUrl")}
             />
@@ -657,7 +717,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
             <input
               name="game_engine"
               list="engine-options"
-              defaultValue={initialData?.game_engine ?? ""}
+              value={gameEngine}
+              onChange={(e) => setGameEngine(e.target.value)}
               className={inputCls("game_engine")}
               placeholder={t("placeholderGameEngine")}
             />
