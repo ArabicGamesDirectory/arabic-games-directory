@@ -5,7 +5,6 @@ import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import TitleCover from "@/components/TitleCover";
 import SortSelect from "@/components/SortSelect";
 import FilterSelect from "@/components/FilterSelect";
-import SubmitMenu from "@/components/SubmitMenu";
 import FilterPill from "@/components/FilterPill";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { GENRE_VALUES, GENRE_I18N_KEYS } from "@/lib/genres";
@@ -548,24 +547,14 @@ export default async function Home({
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
+      {/* Page header — slimmed down since TopNav already shows the brand
+          and a Submit button. We keep an h1 for accessibility/SEO and the
+          tagline for first-time visitors. */}
       <header className="mb-8">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-c-text">
-              <Link href="/" className="hover:text-indigo-500 transition-colors">
-                {t("title")}
-              </Link>
-            </h1>
-            <p className="text-c-muted mt-1 text-sm">{t("description")}</p>
-          </div>
-          <div className="shrink-0">
-            <SubmitMenu
-              buttonLabel={tCommon("submit")}
-              gameLabel={tCommon("submitGame")}
-              communityLabel={tCommon("submitCommunity")}
-            />
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-c-text">
+          {t("title")}
+        </h1>
+        <p className="text-c-muted mt-1 text-sm">{t("description")}</p>
       </header>
 
       {/* Tab switcher + Stats link */}
@@ -596,12 +585,6 @@ export default async function Home({
             {t("tabCommunities")}
           </Link>
         </div>
-        <Link
-          href="/stats"
-          className="text-sm text-c-muted hover:text-c-text transition-colors"
-        >
-          {tCommon("stats")} →
-        </Link>
       </div>
 
       {/* Studios tab */}

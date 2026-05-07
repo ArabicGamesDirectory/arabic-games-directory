@@ -22,6 +22,10 @@
     "body": "The page you're looking for doesn't exist or may have been moved.",
     "cta": "Back to the directory"
   },
+  "nav": {
+    "brand": "Arabic Games Directory",
+    "about": "About"
+  },
   "status": {
     "announced": "Announced",
     "in_dev": "In Dev",
@@ -87,7 +91,9 @@
     "publishingWith": "With a publisher",
     "links": "Links",
     "notFound": "Game not found.",
-    "suggestUpdate": "Suggest an update"
+    "suggestUpdate": "Suggest an update",
+    "moreFromDev": "More from {name}",
+    "similarGames": "Similar games"
   },
   "submit": {
     "title": "Submit a game",

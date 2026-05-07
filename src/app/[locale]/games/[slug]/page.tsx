@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import FilterPill from "@/components/FilterPill";
+import TitleCover from "@/components/TitleCover";
 import { formatDate } from "@/lib/formatDate";
 
 export async function generateMetadata({
@@ -109,6 +110,43 @@ export default async function GameDetails({
   }
 
   const game = data as unknown as Game;
+
+  // Related games — two parallel queries:
+  //   1) "More from this developer" — uses the FIRST developer name (covers
+  //      the common case; multi-dev collabs still link via the same primary).
+  //   2) "Similar games" — shares the first genre AND overlaps on country,
+  //      excluding the current row and anything already in the dev set.
+  // Both capped at 4. Sections are independent — either may render alone.
+  const primaryDev = game.developers?.[0];
+  const primaryGenre = game.genres?.[0];
+  const [{ data: moreFromDevData }, { data: similarData }] = await Promise.all([
+    primaryDev
+      ? supabase
+          .from("games")
+          .select("slug, name, status, thumbnail_url")
+          .contains("developers", [primaryDev])
+          .neq("id", game.id)
+          .order("updated_at", { ascending: false })
+          .limit(4)
+      : Promise.resolve({ data: [] as { slug: string; name: string; status: string; thumbnail_url: string | null }[] }),
+    primaryGenre && game.country.length > 0
+      ? supabase
+          .from("games")
+          .select("slug, name, status, thumbnail_url")
+          .contains("genres", [primaryGenre])
+          .overlaps("country", game.country)
+          .neq("id", game.id)
+          .order("updated_at", { ascending: false })
+          .limit(8) // fetch more so we can dedupe and still have ~4
+      : Promise.resolve({ data: [] as { slug: string; name: string; status: string; thumbnail_url: string | null }[] }),
+  ]);
+
+  type RelatedGame = { slug: string; name: string; status: string; thumbnail_url: string | null };
+  const moreFromDev: RelatedGame[] = (moreFromDevData ?? []) as RelatedGame[];
+  const devSlugs = new Set(moreFromDev.map((g) => g.slug));
+  const similarGames: RelatedGame[] = ((similarData ?? []) as RelatedGame[])
+    .filter((g) => !devSlugs.has(g.slug))
+    .slice(0, 4);
 
   const storeLinks = game.store_links
     ? Object.entries(game.store_links).filter(
@@ -313,6 +351,27 @@ export default async function GameDetails({
         </div>
       )}
 
+      {/* Related games — two independent strips. Either may render alone if
+          the other is empty. Skipped entirely when both are empty. */}
+      {(moreFromDev.length > 0 || similarGames.length > 0) && (
+        <div className="mt-12 space-y-8">
+          {moreFromDev.length > 0 && primaryDev && (
+            <RelatedStrip
+              title={t("moreFromDev", { name: primaryDev })}
+              games={moreFromDev}
+              tStatus={tStatus}
+            />
+          )}
+          {similarGames.length > 0 && (
+            <RelatedStrip
+              title={t("similarGames")}
+              games={similarGames}
+              tStatus={tStatus}
+            />
+          )}
+        </div>
+      )}
+
       {/* Provenance footer — small, subtle, builds trust by showing the entry
           is actively maintained. Hidden if the row predates these columns. */}
       {(game.updated_at || game.created_at) && (
@@ -368,5 +427,69 @@ function Tag({
     <span className={`text-sm px-2.5 py-1 rounded-full ${cls}`}>
       {children}
     </span>
+  );
+}
+
+// Compact horizontal strip used by both "More from this developer" and
+// "Similar games" sections. Mirrors the homepage Recently Added strip's card
+// shape (180px wide, thumbnail/TitleCover + name + status badge).
+function RelatedStrip({
+  title,
+  games,
+  tStatus,
+}: {
+  title: string;
+  games: { slug: string; name: string; status: string; thumbnail_url: string | null }[];
+  tStatus: (key: string) => string;
+}) {
+  return (
+    <section>
+      <h2 className="text-xs font-semibold tracking-wider text-c-faint uppercase mb-3">
+        {title}
+      </h2>
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+        {games.map((g) => (
+          <Link
+            key={g.slug}
+            href={`/games/${g.slug}`}
+            className="group block shrink-0 w-[180px] bg-c-surface border border-c-border rounded-lg overflow-hidden hover:border-indigo-500/50 transition-colors"
+          >
+            {g.thumbnail_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={g.thumbnail_url}
+                alt={g.name}
+                width={180}
+                height={84}
+                loading="lazy"
+                decoding="async"
+                className="w-full aspect-[460/215] object-cover"
+              />
+            ) : (
+              <TitleCover
+                name={g.name}
+                seed={g.slug}
+                className="w-full aspect-[460/215]"
+              />
+            )}
+            <div className="p-2.5">
+              <p
+                className="text-sm font-medium text-c-text truncate group-hover:text-indigo-500 transition-colors"
+                dir="auto"
+              >
+                {g.name}
+              </p>
+              <span
+                className={`inline-block mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                  STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
+                }`}
+              >
+                {tStatus(g.status) ?? g.status}
+              </span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

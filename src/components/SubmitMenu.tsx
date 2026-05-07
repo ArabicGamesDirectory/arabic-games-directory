@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
-export default function SubmitMenu({
-  buttonLabel,
-  gameLabel,
-  communityLabel,
-}: {
-  buttonLabel: string;
-  gameLabel: string;
-  communityLabel: string;
-}) {
+// Self-contained dropdown — pulls labels from `common.*` so it can be dropped
+// anywhere (originally rendered with prop labels from the homepage; now used
+// in TopNav too). Closes on outside click + Escape.
+export default function SubmitMenu() {
+  const t = useTranslations("common");
+  const buttonLabel = t("submit");
+  const gameLabel = t("submitGame");
+  const communityLabel = t("submitCommunity");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
