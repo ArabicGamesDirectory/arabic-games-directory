@@ -5,13 +5,19 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 // Site-wide top navigation. Renders on every locale page from `[locale]/layout.tsx`.
-// Replaces the previous bottom-corner floating Theme + Language toggles —
-// those are now inline at the end of this bar so they no longer overlap content
-// on small screens.
+//
+// `About` lives in the footer only — keeping the top bar focused on the two
+// primary actions (Stats, Submit). Theme + Language toggles are inline here
+// instead of floating bottom-corner buttons so they don't overlap content on
+// mobile.
+//
+// Stats is styled as a soft indigo pill (not a plain link) because the page
+// is genuinely worth visiting and the previous neutral-gray treatment made it
+// feel like a hidden feature.
 //
 // On mobile the link cluster wraps below the brand to avoid horizontal scroll.
 export default async function TopNav() {
-  const t = await getTranslations("nav");
+  const tNav = await getTranslations("nav");
   const tCommon = await getTranslations("common");
 
   return (
@@ -21,20 +27,15 @@ export default async function TopNav() {
           href="/"
           className="text-sm font-semibold text-c-text hover:text-indigo-500 transition-colors shrink-0"
         >
-          {t("brand")}
+          {tNav("brand")}
         </Link>
         <div className="flex items-center gap-3">
           <Link
             href="/stats"
-            className="text-sm text-c-muted hover:text-c-text transition-colors"
+            className="text-sm font-medium px-3 py-1.5 rounded-full bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 transition-colors inline-flex items-center gap-1"
           >
-            {tCommon("stats")}
-          </Link>
-          <Link
-            href="/about"
-            className="text-sm text-c-muted hover:text-c-text transition-colors"
-          >
-            {t("about")}
+            <span aria-hidden>📊</span>
+            <span>{tCommon("stats")}</span>
           </Link>
           <SubmitMenu />
           <div className="flex items-center gap-2 ms-1">

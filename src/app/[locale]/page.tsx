@@ -272,6 +272,29 @@ export default async function Home({
     );
   }
 
+  // "Recently added" strips for studios + communities — mirror the games-tab
+  // pattern. Only shown when the relevant tab is active, no search/filter is
+  // applied, and we're on page 1. Sliced from already-loaded `allStudios` /
+  // `allCommunities` so no extra DB roundtrip.
+  const noStudioFilters = !q && !studiosType && !studiosCountry;
+  const showRecentStudios =
+    tab === "studios" && noStudioFilters && studiosPageClamped === 1;
+  const recentStudios: Studio[] = showRecentStudios
+    ? [...allStudios]
+        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+        .slice(0, 5)
+    : [];
+
+  const noCommunityFilters =
+    !q && !communityType && !communitiesTopic && !communitiesCountry;
+  const showRecentCommunities =
+    tab === "communities" && noCommunityFilters && communitiesPageClamped === 1;
+  const recentCommunities: Community[] = showRecentCommunities
+    ? [...allCommunities]
+        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+        .slice(0, 5)
+    : [];
+
   // --- Games tab: server-side filtered + paginated ---
   let gamesQuery = supabase
     .from("games")
@@ -606,6 +629,52 @@ export default async function Home({
       {/* Studios tab */}
       {tab === "studios" && (
         <>
+          {/* Recently added strip — only on unfiltered first page; same shape
+              as the games-tab strip (180px cards, thumbnail/TitleCover + name
+              + type badge). Mirrors the games behaviour for visual parity
+              across all three tabs. */}
+          {showRecentStudios && recentStudios.length >= 3 && (
+            <section className="mb-6">
+              <h2 className="text-xs font-semibold tracking-wider text-c-faint uppercase mb-2">
+                {t("recentlyAdded")}
+              </h2>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+                {recentStudios.map((s) => (
+                  <Link
+                    key={s.slug}
+                    href={`/studios/${s.slug}`}
+                    className="group block shrink-0 w-[180px] bg-c-surface border border-c-border rounded-lg overflow-hidden hover:border-indigo-500/50 transition-colors"
+                  >
+                    {s.thumbnail_url ? (
+                      <img
+                        src={s.thumbnail_url}
+                        alt={t("thumbnailAlt", { name: s.name })}
+                        width={180}
+                        height={84}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full aspect-[460/215] object-cover"
+                      />
+                    ) : (
+                      <TitleCover
+                        name={s.name}
+                        seed={s.slug}
+                        className="w-full aspect-[460/215]"
+                      />
+                    )}
+                    <div className="p-2.5">
+                      <p className="text-sm font-medium text-c-text truncate group-hover:text-indigo-500 transition-colors" dir="auto">
+                        {s.name}
+                      </p>
+                      <span className="inline-block mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-c-tag text-c-tag-text">
+                        {TYPE_LABELS[s.type] ?? s.type}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
           {/* Studios search */}
           <form method="get" action="" className="relative mb-4">
             <input type="hidden" name="tab" value="studios" />
@@ -693,13 +762,13 @@ export default async function Home({
               </div>
             ) : (
               studiosSlice.map((s, i) => (
-                <Link
+                <article
                   key={s.slug}
-                  href={`/studios/${s.slug}`}
-                  className="block bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
+                  className="bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
                 >
                   <div className="flex flex-col sm:flex-row items-start">
-                    {/* Thumbnail */}
+                    {/* Thumbnail — fixed aspect so it doesn't stretch when
+                        description wraps to 2 lines. Same shape as games tab. */}
                     {s.thumbnail_url ? (
                       <img
                         src={s.thumbnail_url}
@@ -708,13 +777,13 @@ export default async function Home({
                         height={108}
                         loading={i === 0 && studiosPageClamped === 1 ? "eager" : "lazy"}
                         decoding="async"
-                        className="w-full sm:w-[230px] shrink-0 object-cover rounded-s-lg self-stretch"
+                        className="w-full sm:w-[230px] shrink-0 object-cover rounded-s-lg aspect-[460/215]"
                       />
                     ) : (
                       <TitleCover
                         name={s.name}
                         seed={s.slug}
-                        className="w-full sm:w-[230px] shrink-0 self-stretch aspect-[460/215] sm:aspect-auto rounded-s-lg"
+                        className="w-full sm:w-[230px] shrink-0 aspect-[460/215] rounded-s-lg"
                       />
                     )}
 
@@ -722,11 +791,21 @@ export default async function Home({
                     <div className="flex-1 min-w-0 p-4">
                       <div className="flex items-start justify-between gap-2">
                         <h2 className="text-base font-semibold text-c-text leading-snug">
-                          {s.name}
+                          <Link
+                            href={`/studios/${s.slug}`}
+                            className="hover:text-indigo-500 transition-colors"
+                          >
+                            {s.name}
+                          </Link>
                         </h2>
-                        <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                        <FilterPill
+                          tab="studios"
+                          param="studioType"
+                          value={s.type}
+                          className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full"
+                        >
                           {TYPE_LABELS[s.type] ?? s.type}
-                        </span>
+                        </FilterPill>
                       </div>
                       <p className="text-xs text-c-muted mt-1">
                         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -738,7 +817,7 @@ export default async function Home({
                       )}
                     </div>
                   </div>
-                </Link>
+                </article>
               ))
             )}
           </div>
@@ -782,6 +861,49 @@ export default async function Home({
       {/* Communities tab */}
       {tab === "communities" && (
         <>
+          {/* Recently added strip — mirrors games + studios tabs for parity. */}
+          {showRecentCommunities && recentCommunities.length >= 3 && (
+            <section className="mb-6">
+              <h2 className="text-xs font-semibold tracking-wider text-c-faint uppercase mb-2">
+                {t("recentlyAdded")}
+              </h2>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+                {recentCommunities.map((c) => (
+                  <Link
+                    key={c.slug}
+                    href={`/communities/${c.slug}`}
+                    className="group block shrink-0 w-[180px] bg-c-surface border border-c-border rounded-lg overflow-hidden hover:border-indigo-500/50 transition-colors"
+                  >
+                    {c.thumbnail_url ? (
+                      <img
+                        src={c.thumbnail_url}
+                        alt={t("thumbnailAlt", { name: c.name })}
+                        width={180}
+                        height={84}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full aspect-[460/215] object-cover"
+                      />
+                    ) : (
+                      <TitleCover
+                        name={c.name}
+                        seed={c.slug}
+                        className="w-full aspect-[460/215]"
+                      />
+                    )}
+                    <div className="p-2.5">
+                      <p className="text-sm font-medium text-c-text truncate group-hover:text-indigo-500 transition-colors" dir="auto">
+                        {c.name}
+                      </p>
+                      <span className="inline-block mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-c-tag text-c-tag-text">
+                        {COMMUNITY_TYPE_LABELS[c.type] ?? c.type}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
           {/* Communities search */}
           <form method="get" action="" className="relative mb-4">
             <input type="hidden" name="tab" value="communities" />
@@ -891,10 +1013,9 @@ export default async function Home({
               </div>
             ) : (
               communitiesSlice.map((c, i) => (
-                <Link
+                <article
                   key={c.slug}
-                  href={`/communities/${c.slug}`}
-                  className="block bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
+                  className="bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
                 >
                   <div className="flex flex-col sm:flex-row items-start">
                     {c.thumbnail_url ? (
@@ -905,23 +1026,33 @@ export default async function Home({
                         height={108}
                         loading={i === 0 && communitiesPageClamped === 1 ? "eager" : "lazy"}
                         decoding="async"
-                        className="w-full sm:w-[230px] shrink-0 object-cover rounded-s-lg self-stretch"
+                        className="w-full sm:w-[230px] shrink-0 object-cover rounded-s-lg aspect-[460/215]"
                       />
                     ) : (
                       <TitleCover
                         name={c.name}
                         seed={c.slug}
-                        className="w-full sm:w-[230px] shrink-0 self-stretch aspect-[460/215] sm:aspect-auto rounded-s-lg"
+                        className="w-full sm:w-[230px] shrink-0 aspect-[460/215] rounded-s-lg"
                       />
                     )}
                     <div className="flex-1 min-w-0 p-4">
                       <div className="flex items-start justify-between gap-2">
                         <h2 className="text-base font-semibold text-c-text leading-snug">
-                          {c.name}
+                          <Link
+                            href={`/communities/${c.slug}`}
+                            className="hover:text-indigo-500 transition-colors"
+                          >
+                            {c.name}
+                          </Link>
                         </h2>
-                        <span className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full">
+                        <FilterPill
+                          tab="communities"
+                          param="communityType"
+                          value={c.type}
+                          className="shrink-0 text-xs bg-c-tag text-c-tag-text px-2 py-0.5 rounded-full"
+                        >
                           {COMMUNITY_TYPE_LABELS[c.type] ?? c.type}
-                        </span>
+                        </FilterPill>
                       </div>
                       <p className="text-xs text-c-muted mt-1">
                         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -930,9 +1061,41 @@ export default async function Home({
                       {c.description && (
                         <p className="text-sm text-c-soft mt-2 leading-relaxed line-clamp-2" dir="auto">{c.description}</p>
                       )}
+                      {(c.topics ?? []).length > 0 && (() => {
+                        const topics = c.topics ?? [];
+                        const visible = topics.slice(0, 5);
+                        const extra = topics.length - visible.length;
+                        return (
+                          <div className="flex gap-1.5 flex-wrap mt-2">
+                            {visible.map((topic) => {
+                              const isCanonical = TOPIC_VALUE_SET.has(topic);
+                              const label = isCanonical
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                ? (tCommunity(COMMUNITY_TOPIC_I18N_KEYS[topic] as any) as string) ?? topic
+                                : topic;
+                              return (
+                                <FilterPill
+                                  key={topic}
+                                  tab="communities"
+                                  param="communityTopic"
+                                  value={topic}
+                                  className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-tag-text"
+                                >
+                                  {label}
+                                </FilterPill>
+                              );
+                            })}
+                            {extra > 0 && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-c-tag text-c-faint">
+                                +{extra}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
-                </Link>
+                </article>
               ))
             )}
           </div>
@@ -1128,7 +1291,8 @@ export default async function Home({
               className="bg-c-surface border border-c-border rounded-xl overflow-hidden hover:border-c-border-hover transition-colors"
             >
               <div className="flex flex-col sm:flex-row items-start">
-                {/* Thumbnail */}
+                {/* Thumbnail — fixed aspect so the proportions are stable
+                    regardless of the content column's height. */}
                 {g.thumbnail_url ? (
                   <img
                     src={g.thumbnail_url}
@@ -1137,13 +1301,13 @@ export default async function Home({
                     height={108}
                     loading={i === 0 && gamesPageClamped === 1 ? "eager" : "lazy"}
                     decoding="async"
-                    className="w-full sm:w-[230px] shrink-0 object-cover self-stretch"
+                    className="w-full sm:w-[230px] shrink-0 object-cover aspect-[460/215]"
                   />
                 ) : (
                   <TitleCover
                     name={g.name}
                     seed={g.slug}
-                    className="w-full sm:w-[230px] shrink-0 self-stretch aspect-[460/215] sm:aspect-auto"
+                    className="w-full sm:w-[230px] shrink-0 aspect-[460/215]"
                   />
                 )}
 
