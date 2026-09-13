@@ -1,4 +1,5 @@
 -- 03 — Make /api/submit the ONLY write path into the submission queues.
+-- APPLIED 2026-09-14 (four policies dropped — names recorded in CLAUDE.md).
 --
 -- RUN: LAST. Only after the new code is deployed AND you have submitted one
 -- game, one studio, and one community through the live site and seen all

@@ -257,12 +257,15 @@ Index: `game_studios_studio_id_idx` on `(studio_id)` to speed up the studio-deta
 ### RLS summary
 - `games`: anon + authenticated can SELECT. Authenticated can INSERT.
 - `game_studios`: anon + authenticated can SELECT (read-only). Writes only via service-role key in `/api/approve` and `/api/approve-studio`.
-- `submissions`: INSERT is done by `/api/submit` with the service-role key (revoke the anon INSERT policy — see "Migration: submission hardening"). Authenticated can SELECT and UPDATE.
+- `submissions`: **no INSERT policy** — writes only via `/api/submit` (service role). Direct anon inserts are refused with `42501` (verified 2026-09-14). Authenticated can SELECT and UPDATE.
 - `rate_limits`: RLS enabled with **no policies** — service role only. Written via the `check_rate_limit()` SECURITY DEFINER function.
 - `studios`: anon + authenticated can SELECT. Authenticated can INSERT.
-- `studio_submissions`: INSERT via `/api/submit` (service role). Authenticated can SELECT and UPDATE.
+- `studio_submissions`: **no INSERT policy** — writes only via `/api/submit` (service role). Authenticated can SELECT and UPDATE.
 - `communities`: anon + authenticated can SELECT. Authenticated can INSERT.
-- `community_submissions`: INSERT via `/api/submit` (service role). Authenticated can SELECT and UPDATE.
+- `community_submissions`: **no INSERT policy** — writes only via `/api/submit` (service role). Authenticated can SELECT and UPDATE.
+
+### Auth: public signups are DISABLED
+Supabase Dashboard → Authentication → Sign In / Providers → "Allow new users to sign up" is **off** (since 2026-09-14). The only account is the admin. **This setting is load-bearing:** several policies grant the whole `authenticated` role broad rights — INSERT on `games` / `studios` / `communities` (publishing without moderation) and SELECT/UPDATE on the three submission queues. With signups off, `authenticated` means "the admin". **Do not re-enable signups** (e.g. for claimable studio profiles) without first narrowing those policies to the admin email, e.g. `using ((auth.jwt() ->> 'email') = '<admin email>')`. The admin page only READS those tables through the browser client; every write goes through service-role API routes, so the INSERT/UPDATE grants aren't needed by the app at all.
 
 ### Supabase Storage
 - **Bucket:** `thumbnails` — public read, no RLS policies needed. All uploads go through `/api/upload-thumbnail` which uses `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). The bucket is public so stored URLs are directly accessible without auth.
@@ -413,6 +416,8 @@ Supabase schema changes should be done via the Supabase dashboard SQL editor and
 Whenever a change requires a Supabase SQL migration or a new environment variable, add a clear TODO comment in the code and tell me exactly what I need to do manually in the dashboards.
 
 ### Backfill: studio types (`supabase/manual/02-studio-types.sql`)
+**Status: applied 2026-09-13** — result 109 studio / 53 individual / 28 team, 0 invalid.
+
 66 studios were auto-created with `type = 'unspecified'` before that path was fixed. Run the whole file in the Supabase SQL editor — it is one transaction:
 1. Reclassifies the 66 rows **by id** (18 individual, 10 team, 38 studio). Classification is by name evidence; 11 ambiguous names default to `studio`/`individual` and are marked `[LOW CONFIDENCE]` in the file — skim those first and edit the file if you know better. Every UPDATE is guarded by `and type = 'unspecified'`, so re-running never overwrites a hand correction.
 2. Rewrites any *pending* `studio_submissions` payload whose `type` is outside the set.
@@ -423,12 +428,16 @@ Whenever a change requires a Supabase SQL migration or a new environment variabl
 **Needs human judgement — not fixed by any script:** `Digital Game St` and `Digital Game Studio` are the same Tunisian studio (both linked to *Our Revenge*, which is itself duplicated in `games`) — their names differ, so the unique name index does NOT catch them; `bullet snail series` has zero linked games and reads like a game series, not a developer; `safirsoft and simasoft`, `Majd Akar and Hosni Auji`, and `saker & hussein` are combined credits that should arguably be separate developer entries.
 
 ### Cleanup: studio duplicates (`supabase/manual/04-studio-duplicates.sql`)
+**Status: applied 2026-09-14** — 190 → 186 studios, 0 name collisions, games linked to no studio 13 → 1 (*bullet snail series*, developer "FTON": the studio row named "bullet snail series" is the game name entered as a studio — rename it to FTON via the studio's "Suggest an update" so `propagateStudioRename` runs). Backup table `studios_duplicates_backup_20260914` can be dropped once satisfied.
+
 Four studios existed twice (`abualamrien-studio`, `lions-den-team`, `afkar-media`, `epicsoft`, each with a `-2` copy). `/api/approve-studio` only avoided slug collisions, not name collisions, so approving the same developer twice inserted a second row. Because linking matched names with `.ilike().maybeSingle()` — which errors when two rows match — **12 games were left linked to no studio**. Three of the four pairs were created ~1.5s apart within 18 seconds on 2026-05-02, consistent with a batch run processing items twice; the Approve buttons already disable during a request.
 
 Run any time, independent of 03 and the deploy. One transaction that: refuses to run unless all 4 pairs still exist; backs the `-2` rows up to `studios_duplicates_backup_20260914` (RLS on); fills only fields the kept row is missing (never a `temp/` thumbnail URL); repoints pending update submissions and game links to the kept row; re-links every game whose `developers[]` names a kept studio; deletes the `-2` rows; shows the 4 survivors with linked-game counts (expected: Abualamrien Studio 2, afkar media 7, EpicSoft 4, Lion's Den Team 1); then creates unique index `studios_name_unique`. Rollback and backup-cleanup lines are at the bottom of the file.
 
 ### Migration: submission hardening
 Public submissions no longer write to the `*_submissions` tables with the anon key — they go through `POST /api/submit`, which validates every field server-side, rate-limits by IP, and inserts with the service-role key.
+
+**Status: fully applied on 2026-09-14.** Steps 1–5 below all ran; the dropped policies were `"Public can insert submissions"` and `"Authenticated can insert submissions"` (on `submissions`), `"anyone can insert studio submissions"`, and `community_submissions_insert_anyone`. Kept for reference / re-creating the project.
 
 The SQL lives in `supabase/manual/`. **Run in filename order, with the deploy in between:**
 1. `01-submission-hardening.sql` — creates `rate_limits` + the atomic `check_rate_limit()` function and revokes public EXECUTE on it. Safe any time: the route fails *open* if the function is missing.
