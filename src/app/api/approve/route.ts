@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { promoteThumbnail } from "@/lib/promoteThumbnail";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { normalizeGenres } from "@/lib/genres";
+import { findStudioByName } from "@/lib/studioLookup";
 
 // Read developers list from a submission payload, tolerating legacy single-value
 // `developer` strings on rows queued before the multi-developer migration.
@@ -23,14 +24,12 @@ async function syncGameStudios(
   developers: string[]
 ): Promise<void> {
   // Look up matching approved studios for each developer name (case-insensitive).
+  // findStudioByName escapes ILIKE wildcards and tolerates duplicate rows —
+  // the old `.ilike().maybeSingle()` errored on duplicates and linked nothing.
   const matchedStudioIds = new Set<string>();
   for (const devName of developers) {
-    const { data: studio } = await supabase
-      .from("studios")
-      .select("id")
-      .ilike("name", devName)
-      .maybeSingle();
-    if (studio?.id) matchedStudioIds.add(studio.id);
+    const studio = await findStudioByName(supabase, devName);
+    if (studio) matchedStudioIds.add(studio.id);
   }
 
   // Replace the join rows for this game.

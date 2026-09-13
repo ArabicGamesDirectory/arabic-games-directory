@@ -48,7 +48,13 @@ export default function DeveloperTagsInput({
     }
   }
 
-  const filtered = suggestions.filter(
+  // Dedupe case-insensitively first: the studios table can hold two rows with
+  // the same name, which would list the suggestion twice and collide on the
+  // React key below.
+  const uniqueSuggestions = suggestions.filter(
+    (s, i) => suggestions.findIndex((o) => o.toLowerCase() === s.toLowerCase()) === i
+  );
+  const filtered = uniqueSuggestions.filter(
     (s) =>
       s.toLowerCase().includes(input.toLowerCase()) &&
       !tags.some((t) => t.toLowerCase() === s.toLowerCase())
@@ -88,10 +94,22 @@ export default function DeveloperTagsInput({
           ref={inputRef}
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            setShowSuggestions(true);
+          }}
           onKeyDown={handleKeyDown}
           onFocus={() => setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          // Commit whatever is typed when focus leaves. Only chips emit hidden
+          // inputs, so without this a name typed but never Enter'd is silently
+          // dropped and the form rejects with "add at least one developer"
+          // while the field visibly contains text. Clicking Submit blurs this
+          // input first, and React flushes the blur update before the click's
+          // submit handler reads FormData, so the new chip is included.
+          onBlur={() => {
+            addTag(input);
+            setShowSuggestions(false);
+          }}
           placeholder={tags.length === 0 ? placeholder : ""}
           autoComplete="off"
           className="flex-1 min-w-[120px] bg-transparent outline-none text-sm text-c-text placeholder:text-c-faint py-1"
@@ -102,7 +120,13 @@ export default function DeveloperTagsInput({
           {filtered.slice(0, 8).map((s) => (
             <li
               key={s}
-              onMouseDown={() => addTag(s)}
+              // preventDefault keeps focus in the text input. Otherwise the
+              // resulting blur would ALSO commit the partial text typed so far
+              // (e.g. "Sem" alongside the picked "Semaphore Studios").
+              onMouseDown={(e) => {
+                e.preventDefault();
+                addTag(s);
+              }}
               className="px-3 py-2 text-sm text-c-text hover:bg-c-bg cursor-pointer"
             >
               {s}

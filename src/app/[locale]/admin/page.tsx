@@ -400,7 +400,14 @@ export default function AdminPage() {
       return;
     }
     setStudioSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
-    setMessage({ text: t("approvedStudio", { name: submission.payload.name }), ok: true });
+    setMessage({
+      // `merged`: the studio already existed, so the submission was folded into
+      // it (only missing fields filled) rather than creating a duplicate row.
+      text: data.merged
+        ? t("mergedStudio", { name: submission.payload.name })
+        : t("approvedStudio", { name: submission.payload.name }),
+      ok: true,
+    });
   }
 
   async function rejectStudio(id: string) {

@@ -230,6 +230,7 @@
     "noPendingStudios": "No pending studio submissions.",
     "noPendingCommunities": "No pending community submissions.",
     "approvedStudio": "Approved: {name}",
+    "mergedStudio": "“{name}” already exists — merged into the existing studio instead of creating a duplicate.",
     "approvedCommunity": "Approved: {name}",
     "studioType": "Type",
     "communityType": "Type",

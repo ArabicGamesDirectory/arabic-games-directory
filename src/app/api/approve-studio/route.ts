@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { promoteThumbnail } from "@/lib/promoteThumbnail";
 import { STUDIO_TYPES } from "@/lib/validateSubmission";
+import { findStudioByName } from "@/lib/studioLookup";
 
 // Walk every game's developers[] and insert a join row for any name that
 // matches this studio (case-insensitive) but isn't already linked. Postgres
@@ -120,7 +121,54 @@ export async function POST(request: Request) {
     thumbnail_url: submission.payload.thumbnail_url ?? null,
   };
 
-  let studioError: { message: string } | null = null;
+  let studioError: { message: string; code?: string } | null = null;
+  // True when a new-studio submission matched an existing studio by name and
+  // was merged into it instead of inserted as a duplicate.
+  let merged = false;
+
+  const isTempThumbnail = (url: string | null) => !!url && url.includes("/thumbnails/temp/");
+
+  // Fold a new-studio submission into a studio that already exists. Only fills
+  // fields the existing row is MISSING — a later, often thinner submission (the
+  // game form auto-submits a bare name) must never overwrite curated data. Name,
+  // type, and country are left alone: auto-submitted studios inherit the GAME's
+  // countries, which aren't reliable evidence for the studio.
+  //
+  // `promotedThumbnail` is passed when the temp file was already moved before
+  // an insert that then lost a race; otherwise it's promoted lazily, only if the
+  // existing studio actually needs a thumbnail.
+  async function mergeIntoExisting(
+    existingId: string,
+    promotedThumbnail?: string | null
+  ): Promise<{ message: string; code?: string } | null> {
+    const { data: current } = await supabase
+      .from("studios")
+      .select("description, website_url, thumbnail_url")
+      .eq("id", existingId)
+      .maybeSingle();
+
+    const patch: Record<string, string> = {};
+    if (!current?.description && studioFields.description) patch.description = studioFields.description;
+    if (!current?.website_url && studioFields.website_url) patch.website_url = studioFields.website_url;
+    if (!current?.thumbnail_url && studioFields.thumbnail_url) {
+      const promoted =
+        promotedThumbnail !== undefined
+          ? promotedThumbnail
+          : await promoteThumbnail(supabase, studioFields.thumbnail_url);
+      // Never store a temp/ URL: the daily cron deletes those files, which is
+      // exactly how the duplicate "afkar media" / "EpicSoft" rows ended up with
+      // broken thumbnails.
+      const finalUrl = promoted ?? (isTempThumbnail(studioFields.thumbnail_url) ? null : studioFields.thumbnail_url);
+      if (finalUrl) patch.thumbnail_url = finalUrl;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      const { error } = await supabase.from("studios").update(patch).eq("id", existingId);
+      if (error) return error;
+    }
+    await retroLinkGames(supabase, existingId, studioFields.name);
+    return null;
+  }
 
   if (submission.studio_id) {
     // Capture the old name BEFORE the update so we can rewrite linked games'
@@ -138,6 +186,8 @@ export async function POST(request: Request) {
       .from("studios")
       .update({ ...studioFields, ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}) })
       .eq("id", submission.studio_id);
+    // A 23505 here means the update renames this studio onto another studio's
+    // name; mapped to a readable message below.
     studioError = error;
 
     if (!error) {
@@ -154,38 +204,69 @@ export async function POST(request: Request) {
       await retroLinkGames(supabase, submission.studio_id, studioFields.name);
     }
   } else {
-    // New studio submission — resolve slug collisions, then insert.
-    const baseSlug = submission.payload.slug as string;
-    const { data: existingSlugs } = await supabase
-      .from("studios")
-      .select("slug")
-      .like("slug", `${baseSlug}%`);
-    const taken = new Set((existingSlugs ?? []).map((r: { slug: string }) => r.slug));
-    let slug = baseSlug;
-    let suffix = 2;
-    while (taken.has(slug)) {
-      slug = `${baseSlug}-${suffix++}`;
-    }
+    // New studio submission. The same developer name is routinely queued more
+    // than once (every game submitted with that developer auto-submits a
+    // studio), so approving each must not create a second row — that is how
+    // "Abualamrien Studio", "Lion's Den Team", "afkar media" and "EpicSoft" were
+    // duplicated, which also broke game linking for all of them.
+    const existing = await findStudioByName(supabase, studioFields.name);
 
-    const permanentUrl = await promoteThumbnail(supabase, studioFields.thumbnail_url);
-    const { data: insertedStudio, error } = await supabase
-      .from("studios")
-      .insert({
-        slug,
-        ...studioFields,
-        ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
-      })
-      .select("id")
-      .single();
-    studioError = error;
+    if (existing) {
+      studioError = await mergeIntoExisting(existing.id);
+      merged = !studioError;
+    } else {
+      // Resolve slug collisions, then insert.
+      const baseSlug = submission.payload.slug as string;
+      const { data: existingSlugs } = await supabase
+        .from("studios")
+        .select("slug")
+        .like("slug", `${baseSlug}%`);
+      const taken = new Set((existingSlugs ?? []).map((r: { slug: string }) => r.slug));
+      let slug = baseSlug;
+      let suffix = 2;
+      while (taken.has(slug)) {
+        slug = `${baseSlug}-${suffix++}`;
+      }
 
-    // Retroactively link any games whose developers[] mentions this studio name.
-    if (!error && insertedStudio) {
-      await retroLinkGames(supabase, insertedStudio.id, studioFields.name);
+      const permanentUrl = await promoteThumbnail(supabase, studioFields.thumbnail_url);
+      const { data: insertedStudio, error } = await supabase
+        .from("studios")
+        .insert({
+          slug,
+          ...studioFields,
+          ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
+        })
+        .select("id")
+        .single();
+
+      if (error?.code === "23505") {
+        // Lost a race with a concurrent approval of the same studio: the
+        // `studios_name_unique` index rejected the duplicate between our lookup
+        // and our insert. Merge into the row that won instead of failing.
+        const winner = await findStudioByName(supabase, studioFields.name);
+        if (winner) {
+          studioError = await mergeIntoExisting(winner.id, permanentUrl);
+          merged = !studioError;
+        } else {
+          studioError = error;
+        }
+      } else {
+        studioError = error;
+        // Retroactively link any games whose developers[] mentions this studio name.
+        if (!error && insertedStudio) {
+          await retroLinkGames(supabase, insertedStudio.id, studioFields.name);
+        }
+      }
     }
   }
 
   if (studioError) {
+    if (studioError.code === "23505") {
+      return Response.json(
+        { error: "Another studio already uses this name. Studio names must be unique (ignoring case)." },
+        { status: 409 }
+      );
+    }
     return Response.json({ error: studioError.message }, { status: 500 });
   }
 
@@ -208,5 +289,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return Response.json({ success: true });
+  return Response.json({ success: true, merged });
 }

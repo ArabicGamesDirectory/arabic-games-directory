@@ -230,6 +230,7 @@
     "noPendingStudios": "لا توجد طلبات استوديو بانتظار المراجعة.",
     "noPendingCommunities": "لا توجد طلبات مجتمع بانتظار المراجعة.",
     "approvedStudio": "تمت الموافقة على: {name}",
+    "mergedStudio": "«{name}» موجود مسبقًا — تم دمجه مع الاستوديو الحالي بدلًا من إنشاء نسخة مكررة.",
     "approvedCommunity": "تمت الموافقة على: {name}",
     "studioType": "النوع",
     "communityType": "النوع",
