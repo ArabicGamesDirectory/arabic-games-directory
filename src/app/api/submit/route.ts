@@ -9,10 +9,12 @@
 // and anon INSERT must be revoked on submissions / studio_submissions /
 // community_submissions AFTER this is deployed and verified working.
 
+import { after } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { validateSubmission, type EntityType } from "@/lib/validateSubmission";
 import { slugify } from "@/lib/slug";
 import { findStudioByName, escapeIlike } from "@/lib/studioLookup";
+import { notifySubmission } from "@/lib/notifySubmission";
 
 const ENTITY_TABLE: Record<EntityType, string> = {
   game: "submissions",
@@ -228,6 +230,20 @@ export async function POST(req: Request) {
     console.error("[submit] insert failed:", error.message);
     return Response.json({ error: "Could not save submission." }, { status: 500 });
   }
+
+  // Ping the admin Discord only now, after a real insert. Honeypot hits,
+  // validation failures, and rate-limited requests all returned earlier and
+  // never reach this line. `after()` sends it once the response is out, so a
+  // slow webhook never delays the submitter.
+  after(() =>
+    notifySubmission({
+      entityType,
+      name: payload.name as string,
+      country: payload.country as string[],
+      isUpdate: !!targetId,
+      ip,
+    })
+  );
 
   // Update suggestions don't queue studios — same rule the client applied.
   const studiosQueued =

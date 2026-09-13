@@ -161,17 +161,7 @@ export function StudioSubmitForm({ initialData, backHref = "/" }: StudioSubmitFo
       return;
     }
 
-    // Fire-and-forget Discord webhook ping for the admin.
-    fetch("/api/notify-submission", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entityType: "studio",
-        name,
-        country: countries,
-        isUpdate,
-      }),
-    }).catch(() => {});
+    // The admin Discord ping is sent by /api/submit after the insert.
 
     formEl.reset();
     setThumbnailUrl(null);

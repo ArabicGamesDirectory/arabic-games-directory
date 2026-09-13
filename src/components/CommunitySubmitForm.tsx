@@ -220,17 +220,7 @@ export function CommunitySubmitForm({ initialData, backHref = "/?tab=communities
       return;
     }
 
-    // Fire-and-forget Discord webhook ping for the admin.
-    fetch("/api/notify-submission", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entityType: "community",
-        name,
-        country: countries,
-        isUpdate,
-      }),
-    }).catch(() => {});
+    // The admin Discord ping is sent by /api/submit after the insert.
 
     formEl.reset();
     setTopicOtherChecked(false);

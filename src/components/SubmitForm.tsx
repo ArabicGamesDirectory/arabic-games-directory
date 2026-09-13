@@ -386,17 +386,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       return;
     }
 
-    // Fire-and-forget Discord webhook ping for the admin.
-    fetch("/api/notify-submission", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entityType: "game",
-        name,
-        country: countries,
-        isUpdate,
-      }),
-    }).catch(() => {});
+    // The admin Discord ping is sent by /api/submit after the insert.
 
     // Studios for unknown developer names are queued by /api/submit itself,
     // inside the same request — see queueUnknownDevelopers() in the route.
