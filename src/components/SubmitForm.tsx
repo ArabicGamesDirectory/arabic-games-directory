@@ -14,6 +14,7 @@ import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { GENRE_VALUES, normalizeGenres } from "@/lib/genres";
 import DeveloperTagsInput from "@/components/DeveloperTagsInput";
+import { PLATFORM_OPTIONS } from "@/lib/platforms";
 
 export type GameData = {
   id: string;
@@ -35,31 +36,6 @@ export type GameData = {
   publisher_name: string | null;
   thumbnail_url: string | null;
 };
-
-const PLATFORM_OPTIONS = [
-  "iOS",
-  "Android",
-  "Pocket PC",
-  "Nokia Symbian",
-  "Windows",
-  "macOS",
-  "Linux",
-  "DOS",
-  "MSX",
-  "Amstrad CPC",
-  "Amiga",
-  "Commodore 64",
-  "Web",
-  "PlayStation",
-  "Xbox",
-  "Nintendo Switch",
-  "Nintendo 64",
-  "Nintendo DS",
-  "Nintendo 3DS",
-  "GameBoy Advance",
-  "PSP",
-  "PSVITA",
-];
 
 // Pulled from @/lib/genres so the homepage filter dropdown shares the same source.
 const GENRE_BASE_VALUES: readonly string[] = GENRE_VALUES;
@@ -272,6 +248,7 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       { value: "Arcade", key: "arcade" },
       { value: "Card / Board Game", key: "cardBoardGame" },
       { value: "Casual", key: "casual" },
+      { value: "Dress up", key: "dressUp" },
       { value: "Educational", key: "educational" },
       { value: "Endless Runner", key: "endlessRunner" },
       { value: "Family", key: "family" },
@@ -362,8 +339,6 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
 
     const payload = {
       name,
-      // For updates, preserve the existing slug so URLs don't break.
-      slug: isUpdate ? initialData!.slug : slugify(name),
       developers,
       country: countries,
       platforms,
@@ -390,17 +365,24 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       thumbnail_url: thumbnailUrl,
     };
 
-    const { error } = await supabase.from("submissions").insert({
-      payload,
-      moderation_status: "pending",
-      // Link to existing game when this is an update submission.
-      ...(isUpdate && { game_id: initialData!.id }),
+    const res = await fetch("/api/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entityType: "game",
+        payload,
+        // Present only for update suggestions; the server resolves the slug
+        // from this row rather than trusting one from the client.
+        targetId: isUpdate ? initialData!.id : null,
+        website_url_extra: String(form.get("website_url_extra") || ""),
+      }),
     });
+    const resBody = await res.json().catch(() => ({}));
 
     setLoading(false);
 
-    if (error) {
-      setDone({ ok: false, message: "Error: " + error.message });
+    if (!res.ok) {
+      setDone({ ok: false, message: resBody.error || t("submitFailed") });
       return;
     }
 
@@ -421,19 +403,25 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       const knownNames = new Set(studioNames.map((n) => n.toLowerCase()));
       for (const developerName of payload.developers) {
         if (knownNames.has(developerName.toLowerCase())) continue;
-        const { error: studioError } = await supabase.from("studio_submissions").insert({
-          payload: {
-            name: developerName,
-            slug: slugify(developerName),
-            type: "unspecified",
-            description: null,
-            country: countries,
-            website_url: null,
-          },
-          moderation_status: "pending",
+        const studioRes = await fetch("/api/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entityType: "studio",
+            payload: {
+              name: developerName,
+              // Matches the StudioSubmitForm default. The server validator
+              // enforces individual|team|studio — anything else is invisible
+              // to the homepage type filter and renders as a raw string.
+              type: "studio",
+              description: null,
+              country: countries,
+              website_url: null,
+            },
+          }),
         });
-        if (studioError) {
-          console.error("Studio auto-submit failed:", studioError.message);
+        if (!studioRes.ok) {
+          console.error("Studio auto-submit failed:", studioRes.status);
         }
       }
     }
@@ -484,6 +472,18 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-5">
+        {/* Honeypot — hidden from humans and AT, but present in the DOM so
+            bots fill it. Use `sr-only`, NOT an offscreen `-left-[9999px]`:
+            the latter extends scrollWidth in RTL and adds a ~10,000px
+            horizontal scrollbar to every /ar form page. */}
+        <input
+          type="text"
+          name="website_url_extra"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="sr-only"
+        />
         {/* Game info */}
         <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
           <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">

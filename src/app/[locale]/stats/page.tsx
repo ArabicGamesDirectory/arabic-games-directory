@@ -164,7 +164,7 @@ export default async function StatsPage({
   // Build release-year histogram, gap-filled across the min→max year range so
   // empty years still render as zero-bars (otherwise a quiet year disappears).
   const yearKeys = Object.keys(rawYear).map(Number);
-  let byReleaseYear: ChartEntry[] = [];
+  const byReleaseYear: ChartEntry[] = [];
   if (yearKeys.length > 0) {
     const min = Math.min(...yearKeys);
     const max = Math.max(...yearKeys);

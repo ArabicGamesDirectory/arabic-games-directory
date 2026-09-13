@@ -89,7 +89,7 @@ export default function ContactForm() {
       <form onSubmit={onSubmit} className="space-y-5">
         <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
           {/* Honeypot — invisible to humans, bots fill it in */}
-          <div aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden">
+          <div aria-hidden="true" className="sr-only">
             <label>
               Do not fill this field
               <input

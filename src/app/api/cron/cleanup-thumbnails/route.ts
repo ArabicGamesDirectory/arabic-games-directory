@@ -36,6 +36,15 @@ export async function GET(request: Request) {
     return now - uploadedAt > MAX_AGE_MS;
   });
 
+  // Piggyback: drop rate-limit buckets whose window closed long ago. The
+  // table holds one row per key and reuses it, but keys are per-IP so the row
+  // count grows with unique visitors forever otherwise. Best-effort — a
+  // failure here must not fail the thumbnail sweep.
+  await supabase
+    .from("rate_limits")
+    .delete()
+    .lt("window_start", new Date(now - MAX_AGE_MS).toISOString());
+
   if (stale.length === 0) {
     return Response.json({ deleted: 0 });
   }

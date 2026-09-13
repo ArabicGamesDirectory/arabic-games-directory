@@ -169,7 +169,8 @@
     "thumbnailError": "Upload failed. Try again.",
     "thumbnailTooLarge": "File too large. Maximum size is 200 KB.",
     "thumbnailInvalidType": "Invalid file type. Accepted: jpg, png, webp.",
-    "thumbnailHint": "Max 200 KB. JPG, PNG, or WebP. Will be cropped to 460×215."
+    "thumbnailHint": "Max 200 KB. JPG, PNG, or WebP. Will be cropped to 460×215.",
+    "submitFailed": "Could not submit. Please try again."
   },
   "validation": {
     "invalidUrl": "Please enter a valid URL starting with http:// or https://"

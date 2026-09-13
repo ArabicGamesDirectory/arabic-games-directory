@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { supabase } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
 import { COUNTRY_OPTIONS, COUNTRY_KEY_MAP } from "@/lib/countries";
 import { COMMUNITY_TOPIC_VALUES } from "@/lib/communityTopics";
@@ -48,6 +47,8 @@ export function CommunitySubmitForm({ initialData, backHref = "/?tab=communities
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tCountries = useTranslations("countries") as any;
   const tValidation = useTranslations("validation");
+  // Shared submit-failure copy lives in the `submit` namespace.
+  const tSubmit = useTranslations("submit");
 
   const isUpdate = !!initialData;
 
@@ -191,7 +192,6 @@ export function CommunitySubmitForm({ initialData, backHref = "/?tab=communities
 
     const payload = {
       name,
-      slug: isUpdate ? initialData!.slug : slugify(name),
       type: String(form.get("type") || "online"),
       description: String(form.get("description") || "").trim() || null,
       country: countries,
@@ -201,16 +201,22 @@ export function CommunitySubmitForm({ initialData, backHref = "/?tab=communities
       thumbnail_url: thumbnailUrl,
     };
 
-    const { error } = await supabase.from("community_submissions").insert({
-      payload,
-      moderation_status: "pending",
-      ...(isUpdate && { community_id: initialData!.id }),
+    const res = await fetch("/api/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entityType: "community",
+        payload,
+        targetId: isUpdate ? initialData!.id : null,
+        website_url_extra: String(form.get("website_url_extra") || ""),
+      }),
     });
+    const resBody = await res.json().catch(() => ({}));
 
     setLoading(false);
 
-    if (error) {
-      setDone({ ok: false, message: "Error: " + error.message });
+    if (!res.ok) {
+      setDone({ ok: false, message: resBody.error || tSubmit("submitFailed") });
       return;
     }
 
@@ -261,6 +267,18 @@ export function CommunitySubmitForm({ initialData, backHref = "/?tab=communities
       </div>
 
       <form onSubmit={onSubmit} className="space-y-5">
+        {/* Honeypot — hidden from humans and AT, but present in the DOM so
+            bots fill it. Use `sr-only`, NOT an offscreen `-left-[9999px]`:
+            the latter extends scrollWidth in RTL and adds a ~10,000px
+            horizontal scrollbar to every /ar form page. */}
+        <input
+          type="text"
+          name="website_url_extra"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="sr-only"
+        />
         {/* Community info */}
         <div className="bg-c-surface border border-c-border rounded-xl p-5 space-y-4">
           <h2 className="text-xs font-semibold text-c-faint uppercase tracking-wider">

@@ -169,7 +169,8 @@
     "thumbnailError": "فشل الرفع. حاول مرة أخرى.",
     "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 200 كيلوبايت.",
     "thumbnailInvalidType": "نوع ملف غير صالح. المقبول: jpg، png، webp.",
-    "thumbnailHint": "الحد الأقصى 200 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 460×215."
+    "thumbnailHint": "الحد الأقصى 200 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 460×215.",
+    "submitFailed": "تعذّر الإرسال. يرجى المحاولة مرة أخرى."
   },
   "validation": {
     "invalidUrl": "يرجى إدخال رابط صحيح يبدأ بـ http:// أو https://"

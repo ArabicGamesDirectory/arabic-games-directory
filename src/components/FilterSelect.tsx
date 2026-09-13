@@ -37,6 +37,11 @@ export default function FilterSelect({
     <select
       value={current}
       onChange={onChange}
+      // The only visible text is the selected option, so without this the
+      // control announces as an unlabeled combobox. `defaultLabel` is already
+      // a translated, dimension-naming string ("All countries"), so it doubles
+      // as the accessible name.
+      aria-label={defaultLabel}
       className="bg-c-surface border border-c-border rounded-lg px-2 py-1 text-sm text-c-text focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-c-border-hover transition-colors"
     >
       <option value="">{defaultLabel}</option>

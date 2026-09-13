@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { promoteThumbnail } from "@/lib/promoteThumbnail";
+import { STUDIO_TYPES } from "@/lib/validateSubmission";
 
 // Walk every game's developers[] and insert a join row for any name that
 // matches this studio (case-insensitive) but isn't already linked. Postgres
@@ -106,7 +107,13 @@ export async function POST(request: Request) {
 
   const studioFields = {
     name: submission.payload.name,
-    type: submission.payload.type,
+    // Submissions queued before /api/submit existed can carry an out-of-set
+    // type (the auto-submit path once wrote "unspecified"). studios.type has a
+    // CHECK constraint, so passing that through would fail the approve —
+    // coerce to the form default instead.
+    type: (STUDIO_TYPES as readonly string[]).includes(submission.payload.type)
+      ? submission.payload.type
+      : "studio",
     description: submission.payload.description ?? null,
     country: submission.payload.country,
     website_url: submission.payload.website_url ?? null,

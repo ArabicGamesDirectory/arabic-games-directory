@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 /* ── Semantic color tokens ───────────────────────────────────────── */
+/* The text tiers (soft > muted > faint) are tuned to clear WCAG AA (4.5:1)
+   against the WORST background they sit on — that's --c-bg in the light theme
+   (--c-surface is lighter, so easier) and --c-surface in the dark theme
+   (--c-bg is darker, so easier). --c-faint sits right at the 4.6:1 floor: it
+   is the faintest tier that is still readable body text, NOT a decorative
+   grey. If you lighten any of these, re-check the ratios first — the previous
+   values failed AA in both themes (--c-faint was 2.0:1) across ~170 usages. */
 :root {
   /* Light — soft gray base, easier on the eyes than pure white */
   --c-bg:           #e4e4e7; /* zinc-200 */
@@ -9,9 +16,9 @@
   --c-border:       #d4d4d8; /* zinc-300 */
   --c-border-hover: #a1a1aa; /* zinc-400 */
   --c-text:         #27272a; /* zinc-800 */
-  --c-soft:         #52525b; /* zinc-600 */
-  --c-muted:        #71717a; /* zinc-500 */
-  --c-faint:        #a1a1aa; /* zinc-400 */
+  --c-soft:         #474750; /* 7.2:1 on --c-bg */
+  --c-muted:        #575760; /* 5.6:1 on --c-bg */
+  --c-faint:        #64646d; /* 4.6:1 on --c-bg — AA floor */
   --c-tag:          #d4d4d8; /* zinc-300 */
   --c-tag-text:     #52525b; /* zinc-600 */
 }
@@ -24,11 +31,11 @@
   --c-border:       #3f3f46; /* zinc-700 */
   --c-border-hover: #52525b; /* zinc-600 */
   --c-text:         #f4f4f5; /* zinc-100 */
-  --c-soft:         #a1a1aa; /* zinc-400 */
-  --c-muted:        #71717a; /* zinc-500 */
-  --c-faint:        #52525b; /* zinc-600 */
+  --c-soft:         #b4b4bd; /* 7.2:1 on --c-surface */
+  --c-muted:        #9e9ea7; /* 5.6:1 on --c-surface */
+  --c-faint:        #8f8f98; /* 4.6:1 on --c-surface — AA floor */
   --c-tag:          #3f3f46; /* zinc-700 */
-  --c-tag-text:     #a1a1aa; /* zinc-400 */
+  --c-tag-text:     #acacb5; /* 4.6:1 on --c-tag */
 }
 
 /* ── Arabic (RTL) font ───────────────────────────────────────────── */
