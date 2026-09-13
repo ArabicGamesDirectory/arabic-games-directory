@@ -11,6 +11,10 @@ import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { GENRE_VALUES, GENRE_I18N_KEYS } from "@/lib/genres";
 import { COMMUNITY_TOPIC_VALUES, COMMUNITY_TOPIC_I18N_KEYS } from "@/lib/communityTopics";
 import { languageAlternates } from "@/lib/alternates";
+import { PLATFORM_GROUPS } from "@/lib/platforms";
+// Taxonomies the server validator enforces — imported, not re-declared, so the
+// homepage can never offer (or accept) a value /api/submit would reject.
+import { GAME_STATUSES, STUDIO_TYPES, COMMUNITY_TYPES } from "@/lib/validateSubmission";
 
 export async function generateMetadata({
   params,
@@ -26,11 +30,6 @@ export async function generateMetadata({
   };
 }
 
-const PLATFORM_GROUPS: Record<string, string[]> = {
-  PC: ["Windows", "macOS", "Linux"],
-  Mobile: ["iOS", "Android"],
-};
-
 const GAMES_SORT_VALUES = ["updated_desc", "updated_asc", "released_desc", "released_asc"] as const;
 type GamesSort = (typeof GAMES_SORT_VALUES)[number];
 const GAMES_DEFAULT_SORT: GamesSort = "released_desc";
@@ -40,7 +39,6 @@ const STUDIOS_DEFAULT_SORT: StudiosSort = "updated_desc";
 const COMMUNITIES_SORT_VALUES = ["updated_desc", "updated_asc"] as const;
 type CommunitiesSort = (typeof COMMUNITIES_SORT_VALUES)[number];
 const COMMUNITIES_DEFAULT_SORT: CommunitiesSort = "updated_desc";
-const COMMUNITY_TYPES = ["online", "in_person", "hybrid"] as const;
 type CommunityType = (typeof COMMUNITY_TYPES)[number];
 
 const PAGE_SIZE = 10;
@@ -166,10 +164,12 @@ export default async function Home({
   const COUNTRY_VALUE_SET = new Set<string>(COUNTRY_OPTIONS as readonly string[]);
   const GENRE_VALUE_SET = new Set<string>(GENRE_VALUES as readonly string[]);
   const TOPIC_VALUE_SET = new Set<string>(COMMUNITY_TOPIC_VALUES as readonly string[]);
-  const STUDIO_TYPE_SET = new Set(["individual", "team", "studio"]);
+  const STUDIO_TYPE_SET = new Set<string>(STUDIO_TYPES);
+  const STATUS_VALUE_SET = new Set<string>(GAME_STATUSES);
 
   const gamesCountry = sp.country && COUNTRY_VALUE_SET.has(sp.country) ? sp.country : null;
   const gamesGenre = sp.genre && GENRE_VALUE_SET.has(sp.genre) ? sp.genre : null;
+  const gamesStatus = sp.status && STATUS_VALUE_SET.has(sp.status) ? sp.status : null;
   const studiosType = sp.studioType && STUDIO_TYPE_SET.has(sp.studioType) ? sp.studioType : null;
   const studiosCountry = sp.studioCountry && COUNTRY_VALUE_SET.has(sp.studioCountry) ? sp.studioCountry : null;
   const communitiesCountry = sp.communityCountry && COUNTRY_VALUE_SET.has(sp.communityCountry) ? sp.communityCountry : null;
@@ -328,7 +328,7 @@ export default async function Home({
       gamesQuery = gamesQuery.contains("platforms", [sp.platform]);
     }
   }
-  if (sp.status) gamesQuery = gamesQuery.eq("status", sp.status);
+  if (gamesStatus) gamesQuery = gamesQuery.eq("status", gamesStatus);
   if (gamesGenre) gamesQuery = gamesQuery.contains("genres", [gamesGenre]);
 
   if (q) {
@@ -360,7 +360,7 @@ export default async function Home({
   // Skipped (no fetch) when any filter or search is active to avoid burning
   // a query nobody will see.
   const noGameFilters =
-    !q && !gamesCountry && !gamesGenre && !sp.platform && !sp.status;
+    !q && !gamesCountry && !gamesGenre && !sp.platform && !gamesStatus;
   const showRecentStrip = tab === "games" && noGameFilters && gamesPageClamped === 1;
   let recentGames: Game[] = [];
   if (showRecentStrip) {
@@ -388,7 +388,7 @@ export default async function Home({
     if (gamesCountry) p.set("country", gamesCountry);
     if (gamesGenre) p.set("genre", gamesGenre);
     if (sp.platform) p.set("platform", sp.platform);
-    if (sp.status) p.set("status", sp.status);
+    if (gamesStatus) p.set("status", gamesStatus);
     // `extra` overrides preserved values (null removes a key)
     for (const [k, v] of Object.entries(extra)) {
       if (v === null) p.delete(k);
@@ -417,7 +417,7 @@ export default async function Home({
     }
     const p = new URLSearchParams();
     if (sp.platform) p.set("platform", sp.platform);
-    if (sp.status) p.set("status", sp.status);
+    if (gamesStatus) p.set("status", gamesStatus);
     if (gamesCountry) p.set("country", gamesCountry);
     if (gamesGenre) p.set("genre", gamesGenre);
     if (gamesSort !== GAMES_DEFAULT_SORT) p.set("sort", gamesSort);
@@ -455,7 +455,7 @@ export default async function Home({
   function gamesPaginationHref(page: number) {
     const p = new URLSearchParams();
     if (sp.platform) p.set("platform", sp.platform);
-    if (sp.status) p.set("status", sp.status);
+    if (gamesStatus) p.set("status", gamesStatus);
     if (gamesCountry) p.set("country", gamesCountry);
     if (gamesGenre) p.set("genre", gamesGenre);
     if (q) p.set("q", q);
@@ -545,10 +545,7 @@ export default async function Home({
     { value: "PC", label: t("filterPC") },
     { value: "Mobile", label: t("filterMobile") },
   ];
-  const STATUS_VALUES = [
-    "announced", "in_dev", "prototype", "early_access", "released", "on_hold", "cancelled", "delisted",
-  ];
-  const statusOptions = STATUS_VALUES.map((s) => ({ value: s, label: statusLabel(s) }));
+  const statusOptions = GAME_STATUSES.map((s) => ({ value: s, label: statusLabel(s) }));
   const studioTypeOptions = [
     { value: "individual", label: tStudio("typeIndividual") },
     { value: "team", label: tStudio("typeTeam") },
@@ -567,7 +564,7 @@ export default async function Home({
   // Active-filter chips per tab — { label, removeHref } each
   const gamesChips: { label: string; removeHref: string }[] = [];
   if (sp.platform) gamesChips.push({ label: sp.platform, removeHref: buildGamesFilterHref({ platform: null }) });
-  if (sp.status) gamesChips.push({ label: statusLabel(sp.status), removeHref: buildGamesFilterHref({ status: null }) });
+  if (gamesStatus) gamesChips.push({ label: statusLabel(gamesStatus), removeHref: buildGamesFilterHref({ status: null }) });
   if (gamesCountry) gamesChips.push({ label: countryLabel(gamesCountry), removeHref: buildGamesFilterHref({ country: null }) });
   if (gamesGenre) gamesChips.push({ label: genreLabel(gamesGenre), removeHref: buildGamesFilterHref({ genre: null }) });
 
@@ -1187,7 +1184,7 @@ export default async function Home({
         {sp.platform && (
           <input type="hidden" name="platform" value={sp.platform} />
         )}
-        {sp.status && <input type="hidden" name="status" value={sp.status} />}
+        {gamesStatus && <input type="hidden" name="status" value={gamesStatus} />}
         {gamesCountry && <input type="hidden" name="country" value={gamesCountry} />}
         {gamesGenre && <input type="hidden" name="genre" value={gamesGenre} />}
         {gamesSort !== GAMES_DEFAULT_SORT && (
@@ -1230,7 +1227,7 @@ export default async function Home({
         <FilterSelect
           paramName="status"
           pageParamName="page"
-          current={sp.status ?? ""}
+          current={gamesStatus ?? ""}
           defaultLabel={t("filterAllStatuses")}
           options={statusOptions}
         />
