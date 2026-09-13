@@ -1,5 +1,10 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
+// Escape ILIKE's wildcard characters so a value matches literally.
+export function escapeIlike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 // Case-insensitive exact lookup of an approved studio by display name.
 //
 // Studio names are unique under lower(btrim(name)) (unique index
@@ -19,7 +24,7 @@ export async function findStudioByName<T extends { id: string; name: string }>(
 ): Promise<T | null> {
   const target = name.trim().toLowerCase();
   if (!target) return null;
-  const escaped = name.trim().replace(/[\\%_]/g, (c) => `\\${c}`);
+  const escaped = escapeIlike(name.trim());
   const { data } = await supabase
     .from("studios")
     .select(columns)

@@ -12,6 +12,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { validateSubmission, type EntityType } from "@/lib/validateSubmission";
 import { slugify } from "@/lib/slug";
+import { findStudioByName, escapeIlike } from "@/lib/studioLookup";
 
 const ENTITY_TABLE: Record<EntityType, string> = {
   game: "submissions",
@@ -39,6 +40,78 @@ const RATE_LIMIT = 10;
 const RATE_WINDOW_SECONDS = 3600;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * For a NEW game submission, queue a studio submission for every developer
+ * name that is neither an approved studio nor already waiting in the queue.
+ *
+ * This runs inside the game's own request, so a game costs ONE rate-limit hit
+ * however many developers it lists. It used to be a client-side loop of extra
+ * /api/submit calls: each consumed the 10/hour budget, and once it ran out the
+ * remaining studios were dropped with only a console.error.
+ *
+ * Checking the pending queue (which only the server can read) also stops the
+ * same developer being queued once per game — the main way duplicate studios
+ * were created before /api/approve-studio learned to merge.
+ *
+ * Best-effort: a failure here is logged and never fails the game submission,
+ * which has already been saved.
+ */
+async function queueUnknownDevelopers(
+  supabase: SupabaseClient,
+  developers: string[],
+  country: string[]
+): Promise<number> {
+  let queued = 0;
+  const seen = new Set<string>();
+  for (const raw of developers) {
+    const name = raw.trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+
+    if (await findStudioByName(supabase, name)) continue;
+
+    const { data: pending, error: pendingError } = await supabase
+      .from("studio_submissions")
+      .select("id")
+      .eq("moderation_status", "pending")
+      .ilike("payload->>name", escapeIlike(name))
+      .limit(1);
+    if (pendingError) {
+      // Can't tell whether it's queued — skip rather than risk a duplicate.
+      console.error("[submit] pending-studio check failed:", pendingError.message);
+      continue;
+    }
+    if (pending && pending.length > 0) continue;
+
+    // Same validator as a hand-submitted studio. The auto-created entry
+    // inherits the game's countries (already validated) and the form's
+    // default type; the moderator refines both on review.
+    const result = validateSubmission("studio", {
+      name,
+      type: "studio",
+      description: null,
+      country,
+      website_url: null,
+    });
+    if (!result.ok) {
+      console.error(`[submit] auto-studio "${name}" failed validation:`, result.error);
+      continue;
+    }
+
+    const { error } = await supabase.from("studio_submissions").insert({
+      payload: { ...result.payload, slug: slugify(name) },
+      moderation_status: "pending",
+    });
+    if (error) {
+      console.error(`[submit] auto-studio "${name}" insert failed:`, error.message);
+    } else {
+      queued++;
+    }
+  }
+  return queued;
+}
 
 function getClientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for");
@@ -156,5 +229,15 @@ export async function POST(req: Request) {
     return Response.json({ error: "Could not save submission." }, { status: 500 });
   }
 
-  return Response.json({ ok: true, isUpdate: !!targetId });
+  // Update suggestions don't queue studios — same rule the client applied.
+  const studiosQueued =
+    entityType === "game" && !targetId
+      ? await queueUnknownDevelopers(
+          supabase,
+          payload.developers as string[],
+          payload.country as string[]
+        )
+      : 0;
+
+  return Response.json({ ok: true, isUpdate: !!targetId, studiosQueued });
 }

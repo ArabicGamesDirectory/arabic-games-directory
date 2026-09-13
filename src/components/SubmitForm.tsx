@@ -398,33 +398,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
       }),
     }).catch(() => {});
 
-    // Auto-submit a studio entry for each developer name not already in the directory.
-    if (!isUpdate) {
-      const knownNames = new Set(studioNames.map((n) => n.toLowerCase()));
-      for (const developerName of payload.developers) {
-        if (knownNames.has(developerName.toLowerCase())) continue;
-        const studioRes = await fetch("/api/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            entityType: "studio",
-            payload: {
-              name: developerName,
-              // Matches the StudioSubmitForm default. The server validator
-              // enforces individual|team|studio — anything else is invisible
-              // to the homepage type filter and renders as a raw string.
-              type: "studio",
-              description: null,
-              country: countries,
-              website_url: null,
-            },
-          }),
-        });
-        if (!studioRes.ok) {
-          console.error("Studio auto-submit failed:", studioRes.status);
-        }
-      }
-    }
+    // Studios for unknown developer names are queued by /api/submit itself,
+    // inside the same request — see queueUnknownDevelopers() in the route.
 
     formEl.reset();
     setName("");
