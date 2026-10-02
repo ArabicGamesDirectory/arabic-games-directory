@@ -7,11 +7,12 @@ import TitleCover from "@/components/TitleCover";
 import SortSelect from "@/components/SortSelect";
 import FilterSelect from "@/components/FilterSelect";
 import FilterPill from "@/components/FilterPill";
-import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+import { statusAllowsReleaseDate, STATUS_CLASSES } from "@/lib/gameStatus";
 import { GENRE_VALUES, GENRE_I18N_KEYS } from "@/lib/genres";
 import { COMMUNITY_TOPIC_VALUES, COMMUNITY_TOPIC_I18N_KEYS } from "@/lib/communityTopics";
 import { languageAlternates } from "@/lib/alternates";
 import { PLATFORM_GROUPS } from "@/lib/platforms";
+import { buildSearchRegex, postgrestQuote, searchMatches } from "@/lib/search";
 // Taxonomies the server validator enforces — imported, not re-declared, so the
 // homepage can never offer (or accept) a value /api/submit would reject.
 import { GAME_STATUSES, STUDIO_TYPES, COMMUNITY_TYPES } from "@/lib/validateSubmission";
@@ -62,16 +63,6 @@ type Game = {
   game_studios: { studios: { slug: string; name: string } | null }[] | null;
 };
 
-const STATUS_CLASSES: Record<string, string> = {
-  announced: "bg-blue-500/15 text-blue-500",
-  in_dev: "bg-amber-500/15 text-amber-500",
-  prototype: "bg-cyan-500/15 text-cyan-500",
-  early_access: "bg-purple-500/15 text-purple-500",
-  released: "bg-emerald-500/15 text-emerald-500",
-  on_hold: "bg-orange-500/15 text-orange-500",
-  cancelled: "bg-c-tag text-c-muted",
-  delisted: "bg-c-tag text-c-muted",
-};
 
 type Studio = {
   id: string;
@@ -200,11 +191,8 @@ export default async function Home({
   let filteredStudios: Studio[] = allStudios;
   if (tab === "studios") {
     if (q) {
-      const ql = q.toLowerCase();
       filteredStudios = filteredStudios.filter(
-        (s) =>
-          s.name.toLowerCase().includes(ql) ||
-          (s.description ?? "").toLowerCase().includes(ql)
+        (s) => searchMatches(s.name, q) || searchMatches(s.description, q)
       );
     }
     if (studiosType) {
@@ -243,11 +231,8 @@ export default async function Home({
 
     filteredCommunities = allCommunities;
     if (q) {
-      const ql = q.toLowerCase();
       filteredCommunities = filteredCommunities.filter(
-        (c) =>
-          c.name.toLowerCase().includes(ql) ||
-          (c.description ?? "").toLowerCase().includes(ql)
+        (c) => searchMatches(c.name, q) || searchMatches(c.description, q)
       );
     }
     if (communityType) {
@@ -296,12 +281,46 @@ export default async function Home({
     : [];
 
   // --- Games tab: server-side filtered + paginated ---
-  let gamesQuery = supabase
-    .from("games")
-    .select(
-      "name, developers, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url, game_studios(studios(slug, name))",
-      { count: "exact" }
-    );
+  // Rows and total count are two requests on purpose: asking PostgREST for
+  // both at once returns 206 Partial Content, and Next's data cache only
+  // stores 200 responses — so the combined query was never cached. Both of
+  // these return 200 and run in parallel.
+
+  // Applies the filters to either builder. Typed loosely inside on purpose:
+  // threading Supabase's builder generics through a shared helper fails with
+  // TS2589 ("excessively deep"); callers keep their full query types.
+  const applyGameFilters = <Q,>(query: Q): Q => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let filtered = query as any;
+    if (gamesCountry) filtered = filtered.contains("country", [gamesCountry]);
+    if (sp.platform) {
+      const group = PLATFORM_GROUPS[sp.platform];
+      if (group) {
+        filtered = filtered.overlaps("platforms", group);
+      } else {
+        filtered = filtered.contains("platforms", [sp.platform]);
+      }
+    }
+    if (gamesStatus) filtered = filtered.eq("status", gamesStatus);
+    if (gamesGenre) filtered = filtered.contains("genres", [gamesGenre]);
+    if (q) {
+      // Arabic-aware regex (see src/lib/search.ts), quoted so commas/parens in
+      // the query can't break out of the .or() filter string.
+      const pattern = postgrestQuote(buildSearchRegex(q));
+      filtered = filtered.or(
+        `name.imatch.${pattern},short_description.imatch.${pattern}`
+      );
+    }
+    return filtered as Q;
+  };
+
+  let gamesQuery = applyGameFilters(
+    supabase
+      .from("games")
+      .select(
+        "name, developers, country, platforms, genres, gameplay_modes, game_engine, monetization, status, release_date, website_url, store_links, slug, short_description, thumbnail_url, game_studios(studios(slug, name))"
+      )
+  );
 
   switch (gamesSort) {
     case "updated_desc":
@@ -319,34 +338,22 @@ export default async function Home({
       break;
   }
 
-  if (gamesCountry) gamesQuery = gamesQuery.contains("country", [gamesCountry]);
-  if (sp.platform) {
-    const group = PLATFORM_GROUPS[sp.platform];
-    if (group) {
-      gamesQuery = gamesQuery.overlaps("platforms", group);
-    } else {
-      gamesQuery = gamesQuery.contains("platforms", [sp.platform]);
-    }
-  }
-  if (gamesStatus) gamesQuery = gamesQuery.eq("status", gamesStatus);
-  if (gamesGenre) gamesQuery = gamesQuery.contains("genres", [gamesGenre]);
-
-  if (q) {
-    gamesQuery = gamesQuery.or(
-      `name.ilike.%${q}%,short_description.ilike.%${q}%`
-    );
-  }
-
   // Paginate
   const gamesFrom = (gamesPage - 1) * PAGE_SIZE;
   gamesQuery = gamesQuery.range(gamesFrom, gamesFrom + PAGE_SIZE - 1);
 
-  const { data: games, error, count: gamesTotalCount } = await gamesQuery;
+  const [{ data: games, error }, { count: gamesTotalCount, error: countError }] =
+    await Promise.all([
+      gamesQuery,
+      applyGameFilters(
+        supabase.from("games").select("slug", { count: "exact", head: true })
+      ),
+    ]);
 
-  if (error) {
+  if (error || countError) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-red-500">Error: {error.message}</p>
+        <p className="text-red-500">Error: {(error ?? countError)!.message}</p>
       </main>
     );
   }

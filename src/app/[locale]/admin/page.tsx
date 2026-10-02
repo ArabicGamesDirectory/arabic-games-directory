@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import PayloadEditor from "@/components/admin/PayloadEditor";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -141,6 +142,19 @@ const STATUS_LABELS: Record<string, string> = {
   delisted: "Delisted",
 };
 
+type Entity = "game" | "studio" | "community";
+
+const APPROVE_ROUTES: Record<Entity, string> = {
+  game: "/api/approve",
+  studio: "/api/approve-studio",
+  community: "/api/approve-community",
+};
+const REJECT_ROUTES: Record<Entity, string> = {
+  game: "/api/reject",
+  studio: "/api/reject-studio",
+  community: "/api/reject-community",
+};
+
 function normalizeVal(v: unknown): string {
   if (v === null || v === undefined) return "";
   if (Array.isArray(v)) return [...v].sort().join(",");
@@ -199,6 +213,9 @@ export default function AdminPage() {
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
 
   async function loadUserAndSubmissions() {
     const {
@@ -367,83 +384,150 @@ export default function AdminPage() {
     setMessage(null);
   }
 
-  async function approveSubmission(submission: Submission) {
-    setMessage(null);
-    setActionId(submission.id);
-    const res = await fetch("/api/approve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ submission }),
-    });
-    const data = await res.json();
-    setActionId(null);
-    if (!res.ok) {
-      setMessage({ text: t("approveFailed", { error: data.error }), ok: false });
-      return;
-    }
-    setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
-    setMessage({ text: t("approved", { name: submission.payload.name }), ok: true });
+  // --- Moderation actions -------------------------------------------------
+  // One code path for all three queues. Approve sends only the id (plus the
+  // edited payload, if any); the server reads the row itself — see
+  // loadPendingSubmission() in src/lib/moderation.ts.
+
+  function queueName(entity: Entity, id: string): string {
+    const list: { id: string; payload: { name: string } }[] =
+      entity === "game" ? submissions : entity === "studio" ? studioSubmissions : communitySubmissions;
+    return list.find((s) => s.id === id)?.payload.name ?? "";
   }
 
-  async function approveStudio(submission: StudioSubmission) {
-    setMessage(null);
-    setActionId(submission.id);
-    const res = await fetch("/api/approve-studio", {
+  function removeFromQueue(entity: Entity, id: string) {
+    if (entity === "game") setSubmissions((prev) => prev.filter((s) => s.id !== id));
+    else if (entity === "studio") setStudioSubmissions((prev) => prev.filter((s) => s.id !== id));
+    else setCommunitySubmissions((prev) => prev.filter((s) => s.id !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    if (editingId === id) setEditingId(null);
+  }
+
+  // Calls the route and updates the queue; returns the error text, or null on
+  // success. Doesn't touch `message` so bulk runs can report once at the end.
+  async function runApprove(
+    entity: Entity,
+    id: string,
+    payload?: Record<string, unknown>
+  ): Promise<{ error: string | null; merged?: boolean }> {
+    const res = await fetch(APPROVE_ROUTES[entity], {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ submission }),
+      body: JSON.stringify({ id, payload }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data.error ?? `HTTP ${res.status}` };
+    removeFromQueue(entity, id);
+    return { error: null, merged: !!data.merged };
+  }
+
+  async function runReject(entity: Entity, id: string): Promise<string | null> {
+    const res = await fetch(REJECT_ROUTES[entity], {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return data.error ?? `HTTP ${res.status}`;
+    removeFromQueue(entity, id);
+    return null;
+  }
+
+  async function approveOne(entity: Entity, id: string, payload?: Record<string, unknown>) {
+    const name = (payload?.name as string | undefined) ?? queueName(entity, id);
+    setMessage(null);
+    setActionId(id);
+    const { error, merged } = await runApprove(entity, id, payload);
     setActionId(null);
-    if (!res.ok) {
-      setMessage({ text: t("approveFailed", { error: data.error }), ok: false });
+    if (error) {
+      setMessage({ text: t("approveFailed", { error }), ok: false });
       return;
     }
-    setStudioSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
     setMessage({
       // `merged`: the studio already existed, so the submission was folded into
       // it (only missing fields filled) rather than creating a duplicate row.
-      text: data.merged
-        ? t("mergedStudio", { name: submission.payload.name })
-        : t("approvedStudio", { name: submission.payload.name }),
+      text: merged
+        ? t("mergedStudio", { name })
+        : entity === "studio"
+          ? t("approvedStudio", { name })
+          : entity === "community"
+            ? t("approvedCommunity", { name })
+            : t("approved", { name }),
       ok: true,
     });
   }
 
-  async function rejectStudio(id: string) {
+  async function rejectOne(entity: Entity, id: string) {
     setMessage(null);
     setActionId(id);
-    const res = await fetch("/api/reject-studio", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    const data = await res.json();
+    const error = await runReject(entity, id);
     setActionId(null);
-    if (!res.ok) {
-      setMessage({ text: t("rejectFailed", { error: data.error }), ok: false });
-      return;
-    }
-    setStudioSubmissions((prev) => prev.filter((s) => s.id !== id));
-    setMessage({ text: t("rejected"), ok: true });
+    setMessage(error ? { text: t("rejectFailed", { error }), ok: false } : { text: t("rejected"), ok: true });
   }
 
-  async function rejectSubmission(id: string) {
+  // Save edits without approving — for fixing imported entries now and
+  // approving them later.
+  async function saveEdits(entity: Entity, id: string, payload: Record<string, unknown>) {
     setMessage(null);
     setActionId(id);
-    const res = await fetch("/api/reject", {
+    const res = await fetch("/api/edit-submission", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ entity, id, payload }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setActionId(null);
     if (!res.ok) {
-      setMessage({ text: t("rejectFailed", { error: data.error }), ok: false });
+      setMessage({ text: t("saveFailed", { error: data.error ?? `HTTP ${res.status}` }), ok: false });
       return;
     }
-    setSubmissions((prev) => prev.filter((s) => s.id !== id));
-    setMessage({ text: t("rejected"), ok: true });
+    const replace = <T extends { id: string; payload: unknown }>(list: T[]) =>
+      list.map((s) => (s.id === id ? { ...s, payload: data.payload } : s));
+    if (entity === "game") setSubmissions(replace);
+    else if (entity === "studio") setStudioSubmissions(replace);
+    else setCommunitySubmissions(replace);
+    setEditingId(null);
+    setMessage({ text: t("saved", { name: data.payload.name }), ok: true });
+  }
+
+  // Sequential, not parallel: approvals create studios and resolve slug
+  // collisions, and concurrent runs would race each other on both.
+  async function runBulk(entity: Entity, action: "approve" | "reject", ids: string[]) {
+    if (ids.length === 0) return;
+    const verb = action === "approve" ? t("approve") : t("reject");
+    if (!confirm(t("bulkConfirm", { action: verb, count: ids.length }))) return;
+    setMessage(null);
+    setBulkRunning(true);
+    const failures: string[] = [];
+    for (const id of ids) {
+      const name = queueName(entity, id);
+      setActionId(id);
+      const error =
+        action === "approve" ? (await runApprove(entity, id)).error : await runReject(entity, id);
+      if (error) failures.push(`${name}: ${error}`);
+    }
+    setActionId(null);
+    setBulkRunning(false);
+    const done = ids.length - failures.length;
+    setMessage({
+      text:
+        t("bulkDone", { action: verb, done, total: ids.length }) +
+        (failures.length ? ` ${t("bulkFailed")} ${failures.join(" · ")}` : ""),
+      ok: failures.length === 0,
+    });
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function deleteGame(id: string, name: string) {
@@ -484,42 +568,6 @@ export default function AdminPage() {
     setMessage({ text: `"${name}" deleted.`, ok: true });
   }
 
-  async function approveCommunity(submission: CommunitySubmission) {
-    setMessage(null);
-    setActionId(submission.id);
-    const res = await fetch("/api/approve-community", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ submission }),
-    });
-    const data = await res.json();
-    setActionId(null);
-    if (!res.ok) {
-      setMessage({ text: t("approveFailed", { error: data.error }), ok: false });
-      return;
-    }
-    setCommunitySubmissions((prev) => prev.filter((s) => s.id !== submission.id));
-    setMessage({ text: t("approvedCommunity", { name: submission.payload.name }), ok: true });
-  }
-
-  async function rejectCommunity(id: string) {
-    setMessage(null);
-    setActionId(id);
-    const res = await fetch("/api/reject-community", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    const data = await res.json();
-    setActionId(null);
-    if (!res.ok) {
-      setMessage({ text: t("rejectFailed", { error: data.error }), ok: false });
-      return;
-    }
-    setCommunitySubmissions((prev) => prev.filter((s) => s.id !== id));
-    setMessage({ text: t("rejected"), ok: true });
-  }
-
   async function deleteCommunity(id: string, name: string) {
     if (!confirm(`Delete community "${name}" permanently? This cannot be undone.`)) return;
     setMessage(null);
@@ -537,6 +585,49 @@ export default function AdminPage() {
     }
     setApprovedCommunities((prev) => prev.filter((c) => c.id !== id));
     setMessage({ text: `"${name}" deleted.`, ok: true });
+  }
+
+  function switchTab(tab: typeof activeTab) {
+    setActiveTab(tab);
+    setSelectedIds(new Set());
+    setEditingId(null);
+  }
+
+  // Select-all + bulk approve/reject bar above each pending queue.
+  function renderBulkBar(entity: Entity, ids: string[]) {
+    const selected = ids.filter((id) => selectedIds.has(id));
+    const allSelected = selected.length === ids.length;
+    return (
+      <div className="flex flex-wrap items-center gap-3 bg-c-surface border border-c-border rounded-xl px-5 py-3">
+        <label className="flex items-center gap-2 text-sm text-c-soft">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={() => setSelectedIds(allSelected ? new Set() : new Set(ids))}
+            disabled={bulkRunning}
+            className="size-4 accent-indigo-600"
+          />
+          {t("selectAll")}
+        </label>
+        <span className="text-xs text-c-faint">{t("selectedCount", { count: selected.length })}</span>
+        <div className="ms-auto flex gap-2">
+          <button
+            onClick={() => runBulk(entity, "approve", selected)}
+            disabled={bulkRunning || selected.length === 0}
+            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+          >
+            {bulkRunning ? t("working") : t("approveSelected")}
+          </button>
+          <button
+            onClick={() => runBulk(entity, "reject", selected)}
+            disabled={bulkRunning || selected.length === 0}
+            className="px-3 py-1.5 bg-c-surface border border-c-border text-c-soft text-xs font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-40 transition-colors"
+          >
+            {t("rejectSelected")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const inputClass =
@@ -637,7 +728,7 @@ export default function AdminPage() {
       {/* Tab switcher */}
       <div className="flex gap-1 mb-6 bg-c-surface border border-c-border rounded-lg p-1 w-fit">
         <button
-          onClick={() => setActiveTab("games")}
+          onClick={() => switchTab("games")}
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === "games"
               ? "bg-c-bg text-c-text shadow-sm"
@@ -647,7 +738,7 @@ export default function AdminPage() {
           {t("tabGames")}{submissions.length > 0 ? ` (${submissions.length})` : ""}
         </button>
         <button
-          onClick={() => setActiveTab("studios")}
+          onClick={() => switchTab("studios")}
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === "studios"
               ? "bg-c-bg text-c-text shadow-sm"
@@ -657,7 +748,7 @@ export default function AdminPage() {
           {t("tabStudios")}{studioSubmissions.length > 0 ? ` (${studioSubmissions.length})` : ""}
         </button>
         <button
-          onClick={() => setActiveTab("communities")}
+          onClick={() => switchTab("communities")}
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === "communities"
               ? "bg-c-bg text-c-text shadow-sm"
@@ -667,7 +758,7 @@ export default function AdminPage() {
           {t("tabCommunities")}{communitySubmissions.length > 0 ? ` (${communitySubmissions.length})` : ""}
         </button>
         <button
-          onClick={() => setActiveTab("published")}
+          onClick={() => switchTab("published")}
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === "published"
               ? "bg-c-bg text-c-text shadow-sm"
@@ -685,6 +776,7 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="grid gap-4">
+          {renderBulkBar("game", submissions.map((s) => s.id))}
           {submissions.map((s) => {
             const original = s.game_id ? originalGames[s.game_id] : null;
             const isExpanded = expandedId === s.id;
@@ -700,6 +792,14 @@ export default function AdminPage() {
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={() => toggleSelected(s.id)}
+                          disabled={bulkRunning}
+                          aria-label={t("selectItem", { name: s.payload.name })}
+                          className="size-4 accent-indigo-600"
+                        />
                         <h2 className="text-lg font-semibold text-c-text">
                           {s.payload.name}
                         </h2>
@@ -739,7 +839,18 @@ export default function AdminPage() {
                 </div>
 
                 {/* Expanded details */}
-                {isExpanded && (
+                {editingId === s.id ? (
+                  <div className="border-t border-c-border px-5 py-4">
+                    <PayloadEditor
+                      entity="game"
+                      initial={s.payload}
+                      busy={actionId === s.id || bulkRunning}
+                      onSave={(payload) => saveEdits("game", s.id, payload)}
+                      onApprove={(payload) => approveOne("game", s.id, payload)}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  </div>
+                ) : isExpanded && (
                   <div className="border-t border-c-border px-5 py-4 space-y-4">
                     {s.game_id && original && (
                       <div className="flex items-center gap-2">
@@ -902,22 +1013,34 @@ export default function AdminPage() {
                 )}
 
                 {/* Actions */}
+                {editingId !== s.id && (
                 <div className="flex gap-3 px-5 py-4 border-t border-c-border">
                   <button
-                    onClick={() => approveSubmission(s)}
-                    disabled={actionId === s.id}
+                    onClick={() => approveOne("game", s.id)}
+                    disabled={actionId === s.id || bulkRunning}
                     className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                   >
                     {actionId === s.id ? t("working") : t("approve")}
                   </button>
                   <button
-                    onClick={() => rejectSubmission(s.id)}
-                    disabled={actionId === s.id}
+                    onClick={() => rejectOne("game", s.id)}
+                    disabled={actionId === s.id || bulkRunning}
                     className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
                   >
                     {actionId === s.id ? t("working") : t("reject")}
                   </button>
+                  <button
+                    onClick={() => {
+                      setEditingId(s.id);
+                      setExpandedId(s.id);
+                    }}
+                    disabled={actionId === s.id || bulkRunning}
+                    className="ms-auto px-4 py-2 text-sm font-medium text-indigo-500 hover:text-indigo-600 disabled:opacity-50 transition-colors"
+                  >
+                    {t("edit")}
+                  </button>
                 </div>
+                )}
               </article>
             );
           })}
@@ -931,6 +1054,7 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="grid gap-4">
+          {renderBulkBar("studio", studioSubmissions.map((s) => s.id))}
           {studioSubmissions.map((s) => {
             const original = s.studio_id ? originalStudios[s.studio_id] : null;
             const isExpanded = expandedId === s.id;
@@ -946,6 +1070,14 @@ export default function AdminPage() {
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={() => toggleSelected(s.id)}
+                          disabled={bulkRunning}
+                          aria-label={t("selectItem", { name: s.payload.name })}
+                          className="size-4 accent-indigo-600"
+                        />
                         <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
                         {s.studio_id && (
                           <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
@@ -979,7 +1111,18 @@ export default function AdminPage() {
                 </div>
 
                 {/* Expanded details */}
-                {isExpanded && (
+                {editingId === s.id ? (
+                  <div className="border-t border-c-border px-5 py-4">
+                    <PayloadEditor
+                      entity="studio"
+                      initial={s.payload}
+                      busy={actionId === s.id || bulkRunning}
+                      onSave={(payload) => saveEdits("studio", s.id, payload)}
+                      onApprove={(payload) => approveOne("studio", s.id, payload)}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  </div>
+                ) : isExpanded && (
                   <div className="border-t border-c-border px-5 py-4 space-y-4">
                     {s.studio_id && original && (
                       <div className="flex items-center gap-2">
@@ -1048,22 +1191,34 @@ export default function AdminPage() {
                   </div>
                 )}
 
+                {editingId !== s.id && (
                 <div className="flex gap-3 px-5 py-4 border-t border-c-border">
                   <button
-                    onClick={() => approveStudio(s)}
-                    disabled={actionId === s.id}
+                    onClick={() => approveOne("studio", s.id)}
+                    disabled={actionId === s.id || bulkRunning}
                     className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                   >
                     {actionId === s.id ? t("working") : t("approve")}
                   </button>
                   <button
-                    onClick={() => rejectStudio(s.id)}
-                    disabled={actionId === s.id}
+                    onClick={() => rejectOne("studio", s.id)}
+                    disabled={actionId === s.id || bulkRunning}
                     className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
                   >
                     {actionId === s.id ? t("working") : t("reject")}
                   </button>
+                  <button
+                    onClick={() => {
+                      setEditingId(s.id);
+                      setExpandedId(s.id);
+                    }}
+                    disabled={actionId === s.id || bulkRunning}
+                    className="ms-auto px-4 py-2 text-sm font-medium text-indigo-500 hover:text-indigo-600 disabled:opacity-50 transition-colors"
+                  >
+                    {t("edit")}
+                  </button>
                 </div>
+                )}
               </article>
             );
           })}
@@ -1077,6 +1232,7 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="grid gap-4">
+          {renderBulkBar("community", communitySubmissions.map((s) => s.id))}
           {communitySubmissions.map((s) => {
             const original = s.community_id ? originalCommunities[s.community_id] : null;
             const isExpanded = expandedId === s.id;
@@ -1091,6 +1247,14 @@ export default function AdminPage() {
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={() => toggleSelected(s.id)}
+                          disabled={bulkRunning}
+                          aria-label={t("selectItem", { name: s.payload.name })}
+                          className="size-4 accent-indigo-600"
+                        />
                         <h2 className="text-lg font-semibold text-c-text">{s.payload.name}</h2>
                         {s.community_id && (
                           <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full shrink-0">
@@ -1122,7 +1286,18 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {isExpanded && (
+                {editingId === s.id ? (
+                  <div className="border-t border-c-border px-5 py-4">
+                    <PayloadEditor
+                      entity="community"
+                      initial={s.payload}
+                      busy={actionId === s.id || bulkRunning}
+                      onSave={(payload) => saveEdits("community", s.id, payload)}
+                      onApprove={(payload) => approveOne("community", s.id, payload)}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  </div>
+                ) : isExpanded && (
                   <div className="border-t border-c-border px-5 py-4 space-y-4">
                     {s.community_id && original && (
                       <div className="flex items-center gap-2">
@@ -1209,22 +1384,34 @@ export default function AdminPage() {
                   </div>
                 )}
 
+                {editingId !== s.id && (
                 <div className="flex gap-3 px-5 py-4 border-t border-c-border">
                   <button
-                    onClick={() => approveCommunity(s)}
-                    disabled={actionId === s.id}
+                    onClick={() => approveOne("community", s.id)}
+                    disabled={actionId === s.id || bulkRunning}
                     className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                   >
                     {actionId === s.id ? t("working") : t("approve")}
                   </button>
                   <button
-                    onClick={() => rejectCommunity(s.id)}
-                    disabled={actionId === s.id}
+                    onClick={() => rejectOne("community", s.id)}
+                    disabled={actionId === s.id || bulkRunning}
                     className="px-4 py-2 bg-c-surface border border-c-border text-c-soft text-sm font-medium rounded-lg hover:border-red-400 hover:text-red-500 disabled:opacity-50 transition-colors"
                   >
                     {actionId === s.id ? t("working") : t("reject")}
                   </button>
+                  <button
+                    onClick={() => {
+                      setEditingId(s.id);
+                      setExpandedId(s.id);
+                    }}
+                    disabled={actionId === s.id || bulkRunning}
+                    className="ms-auto px-4 py-2 text-sm font-medium text-indigo-500 hover:text-indigo-600 disabled:opacity-50 transition-colors"
+                  >
+                    {t("edit")}
+                  </button>
                 </div>
+                )}
               </article>
             );
           })}

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { invalidateDirectoryCache } from "@/lib/invalidateDirectoryCache";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -47,5 +48,6 @@ export async function POST(request: Request) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
+  invalidateDirectoryCache();
   return Response.json({ ok: true });
 }

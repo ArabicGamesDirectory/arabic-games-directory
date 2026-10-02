@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
@@ -17,10 +18,14 @@ export async function generateMetadata({
     .select("name, description, thumbnail_url")
     .eq("slug", slug)
     .single();
-  if (!data) return { title: "Community not found" };
+  if (!data) notFound();
   const title = data.name as string;
   const description = (data.description as string | null) ?? undefined;
-  const image = (data.thumbnail_url as string | null) ?? undefined;
+  // Uploaded thumbnail when there is one, else a generated title card
+  // (src/app/og/[kind]/[file]/route.tsx) so shares always get a preview.
+  const image =
+    (data.thumbnail_url as string | null) ??
+    `/og/communities/${encodeURIComponent(slug)}.png`;
   return {
     title,
     description,
@@ -29,13 +34,13 @@ export async function generateMetadata({
       title,
       description,
       type: "profile",
-      ...(image ? { images: [image] } : {}),
+      images: [image],
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      ...(image ? { images: [image] } : {}),
+      images: [image],
     },
   };
 }
@@ -73,16 +78,9 @@ export default async function CommunityPage({
     .eq("slug", slug)
     .single();
 
-  if (error || !data) {
-    return (
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <Link href="/?tab=communities" className="text-sm text-c-muted hover:text-c-text transition-colors">
-          {tCommon("backToDirectory")}
-        </Link>
-        <p className="mt-8 text-c-muted">{t("notFound")}</p>
-      </main>
-    );
-  }
+  // Real 404 status (not a 200 with "not found" text) so search engines
+  // drop dead URLs; renders [locale]/not-found.tsx.
+  if (error || !data) notFound();
 
   const community = data as Community;
 

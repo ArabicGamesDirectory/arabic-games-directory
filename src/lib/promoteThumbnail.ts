@@ -37,3 +37,23 @@ export async function promoteThumbnail(
   const { data } = supabase.storage.from("thumbnails").getPublicUrl(permanentPath);
   return data.publicUrl;
 }
+
+export function isTempThumbnail(url: string | null | undefined): boolean {
+  return !!url && url.includes("/thumbnails/temp/");
+}
+
+/**
+ * The thumbnail_url to store on approve: the promoted permanent URL, else the
+ * original — except a temp/ URL whose promotion failed, which becomes null.
+ * That file is already gone (or about to be: the daily cron sweeps temp/), and
+ * storing it is how five live rows ended up with broken images. null makes the
+ * site fall back to <TitleCover>.
+ */
+export function finalThumbnailUrl(
+  original: string | null | undefined,
+  promoted: string | null
+): string | null {
+  if (promoted) return promoted;
+  if (!original || isTempThumbnail(original)) return null;
+  return original;
+}

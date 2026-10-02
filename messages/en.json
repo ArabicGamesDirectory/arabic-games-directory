@@ -241,7 +241,23 @@
     "viewCurrentStudio": "View current studio ↗",
     "viewCurrentCommunity": "View current community ↗",
     "changed": "changed",
-    "was": "was"
+    "was": "was",
+    "edit": "Edit",
+    "editSave": "Save changes",
+    "editSaveApprove": "Save & approve",
+    "editCancel": "Cancel",
+    "editAddOther": "Add another value…",
+    "editRemoveThumbnail": "Remove thumbnail",
+    "saved": "Saved changes to “{name}”.",
+    "saveFailed": "Save failed: {error}",
+    "selectAll": "Select all",
+    "selectItem": "Select {name}",
+    "selectedCount": "{count} selected",
+    "approveSelected": "Approve selected",
+    "rejectSelected": "Reject selected",
+    "bulkConfirm": "{action} {count} submissions?",
+    "bulkDone": "{action}: {done} of {total} done.",
+    "bulkFailed": "Failed —"
   },
   "countries": {
     "algeria": "Algeria",
@@ -308,7 +324,9 @@
     "disclaimerBody": "This site does not own any of the games or information shown. All games and information are submitted by a community of volunteers from the game-development industry. We do our best to verify the data, but unintentional errors and missing information may occur, since this is a community-driven volunteer effort to help build an archive of every game developed in the Arab region.",
     "contact": "Contact us",
     "about": "About",
-    "rss": "RSS feed"
+    "rss": "RSS feed",
+    "byCountry": "Browse by country",
+    "byGenre": "Browse by genre"
   },
   "about": {
     "title": "About the directory",
@@ -426,5 +444,35 @@
     "thumbnailTooLarge": "File too large. Maximum size is 200 KB.",
     "thumbnailInvalidType": "Invalid file type. Accepted: jpg, png, webp.",
     "thumbnailHint": "Max 200 KB. JPG, PNG, or WebP. Will be cropped to 460×215."
+  },
+  "hubs": {
+    "countriesTitle": "Games by country",
+    "countriesSubtitle": "Games, studios and communities from each of the 18 MENA countries.",
+    "genresTitle": "Games by genre",
+    "genresSubtitle": "Every genre in the directory, from the most to the least represented.",
+    "countryTitle": "Games from {country}",
+    "countryDescription": "Games, studios and communities from {country} in the Arabic Games Directory.",
+    "genreTitle": "{genre} games",
+    "genreDescription": "{genre} games made in the Arab world and the wider MENA region.",
+    "statGames": "Games",
+    "statStudios": "Studios",
+    "statCommunities": "Communities",
+    "statReleased": "Released",
+    "statCountries": "Countries",
+    "statEarliest": "Earliest release",
+    "newestGames": "Newest games",
+    "seeAllGames": "See all {count} games →",
+    "topGenres": "Top genres",
+    "topCountries": "Top countries",
+    "studios": "Studios",
+    "seeAllStudios": "See all {count} studios →",
+    "communities": "Communities",
+    "emptyCountry": "No games from {country} in the directory yet.",
+    "emptyGenre": "No {genre} games in the directory yet.",
+    "submitCta": "Know one? Submit a game →",
+    "allCountries": "← All countries",
+    "allGenres": "← All genres",
+    "gamesCount": "{count, plural, one {# game} other {# games}}",
+    "studiosCount": "{count, plural, one {# studio} other {# studios}}"
   }
 }

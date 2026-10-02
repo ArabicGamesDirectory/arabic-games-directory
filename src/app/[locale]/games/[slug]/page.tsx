@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
-import { statusAllowsReleaseDate } from "@/lib/gameStatus";
+import { statusAllowsReleaseDate, STATUS_CLASSES } from "@/lib/gameStatus";
 import FilterPill from "@/components/FilterPill";
-import TitleCover from "@/components/TitleCover";
+import GameTile from "@/components/GameTile";
 import { formatDate } from "@/lib/formatDate";
 import { languageAlternates } from "@/lib/alternates";
 
@@ -20,10 +21,14 @@ export async function generateMetadata({
     .select("name, short_description, thumbnail_url")
     .eq("slug", slug)
     .single();
-  if (!data) return { title: "Game not found" };
+  if (!data) notFound();
   const title = data.name as string;
   const description = (data.short_description as string | null) ?? undefined;
-  const image = (data.thumbnail_url as string | null) ?? undefined;
+  // Uploaded thumbnail when there is one, else a generated title card
+  // (src/app/og/[kind]/[file]/route.tsx) so shares always get a preview.
+  const image =
+    (data.thumbnail_url as string | null) ??
+    `/og/games/${encodeURIComponent(slug)}.png`;
   return {
     title,
     description,
@@ -32,13 +37,13 @@ export async function generateMetadata({
       title,
       description,
       type: "article",
-      ...(image ? { images: [image] } : {}),
+      images: [image],
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      ...(image ? { images: [image] } : {}),
+      images: [image],
     },
   };
 }
@@ -67,16 +72,6 @@ type Game = {
   game_studios: { studios: { slug: string; name: string } | null }[] | null;
 };
 
-const STATUS_CLASSES: Record<string, string> = {
-  announced: "bg-blue-500/15 text-blue-500",
-  in_dev: "bg-amber-500/15 text-amber-500",
-  prototype: "bg-cyan-500/15 text-cyan-500",
-  early_access: "bg-purple-500/15 text-purple-500",
-  released: "bg-emerald-500/15 text-emerald-500",
-  on_hold: "bg-orange-500/15 text-orange-500",
-  cancelled: "bg-c-tag text-c-muted",
-  delisted: "bg-c-tag text-c-muted",
-};
 
 export default async function GameDetails({
   params,
@@ -97,19 +92,9 @@ export default async function GameDetails({
     .eq("slug", slug)
     .single();
 
-  if (error || !data) {
-    return (
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <Link
-          href="/"
-          className="text-sm text-c-muted hover:text-c-text transition-colors"
-        >
-          {tCommon("backToDirectory")}
-        </Link>
-        <p className="mt-8 text-c-muted">{t("notFound")}</p>
-      </main>
-    );
-  }
+  // Real 404 status (not a 200 with "not found" text) so search engines
+  // drop dead URLs; renders [locale]/not-found.tsx.
+  if (error || !data) notFound();
 
   const game = data as unknown as Game;
 
@@ -497,45 +482,12 @@ function RelatedStrip({
       </h2>
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
         {games.map((g) => (
-          <Link
+          <GameTile
             key={g.slug}
-            href={`/games/${g.slug}`}
-            className="group block shrink-0 w-[180px] bg-c-surface border border-c-border rounded-lg overflow-hidden hover:border-indigo-500/50 transition-colors"
-          >
-            {g.thumbnail_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={g.thumbnail_url}
-                alt={g.name}
-                width={180}
-                height={84}
-                loading="lazy"
-                decoding="async"
-                className="w-full aspect-[460/215] object-cover"
-              />
-            ) : (
-              <TitleCover
-                name={g.name}
-                seed={g.slug}
-                className="w-full aspect-[460/215]"
-              />
-            )}
-            <div className="p-2.5">
-              <p
-                className="text-sm font-medium text-c-text truncate group-hover:text-indigo-500 transition-colors"
-                dir="auto"
-              >
-                {g.name}
-              </p>
-              <span
-                className={`inline-block mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                  STATUS_CLASSES[g.status] ?? "bg-c-tag text-c-muted"
-                }`}
-              >
-                {tStatus(g.status) ?? g.status}
-              </span>
-            </div>
-          </Link>
+            game={g}
+            statusLabel={tStatus(g.status) ?? g.status}
+            className="shrink-0 w-[180px]"
+          />
         ))}
       </div>
     </section>

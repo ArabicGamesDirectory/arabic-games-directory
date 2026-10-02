@@ -1,3 +1,5 @@
+// The share-image renderer (src/lib/ogImage.tsx) mirrors these gradients as hex
+// pairs in the same order — keep the two lists in lockstep.
 const PALETTE = [
   "from-indigo-500 to-purple-600",
   "from-emerald-500 to-teal-600",
@@ -9,7 +11,7 @@ const PALETTE = [
   "from-sky-500 to-cyan-600",
 ];
 
-function hashString(s: string): number {
+export function hashString(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
     h = (h * 31 + s.charCodeAt(i)) | 0;

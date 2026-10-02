@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { promoteThumbnail } from "@/lib/promoteThumbnail";
+import { invalidateDirectoryCache } from "@/lib/invalidateDirectoryCache";
+import { loadPendingSubmission } from "@/lib/moderation";
+import { finalThumbnailUrl, isTempThumbnail, promoteThumbnail } from "@/lib/promoteThumbnail";
 import { STUDIO_TYPES } from "@/lib/validateSubmission";
 import { findStudioByName } from "@/lib/studioLookup";
 
@@ -103,8 +105,11 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const body = await request.json();
-  const { submission } = body;
+  // Only the id (and optional admin edits) come from the browser; the row
+  // itself — target id, slug, stored payload — is read from the queue.
+  const loaded = await loadPendingSubmission(supabase, "studio", await request.json());
+  if (!loaded.ok) return Response.json({ error: loaded.error }, { status: loaded.status });
+  const { submission } = loaded;
 
   const studioFields = {
     name: submission.payload.name,
@@ -125,8 +130,6 @@ export async function POST(request: Request) {
   // True when a new-studio submission matched an existing studio by name and
   // was merged into it instead of inserted as a duplicate.
   let merged = false;
-
-  const isTempThumbnail = (url: string | null) => !!url && url.includes("/thumbnails/temp/");
 
   // Fold a new-studio submission into a studio that already exists. Only fills
   // fields the existing row is MISSING — a later, often thinner submission (the
@@ -184,7 +187,7 @@ export async function POST(request: Request) {
     const permanentUrl = await promoteThumbnail(supabase, studioFields.thumbnail_url);
     const { error } = await supabase
       .from("studios")
-      .update({ ...studioFields, ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}) })
+      .update({ ...studioFields, thumbnail_url: finalThumbnailUrl(studioFields.thumbnail_url, permanentUrl) })
       .eq("id", submission.studio_id);
     // A 23505 here means the update renames this studio onto another studio's
     // name; mapped to a readable message below.
@@ -234,7 +237,7 @@ export async function POST(request: Request) {
         .insert({
           slug,
           ...studioFields,
-          ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
+          thumbnail_url: finalThumbnailUrl(studioFields.thumbnail_url, permanentUrl),
         })
         .select("id")
         .single();
@@ -269,6 +272,10 @@ export async function POST(request: Request) {
     }
     return Response.json({ error: studioError.message }, { status: 500 });
   }
+
+  // The public row is written — expire cached reads now, so a failure in
+  // the bookkeeping update below can't leave the site showing old data.
+  invalidateDirectoryCache();
 
   const { error: updateError } = await supabase
     .from("studio_submissions")

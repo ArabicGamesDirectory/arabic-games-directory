@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { promoteThumbnail } from "@/lib/promoteThumbnail";
+import { invalidateDirectoryCache } from "@/lib/invalidateDirectoryCache";
+import { loadPendingSubmission } from "@/lib/moderation";
+import { finalThumbnailUrl, promoteThumbnail } from "@/lib/promoteThumbnail";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -36,8 +38,11 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const body = await request.json();
-  const { submission } = body;
+  // Only the id (and optional admin edits) come from the browser; the row
+  // itself — target id, slug, stored payload — is read from the queue.
+  const loaded = await loadPendingSubmission(supabase, "community", await request.json());
+  if (!loaded.ok) return Response.json({ error: loaded.error }, { status: loaded.status });
+  const { submission } = loaded;
 
   const communityFields = {
     name: submission.payload.name,
@@ -56,7 +61,7 @@ export async function POST(request: Request) {
     const permanentUrl = await promoteThumbnail(supabase, communityFields.thumbnail_url);
     const { error } = await supabase
       .from("communities")
-      .update({ ...communityFields, ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}) })
+      .update({ ...communityFields, thumbnail_url: finalThumbnailUrl(communityFields.thumbnail_url, permanentUrl) })
       .eq("id", submission.community_id);
     communityError = error;
   } else {
@@ -79,7 +84,7 @@ export async function POST(request: Request) {
       .insert({
         slug,
         ...communityFields,
-        ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
+        thumbnail_url: finalThumbnailUrl(communityFields.thumbnail_url, permanentUrl),
       });
     communityError = error;
   }
@@ -87,6 +92,10 @@ export async function POST(request: Request) {
   if (communityError) {
     return Response.json({ error: communityError.message }, { status: 500 });
   }
+
+  // The public row is written — expire cached reads now, so a failure in
+  // the bookkeeping update below can't leave the site showing old data.
+  invalidateDirectoryCache();
 
   const { error: updateError } = await supabase
     .from("community_submissions")

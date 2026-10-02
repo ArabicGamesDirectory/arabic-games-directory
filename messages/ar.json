@@ -241,7 +241,23 @@
     "viewCurrentStudio": "عرض الاستوديو الحالي ↗",
     "viewCurrentCommunity": "عرض المجتمع الحالي ↗",
     "changed": "تم التعديل",
-    "was": "كان"
+    "was": "كان",
+    "edit": "تعديل",
+    "editSave": "حفظ التعديلات",
+    "editSaveApprove": "حفظ واعتماد",
+    "editCancel": "إلغاء",
+    "editAddOther": "أضف قيمة أخرى…",
+    "editRemoveThumbnail": "إزالة الصورة المصغّرة",
+    "saved": "تم حفظ التعديلات على «{name}».",
+    "saveFailed": "فشل الحفظ: {error}",
+    "selectAll": "تحديد الكل",
+    "selectItem": "تحديد {name}",
+    "selectedCount": "{count} محدد",
+    "approveSelected": "اعتماد المحدد",
+    "rejectSelected": "رفض المحدد",
+    "bulkConfirm": "{action} {count} من الطلبات؟",
+    "bulkDone": "{action}: تم {done} من {total}.",
+    "bulkFailed": "فشل —"
   },
   "countries": {
     "algeria": "الجزائر",
@@ -308,7 +324,9 @@
     "disclaimerBody": "لا يمتلك هذا الموقع أيًا من الألعاب او المعلومات، فجميع الألعاب والمعلومات يتم رفعها من قبل مجتمع من المتطوعين في صناعة تطوير الألعاب، نحن نبذل قصارى جهدنا للتحقق من البيانات ولكن قد تحدث أخطاء غير مقصودة ونقص في المعلومات نظرًا لأنها عمل مجتمعي وتطوعي للمساعدة في بناء أرشيف لجميع الألعاب التي تم تطويرها في المنطقة العربية.",
     "contact": "تواصل معنا",
     "about": "عن الدليل",
-    "rss": "خلاصة RSS"
+    "rss": "خلاصة RSS",
+    "byCountry": "تصفّح حسب الدولة",
+    "byGenre": "تصفّح حسب النوع"
   },
   "about": {
     "title": "عن الدليل",
@@ -426,5 +444,35 @@
     "thumbnailTooLarge": "الملف كبير جداً. الحد الأقصى 200 كيلوبايت.",
     "thumbnailInvalidType": "نوع ملف غير صالح. المقبول: jpg، png، webp.",
     "thumbnailHint": "الحد الأقصى 200 ك.ب. JPG أو PNG أو WebP. سيتم اقتصاصها إلى 460×215."
+  },
+  "hubs": {
+    "countriesTitle": "الألعاب حسب الدولة",
+    "countriesSubtitle": "ألعاب واستوديوهات ومجتمعات من كل دولة من دول الشرق الأوسط وشمال أفريقيا الـ18.",
+    "genresTitle": "الألعاب حسب النوع",
+    "genresSubtitle": "جميع أنواع الألعاب في الدليل، من الأكثر حضورًا إلى الأقل.",
+    "countryTitle": "ألعاب من {country}",
+    "countryDescription": "ألعاب واستوديوهات ومجتمعات من {country} في دليل الألعاب العربية.",
+    "genreTitle": "ألعاب {genre}",
+    "genreDescription": "ألعاب {genre} من تطوير صنّاع ألعاب في العالم العربي ومنطقة الشرق الأوسط وشمال أفريقيا.",
+    "statGames": "الألعاب",
+    "statStudios": "الاستوديوهات",
+    "statCommunities": "المجتمعات",
+    "statReleased": "صدرت",
+    "statCountries": "الدول",
+    "statEarliest": "أقدم إصدار",
+    "newestGames": "أحدث الألعاب",
+    "seeAllGames": "عرض كل الألعاب ({count}) ←",
+    "topGenres": "أبرز الأنواع",
+    "topCountries": "أبرز الدول",
+    "studios": "الاستوديوهات",
+    "seeAllStudios": "عرض كل الاستوديوهات ({count}) ←",
+    "communities": "المجتمعات",
+    "emptyCountry": "لا توجد ألعاب من {country} في الدليل بعد.",
+    "emptyGenre": "لا توجد ألعاب {genre} في الدليل بعد.",
+    "submitCta": "تعرف لعبة؟ أضفها ←",
+    "allCountries": "كل الدول →",
+    "allGenres": "كل الأنواع →",
+    "gamesCount": "{count, plural, zero {لا ألعاب} one {لعبة واحدة} two {لعبتان} few {# ألعاب} many {# لعبة} other {# لعبة}}",
+    "studiosCount": "{count, plural, zero {لا استوديوهات} one {استوديو واحد} two {استوديوهان} few {# استوديوهات} many {# استوديو} other {# استوديو}}"
   }
 }

@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { promoteThumbnail } from "@/lib/promoteThumbnail";
+import { invalidateDirectoryCache } from "@/lib/invalidateDirectoryCache";
+import { loadPendingSubmission } from "@/lib/moderation";
+import { finalThumbnailUrl, promoteThumbnail } from "@/lib/promoteThumbnail";
 import { statusAllowsReleaseDate } from "@/lib/gameStatus";
 import { normalizeGenres } from "@/lib/genres";
 import { findStudioByName } from "@/lib/studioLookup";
@@ -76,8 +78,11 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const body = await request.json();
-  const { submission } = body;
+  // Only the id (and optional admin edits) come from the browser; the row
+  // itself — target id, slug, stored payload — is read from the queue.
+  const loaded = await loadPendingSubmission(supabase, "game", await request.json());
+  if (!loaded.ok) return Response.json({ error: loaded.error }, { status: loaded.status });
+  const { submission } = loaded;
 
   const developers = readDevelopers(submission.payload);
 
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
     const permanentUrl = await promoteThumbnail(supabase, gameFields.thumbnail_url);
     const { error } = await supabase
       .from("games")
-      .update({ ...gameFields, ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}) })
+      .update({ ...gameFields, thumbnail_url: finalThumbnailUrl(gameFields.thumbnail_url, permanentUrl) })
       .eq("id", submission.game_id);
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
@@ -135,7 +140,7 @@ export async function POST(request: Request) {
       .insert({
         slug,
         ...gameFields,
-        ...(permanentUrl ? { thumbnail_url: permanentUrl } : {}),
+        thumbnail_url: finalThumbnailUrl(gameFields.thumbnail_url, permanentUrl),
       })
       .select("id")
       .single();
@@ -147,6 +152,10 @@ export async function POST(request: Request) {
 
   // Sync the game_studios join table from the developers list.
   await syncGameStudios(supabase, gameId, developers);
+
+  // The public row is written — expire cached reads now, so a failure in
+  // the bookkeeping update below can't leave the site showing old data.
+  invalidateDirectoryCache();
 
   const { error: updateError } = await supabase
     .from("submissions")

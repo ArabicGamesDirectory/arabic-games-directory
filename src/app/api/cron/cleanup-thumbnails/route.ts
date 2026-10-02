@@ -27,8 +27,32 @@ export async function GET(request: Request) {
     return Response.json({ deleted: 0 });
   }
 
+  // Never delete a file a pending submission still points at. Without this, a
+  // submission reviewed more than 24h after it arrived lost its thumbnail, and
+  // approving it stored a dead temp/ URL (five live rows were broken that way).
+  const referenced = new Set<string>();
+  for (const table of ["submissions", "studio_submissions", "community_submissions"]) {
+    const { data: pending, error: pendingError } = await supabase
+      .from(table)
+      .select("thumbnail_url:payload->>thumbnail_url")
+      .eq("moderation_status", "pending");
+    if (pendingError) {
+      // Can't tell what's still needed — skip the sweep rather than guess.
+      return Response.json(
+        { error: `Failed to read pending ${table}: ${pendingError.message}` },
+        { status: 500 }
+      );
+    }
+    for (const row of pending ?? []) {
+      const url = (row as { thumbnail_url: string | null }).thumbnail_url;
+      const idx = url?.indexOf("/thumbnails/temp/") ?? -1;
+      if (url && idx !== -1) referenced.add(url.slice(idx + "/thumbnails/temp/".length));
+    }
+  }
+
   const now = Date.now();
   const stale = files.filter((f) => {
+    if (referenced.has(f.name)) return false;
     // Filename pattern: {slug}-{timestamp}.webp — extract the timestamp.
     const match = f.name.match(/-(\d+)\.webp$/);
     if (!match) return false;

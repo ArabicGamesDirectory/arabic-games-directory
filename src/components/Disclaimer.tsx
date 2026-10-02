@@ -20,6 +20,18 @@ export default async function Disclaimer() {
             {t("about")} →
           </Link>
           <Link
+            href="/countries"
+            className="text-c-muted hover:text-indigo-500 transition-colors"
+          >
+            {t("byCountry")} →
+          </Link>
+          <Link
+            href="/genres"
+            className="text-c-muted hover:text-indigo-500 transition-colors"
+          >
+            {t("byGenre")} →
+          </Link>
+          <Link
             href="/contact"
             className="text-c-muted hover:text-indigo-500 transition-colors"
           >
