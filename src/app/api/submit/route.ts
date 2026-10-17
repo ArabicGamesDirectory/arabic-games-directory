@@ -4,10 +4,10 @@
 // anon key. It validates every field server-side, rate-limits by IP, drops
 // honeypot hits, and inserts with the service-role client.
 //
-// TODO(manual): requires the `rate_limits` table + `check_rate_limit()`
-// function from the "Migration: submission hardening" section of CLAUDE.md,
-// and anon INSERT must be revoked on submissions / studio_submissions /
-// community_submissions AFTER this is deployed and verified working.
+// Depends on the `rate_limits` table + `check_rate_limit()` function
+// (supabase/manual/01-submission-hardening.sql, applied 2026-09-14). Anon
+// INSERT on the three queues was revoked the same day, so this route is the
+// only public write path.
 
 import { after } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";

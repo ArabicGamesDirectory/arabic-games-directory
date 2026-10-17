@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { slugify } from "@/lib/slug";
 
 const MAX_FILE_SIZE = 200 * 1024; // 200 KB
 
@@ -72,7 +73,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid image — could not process file." }, { status: 400 });
   }
 
-  const filename = `temp/${slug}-${Date.now()}.webp`;
+  // The slug is client-supplied and becomes part of the storage path, so
+  // re-slugify it: a value like "a/b" or "../x" would otherwise write outside
+  // the flat temp/ folder, where the cleanup cron (which lists temp/ only)
+  // never deletes it. slugify() keeps only [a-z0-9_-] but doesn't cap length.
+  const safeSlug = slugify(slug).slice(0, 80);
+  const filename = `temp/${safeSlug}-${Date.now()}.webp`;
 
   const { error: uploadError } = await supabase.storage
     .from("thumbnails")

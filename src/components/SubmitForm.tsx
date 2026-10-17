@@ -132,9 +132,12 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     initialData?.genres?.some((g) => g === "Other" || !GENRE_BASE_VALUES.includes(g)) ?? false,
     draftEnabled
   );
+  // Every non-canonical genre, comma-separated — a game can have several, and
+  // taking only the first silently dropped the rest on an update. Split back
+  // apart on submit.
   const [genreOtherText, setGenreOtherText] = useDraftState(
     `${DRAFT_PREFIX}genre_other_text`,
-    initialData?.genres?.find((g) => g !== "Other" && !GENRE_BASE_VALUES.includes(g)) ?? "",
+    (initialData?.genres ?? []).filter((g) => g !== "Other" && !GENRE_BASE_VALUES.includes(g)).join(", "),
     draftEnabled
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -290,7 +293,8 @@ export function SubmitForm({ initialData, backHref = "/" }: SubmitFormProps) {
     const countries = form.getAll("country") as string[];
     const baseGenres = form.getAll("genres") as string[];
     const allGenres = normalizeGenres(
-      genreOtherChecked ? [...baseGenres, genreOtherText] : baseGenres
+      // Latin or Arabic comma (، — what Arabic keyboards type).
+      genreOtherChecked ? [...baseGenres, ...genreOtherText.split(/[,،]/)] : baseGenres
     );
     const platforms = form.getAll("platforms") as string[];
     const gameplayModes = form.getAll("gameplay_modes") as string[];

@@ -93,8 +93,9 @@ export default async function GameDetails({
     .eq("slug", slug)
     .single();
 
-  // Real 404 status (not a 200 with "not found" text) so search engines
-  // drop dead URLs; renders [locale]/not-found.tsx.
+  // Renders [locale]/not-found.tsx with noindex. The status is still 200, not
+  // 404: this route has a loading.tsx, so headers are already sent when
+  // notFound() runs (see CLAUDE.md › Known issues › SEO).
   if (error || !data) notFound();
 
   const game = data as unknown as Game;

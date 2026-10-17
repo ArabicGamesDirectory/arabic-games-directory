@@ -38,16 +38,28 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { id } = body;
 
-  const { error } = await supabase
+  // Only a still-pending row can be rejected — the same guard the approve
+  // routes get from loadPendingSubmission(). Without it, rejecting an
+  // already-approved row flipped its record to "rejected" while the entry
+  // stayed live.
+  const { data: rejected, error } = await supabase
     .from("community_submissions")
     .update({
       moderation_status: "rejected",
       reviewed_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("moderation_status", "pending")
+    .select("id");
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
+  }
+  if (!rejected || rejected.length === 0) {
+    return Response.json(
+      { error: "Submission not found or already reviewed." },
+      { status: 409 }
+    );
   }
 
   return Response.json({ success: true });

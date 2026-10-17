@@ -180,12 +180,16 @@ export default async function Home({
   if (q) communityParams.set("q", q);
   const communitiesTabHref = `/?${communityParams}`;
 
-  // Fetch all studios — used by the Studios tab listing.
-  const { data: allStudioData } = await supabase
-    .from("studios")
-    .select("id, slug, name, type, description, country, website_url, thumbnail_url, created_at, updated_at")
-    .order("name");
-  const allStudios: Studio[] = (allStudioData as Studio[]) ?? [];
+  // Fetch all studios — only the Studios tab uses them (each tab fetches only
+  // its own data, so the other tabs don't pay for these requests).
+  let allStudios: Studio[] = [];
+  if (tab === "studios") {
+    const { data: allStudioData } = await supabase
+      .from("studios")
+      .select("id, slug, name, type, description, country, website_url, thumbnail_url, created_at, updated_at")
+      .order("name");
+    allStudios = (allStudioData as Studio[]) ?? [];
+  }
 
   // --- Studios tab: server-side filtered + paginated ---
   let filteredStudios: Studio[] = allStudios;
@@ -342,13 +346,19 @@ export default async function Home({
   const gamesFrom = (gamesPage - 1) * PAGE_SIZE;
   gamesQuery = gamesQuery.range(gamesFrom, gamesFrom + PAGE_SIZE - 1);
 
+  // Skipped entirely on the Studios/Communities tabs.
   const [{ data: games, error }, { count: gamesTotalCount, error: countError }] =
-    await Promise.all([
-      gamesQuery,
-      applyGameFilters(
-        supabase.from("games").select("slug", { count: "exact", head: true })
-      ),
-    ]);
+    tab === "games"
+      ? await Promise.all([
+          gamesQuery,
+          applyGameFilters(
+            supabase.from("games").select("slug", { count: "exact", head: true })
+          ),
+        ])
+      : [
+          { data: [], error: null },
+          { count: 0, error: null },
+        ];
 
   if (error || countError) {
     return (
@@ -570,7 +580,10 @@ export default async function Home({
 
   // Active-filter chips per tab — { label, removeHref } each
   const gamesChips: { label: string; removeHref: string }[] = [];
-  if (sp.platform) gamesChips.push({ label: sp.platform, removeHref: buildGamesFilterHref({ platform: null }) });
+  if (sp.platform) {
+    const platformLabel = platformOptions.find((o) => o.value === sp.platform)?.label ?? sp.platform;
+    gamesChips.push({ label: platformLabel, removeHref: buildGamesFilterHref({ platform: null }) });
+  }
   if (gamesStatus) gamesChips.push({ label: statusLabel(gamesStatus), removeHref: buildGamesFilterHref({ status: null }) });
   if (gamesCountry) gamesChips.push({ label: countryLabel(gamesCountry), removeHref: buildGamesFilterHref({ country: null }) });
   if (gamesGenre) gamesChips.push({ label: genreLabel(gamesGenre), removeHref: buildGamesFilterHref({ genre: null }) });
@@ -1373,9 +1386,16 @@ export default async function Home({
                     // `kind: "genre"` tags become FilterPill links (clicking
                     // filters the homepage); the rest are plain visual spans
                     // since there's no equivalent homepage filter for them.
+                    // Only canonical genres are filterable (the homepage drops
+                    // any other ?genre= value), so free-text "Other" genres
+                    // render as plain tags instead of links to an unfiltered list.
                     type TagItem = { v: string; cls: string; kind: "genre" | "plain" };
                     const allTags: TagItem[] = [
-                      ...g.genres.map((v): TagItem => ({ v, cls: "bg-c-tag text-c-tag-text", kind: "genre" })),
+                      ...g.genres.map((v): TagItem => ({
+                        v,
+                        cls: "bg-c-tag text-c-tag-text",
+                        kind: GENRE_VALUE_SET.has(v) ? "genre" : "plain",
+                      })),
                       ...(g.gameplay_modes ?? []).map((v): TagItem => ({ v, cls: "bg-blue-500/10 text-blue-500", kind: "plain" })),
                       ...(g.monetization ?? []).map((v): TagItem => ({ v, cls: "bg-amber-500/10 text-amber-500", kind: "plain" })),
                       ...(g.game_engine ? [{ v: g.game_engine, cls: "bg-c-tag text-c-faint", kind: "plain" as const }] : []),
@@ -1392,7 +1412,7 @@ export default async function Home({
                               value={v}
                               className={`text-xs px-2 py-0.5 rounded-full ${cls}`}
                             >
-                              {v}
+                              {genreLabel(v)}
                             </FilterPill>
                           ) : (
                             <span key={v} className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{v}</span>
