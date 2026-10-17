@@ -9,6 +9,7 @@ import { statusAllowsReleaseDate, STATUS_CLASSES } from "@/lib/gameStatus";
 import FilterPill from "@/components/FilterPill";
 import { formatDate } from "@/lib/formatDate";
 import { languageAlternates } from "@/lib/alternates";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 export async function generateMetadata({
   params,
@@ -133,7 +134,7 @@ export default async function StudioPage({
     <main className="max-w-3xl mx-auto px-4 py-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <div className="flex items-center justify-between gap-4">
         <Link

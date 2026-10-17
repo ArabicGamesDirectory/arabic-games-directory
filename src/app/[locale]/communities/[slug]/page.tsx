@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { COUNTRY_KEY_MAP } from "@/lib/countries";
 import { formatDate } from "@/lib/formatDate";
 import { languageAlternates } from "@/lib/alternates";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 export async function generateMetadata({
   params,
@@ -124,7 +125,7 @@ export default async function CommunityPage({
     <main className="max-w-3xl mx-auto px-4 py-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <div className="flex items-center justify-between gap-4">
         <Link

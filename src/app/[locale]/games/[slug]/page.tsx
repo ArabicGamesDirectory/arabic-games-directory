@@ -9,6 +9,7 @@ import FilterPill from "@/components/FilterPill";
 import GameTile from "@/components/GameTile";
 import { formatDate } from "@/lib/formatDate";
 import { languageAlternates } from "@/lib/alternates";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 export async function generateMetadata({
   params,
@@ -186,8 +187,8 @@ export default async function GameDetails({
     <main className="max-w-3xl mx-auto px-4 py-10">
       <script
         type="application/ld+json"
-        // Stringify safely — schema.org payloads can include any text content.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // Never plain JSON.stringify here — see src/lib/jsonLd.ts.
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       {/* Top nav row */}
       <div className="flex items-center justify-between gap-4">

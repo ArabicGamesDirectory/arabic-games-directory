@@ -1,0 +1,543 @@
+{
+  "_readme": "Community candidates researched 2026-10-02 — see community-candidates.md. Each `payload` matches validateSubmission('community') input; `_meta` is research notes and must NOT be submitted. Section A = ready, B = needs a decision (Game Zanga and Arab Dev Hub have an empty `country` on purpose).",
+  "candidates": [
+    {
+      "payload": {
+        "name": "Assembly Games Egypt",
+        "type": "hybrid",
+        "description": "Egypt's game-industry association, launched in 2026. It connects studios, independent developers, educators and institutions, and advocates for the local industry. Members gather on its Discord.",
+        "country": [
+          "Egypt"
+        ],
+        "website_url": "https://assemblygamesegypt.com/",
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Discord": "https://discord.gg/Sd3T4Hz76p",
+          "Instagram": "https://www.instagram.com/assemblygamesegypt/",
+          "Others": "https://www.linkedin.com/company/assembly-games-egypt"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "https://gamesindustryafrica.com/2026/05/11/assembly-games-egypt-launches-to-unite-and-grow-egypts-game-development-industry/",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "IGDA Egypt Chapter",
+        "type": "hybrid",
+        "description": "Egypt's chapter of the International Game Developers Association, founded in 2014 by ITI's System Development & Gaming Center of Excellence. Co-organises Egypt Game Jam with ITI's Game Development Academy.",
+        "country": [
+          "Egypt"
+        ],
+        "website_url": "https://igda.org/chapters/eg-egypt/",
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Facebook": "https://www.facebook.com/IGDA.Egypt.Chapter/"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "https://igda.org/chapters/eg-egypt/ ; https://egyptinnovate.com/en/news/iti-hosts-egypt-game-jam-2026",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Cairo",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Cairo, running meetups and online sessions for Unreal developers across Egypt.",
+        "country": [
+          "Egypt"
+        ],
+        "website_url": "https://communities.unrealengine.com/cairo/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "yellow",
+        "source": "communities.unrealengine.com",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "IGDA Saudi Arabia",
+        "type": "hybrid",
+        "description": "The International Game Developers Association's national chapter for Saudi Arabia. It grew out of IGDA Riyadh, launched in 2022 with Nine66, which runs free networking and knowledge-sharing events for game developers.",
+        "country": [
+          "Saudi Arabia"
+        ],
+        "website_url": "https://igda.org/chapters/kingdom-of-saudi-arabia-riyadh/",
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "yellow",
+        "source": "https://pocketgamer.biz/asia/news/79368/international-game-developers-association-announces-its-first-saudi-arabian-chapter/",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "SGN (Saudi Game News)",
+        "type": "online",
+        "description": "A Saudi platform for Arab game developers: a Discord community, game jams, and an itch.io storefront curating games, assets and tools made by Arab developers.",
+        "country": [
+          "Saudi Arabia"
+        ],
+        "website_url": "https://saudigamenews.com",
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Discord": "https://discord.gg/saudign-962095121946521600",
+          "X (Twitter)": "https://twitter.com/SGN_KSA",
+          "Instagram": "https://www.instagram.com/SGN_sa",
+          "YouTube": "https://www.youtube.com/@SGN_sa",
+          "Others": "https://sgn-sa.itch.io"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "https://links.saudigamenews.com",
+        "note": "Also a news brand — included for its dev Discord, jams and storefront.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Riyadh",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Riyadh, with workshops, talks and networking for game developers and real-time 3D creators.",
+        "country": [
+          "Saudi Arabia"
+        ],
+        "website_url": "https://communities.unrealengine.com/riyadh/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "yellow",
+        "source": "communities.unrealengine.com",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Amman",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Amman. It hosts meetups with local groups such as Jam3et Games and supports regional events like Game Zanga.",
+        "country": [
+          "Jordan"
+        ],
+        "website_url": "https://communities.unrealengine.com/amman/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "communities.unrealengine.com",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Dubai",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Dubai, running mixers, playtests and talks for developers and creators.",
+        "country": [
+          "United Arab Emirates"
+        ],
+        "website_url": "https://communities.unrealengine.com/dubai/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "communities.unrealengine.com",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Abu Dhabi",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Abu Dhabi, organised by local studio founders, with workshops and talks.",
+        "country": [
+          "United Arab Emirates"
+        ],
+        "website_url": "https://communities.unrealengine.com/abu-dhabi/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "yellow",
+        "source": "communities.unrealengine.com",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unity Connect UAE",
+        "type": "hybrid",
+        "description": "A Unity user group for developers, artists and designers across the UAE, based in Abu Dhabi and meeting in person and online.",
+        "country": [
+          "United Arab Emirates"
+        ],
+        "website_url": "https://www.meetup.com/unity-connect-uae/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "https://www.meetup.com/unity-connect-uae/",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Doha",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Doha, which held its first official meetup in April 2026.",
+        "country": [
+          "Qatar"
+        ],
+        "website_url": "https://communities.unrealengine.com/doha/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "communities.unrealengine.com",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Tunisia",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Tunisia, with hands-on sessions and community projects for game developers and real-time 3D creators.",
+        "country": [
+          "Tunisia"
+        ],
+        "website_url": "https://communities.unrealengine.com/tunis/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "communities.unrealengine.com",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Tunisian Game Developers (TGD)",
+        "type": "hybrid",
+        "description": "Tunisia's first game-development association, founded in February 2012. It brings together amateur and professional developers and links students with local studios.",
+        "country": [
+          "Tunisia"
+        ],
+        "website_url": null,
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Facebook": "https://www.facebook.com/TGD2012/"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "yellow",
+        "source": "https://www.facebook.com/TGD2012/",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "LebGameDev (Lebanese Game Developers)",
+        "type": "hybrid",
+        "description": "A community uniting Lebanese game developers: artists, programmers, designers, musicians and writers, whatever engine they use. It co-organised the Lebanon edition of Game Zanga in 2026.",
+        "country": [
+          "Lebanon"
+        ],
+        "website_url": null,
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Facebook": "https://www.facebook.com/lebgamedev/",
+          "Others": "https://itch.io/profile/lebgamedev"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "green",
+        "source": "https://lebgamedev.itch.io",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Engine Jeddah",
+        "type": "hybrid",
+        "description": "Epic Games' official Unreal Engine community chapter for Jeddah, holding periodic meetings for Unreal developers.",
+        "country": [
+          "Saudi Arabia"
+        ],
+        "website_url": "https://communities.unrealengine.com/jeddah/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "A",
+        "activity": "red",
+        "source": "communities.unrealengine.com",
+        "note": "Last listed event Feb 2025.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Game Zanga",
+        "type": "online",
+        "description": "A 72-hour online game jam for the Arab world, running since 2011, where developers, artists, designers and musicians build games around a revealed theme.",
+        "country": [],
+        "website_url": "https://www.gamezanga.net/",
+        "topics": [
+          "Game Development",
+          "Game Design"
+        ],
+        "social_links": {
+          "Discord": "https://discord.gg/xvxEPtrzgu",
+          "X (Twitter)": "https://twitter.com/GameZanga",
+          "Instagram": "https://www.instagram.com/gamezanga/",
+          "YouTube": "https://www.youtube.com/@gamezanga",
+          "Facebook": "https://www.facebook.com/GameZanga",
+          "Others": "https://www.linkedin.com/company/gamezanga"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "B",
+        "activity": "green",
+        "source": "https://www.gamezanga.net/",
+        "note": "Pan-Arab: country is empty on purpose — the validator requires >=1, so pick before importing. Check the founding year in the description.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Arab Dev Hub",
+        "type": "online",
+        "description": "An Arabic-language Discord for Roblox Studio developers, with tutorials, workshops and competitions in scripting, modelling and design.",
+        "country": [],
+        "website_url": null,
+        "topics": [
+          "Game Development",
+          "Game Programming"
+        ],
+        "social_links": {
+          "Discord": "https://discord.com/servers/arab-dev-hub-1291109037261197433"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "B",
+        "activity": "green",
+        "source": "https://discord.com/servers/arab-dev-hub-1291109037261197433",
+        "note": "Pan-Arab (country empty) and Roblox-only.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Palestinian Voices in Games",
+        "type": "online",
+        "description": "A volunteer network of international game developers supporting Palestinian indie developers with production help, funding connections and administrative support.",
+        "country": [
+          "Palestine"
+        ],
+        "website_url": "https://palestinian-voices-in-games.com/",
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Others": "https://buttondown.com/PalestinianVoicesInGames"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "B",
+        "activity": "green",
+        "source": "https://aftermath.site/palestinian-voice-in-games-coalition-helps-game-developers/",
+        "note": "Run for Palestinian devs by an international network rather than based in Palestine.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "IGDA Palestine (An-Najah National University)",
+        "type": "in_person",
+        "description": "The International Game Developers Association's student chapter at An-Najah National University, connecting Palestinian game-development students with the wider IGDA network.",
+        "country": [
+          "Palestine"
+        ],
+        "website_url": "https://igda.org/chapters/ps-palestine/",
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Facebook": "https://www.facebook.com/igdaPalestine/"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "B",
+        "activity": "yellow",
+        "source": "https://igda.org/chapters/ps-palestine/",
+        "note": "Student chapter; recent activity unconfirmed.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "IGDA UAE",
+        "type": "hybrid",
+        "description": "The International Game Developers Association's chapter for the United Arab Emirates.",
+        "country": [
+          "United Arab Emirates"
+        ],
+        "website_url": "https://igda.org/chapters/ae-uae/",
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {},
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "B",
+        "activity": "yellow",
+        "source": "https://igda.org/chapters/ae-uae/",
+        "note": "Chapter page is only a contact form; activity unconfirmed.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Unreal Bahrain",
+        "type": "hybrid",
+        "description": "Bahrain's game-developer network, connecting local creators through meetups, workshops and game jams, with a focus on Unreal Engine.",
+        "country": [
+          "Bahrain"
+        ],
+        "website_url": "https://unrealbahrain.com/",
+        "topics": [
+          "Game Development",
+          "Game Art"
+        ],
+        "social_links": {
+          "Discord": "https://discord.gg/ryqCe8z",
+          "Instagram": "https://www.instagram.com/unrealbahrain/",
+          "X (Twitter)": "https://twitter.com/UnrealBahrain",
+          "Others": "https://communities.unrealengine.com/riffa/"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "B",
+        "activity": "red",
+        "source": "https://unrealbahrain.com/",
+        "note": "Website's last post Feb 2022; Discord has 181 members.",
+        "verified": "2026-10-02"
+      }
+    },
+    {
+      "payload": {
+        "name": "Sudanese Game Collective (SGC)",
+        "type": "hybrid",
+        "description": "A group of young Sudanese developers promoting video game development, which grew out of workshops and game jams run with Cologne Game Lab and the Goethe-Institut since 2017.",
+        "country": [
+          "Sudan"
+        ],
+        "website_url": null,
+        "topics": [
+          "Game Development"
+        ],
+        "social_links": {
+          "Others": "https://github.com/sgcsd"
+        },
+        "thumbnail_url": null
+      },
+      "_meta": {
+        "section": "B",
+        "activity": "red",
+        "source": "https://colognegamelab.de/workshop-with-sudanese-game-collective/",
+        "note": "sgc.sd is down; GitHub last updated Aug 2024.",
+        "verified": "2026-10-02"
+      }
+    }
+  ]
+}
